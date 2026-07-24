@@ -147,11 +147,12 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 
 実機がない現在のPCでは、Goal 1からGoal 5までのソフトウェア基盤を進められる。ただし、プリンター方式を固定する実装はWindows本番ノートPCでのprobe後に行う。
 
+要件v0.5は `docs/requirements/即売会向けPOSレジ_要件定義_v0.5.md` として作成済み。
+
 直近の推奨作業:
 
-1. 要件v0.4と確定ADRを統合した要件v0.5を作る。
-2. pnpm/TypeScript monorepo、Fastify、React、SQLite migrationの骨格を作る。
-3. UUIDv7、共通受付番号、Damm検査数字を実装し、自動試験を追加する。
-4. fake PrinterTransportとESC/POS golden testの境界を作る。
-5. Discord botから移植する印刷コードの一覧と移植元commitを記録する。
+1. pnpm/TypeScript monorepo、Fastify、React、SQLite migrationの骨格を作る。
+2. UUIDv7、共通受付番号、Damm検査数字を実装し、自動試験を追加する。
+3. fake PrinterTransportとESC/POS golden testの境界を作る。
+4. Discord botから移植する印刷コードの一覧と移植元commitを記録する。
 
