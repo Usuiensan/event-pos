@@ -18,6 +18,8 @@
 ```text
 docs/requirements/       元の要件定義
 docs/design/             ADR、アーキテクチャ、データ、印刷、試験設計
+docs/HANDOFF.md          別PCへ移るためのプロジェクト知識の正本
+docs/CODEX_CONTINUATION_PROMPT.md  新しいCodexタスクの開始文
 docs/printer-baseline/   Debian環境のbytes・設定・紙面比較資料
 tools/hardware-test/     Windows/TM-T70II実機検証ツール
 deploy/windows/          Windows導入・service・復旧手順
