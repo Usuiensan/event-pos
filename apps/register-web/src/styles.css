@@ -20,6 +20,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; } body { overflow:
 .cancel-confirm button:first-of-type { background: #dc2626; } .cancel-confirm button + button { margin-left: .7rem; background: #64748b; }
 .modal-backdrop { position: fixed; inset: 0; background: #111827aa; display: grid; place-items: center; z-index: 10; } .modal { width: min(90vw, 560px); background: #f8fafc; border: 3px solid #0ea5e9; box-shadow: 0 12px 40px #0008; text-align: center; } .modal h2 { background: #0ea5e9; color: white; padding: .8rem; } .modal p { padding: 1rem; line-height: 1.7; } .modal input { width: 70%; padding: .8rem; border: 2px solid #eab308; font-size: 1.2rem; } .modal button { margin: 1rem; background: #facc15; border: 1px solid #a16207; } .payment { border-color: #facc15; } .payment h2 { background: #facc15; color: #713f12; } .receipt-icon { font-size: 3rem; } .payment-line { padding: .6rem 1rem; border-top: 1px solid #94a3b8; text-align: right; font-size: 1.2rem; } .payment-line.change { color: #dc2626; font-size: 1.5rem; }
  .cancelled-line { color: #dc2626 !important; text-decoration: line-through; text-decoration-thickness: 2px; }
+.product-panel { display: flex; flex-direction: column; gap: 1.25rem; }
 .product-tabs { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
 .product-tabs button { min-height: 2.4rem; padding: .35rem .8rem; border: 2px solid #64748b; background: #e2e8f0; font-weight: 700; touch-action: manipulation; }
 .product-tabs button.active { outline: 4px solid #1d4ed8; outline-offset: 1px; }
