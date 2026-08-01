@@ -28,6 +28,23 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(400);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: { ...movement, idempotencyKey: "after-close" } })).statusCode).toBe(400);
   });
+  it("restores cash session, ledger, check, and closed state after SQLite reopen", async () => {
+    const databasePath = "./.cash-persistence-test.sqlite";
+    rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
+    const database = openDatabase(databasePath); const app = buildApp({ database }); apps.push(app);
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "persist-1", eventId: "e1", businessDate: "2026-08-02" } });
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }], actorId: "staff-1", terminalId: "register-1" } });
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/movements", payload: { type: "sale", amountYen: 500, reason: "sale", idempotencyKey: "persist-sale", actorId: "staff-1", terminalId: "register-1" } });
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }], carryoverYen: 1000 } });
+    await app.close(); apps.splice(apps.indexOf(app), 1);
+    const app2 = buildApp({ database: openDatabase(databasePath) }); apps.push(app2);
+    const replay = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/movements", payload: { type: "sale", amountYen: 500, reason: "sale", idempotencyKey: "persist-sale" } });
+    expect(replay.statusCode).toBe(400);
+    const reopen = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/reopen", payload: { reason: "確認のため再開", actorId: "manager-1", terminalId: "register-1" } });
+    expect(reopen.statusCode).toBe(200);
+    await app2.close(); apps.splice(apps.indexOf(app2), 1);
+    rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
+  });
   it("persists and restores an event catalog through the API", async () => {
     const databasePath = "./.catalog-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
