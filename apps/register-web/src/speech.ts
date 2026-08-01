@@ -20,7 +20,10 @@ const yenParts: Record<string, string> = {
 
 export function createSpeechPlayer(options: { speakerId?: number } = {}): SpeechPlayer {
   let speakerId = options.speakerId ?? 1;
+  let active: HTMLAudioElement[] = [];
   return { get speakerId() { return speakerId; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 1; }, speak(text) {
+    for (const audio of active) { audio.pause(); audio.currentTime = 0; }
+    active = [];
     const parts = text.split(" ").filter(Boolean);
     const urls: string[] = [];
     const suffixOffset = parts.at(-1) === "です" ? 1 : 0;
@@ -32,12 +35,12 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}`);
     if (yenFile && suffixOffset) urls.push(prepared["です"]!);
     if (urls.length && typeof Audio !== "undefined") {
-      let index = 0; const play = () => { const audio = new Audio(urls[index]); audio.onended = () => { index += 1; if (index < urls.length) play(); }; void audio.play().catch(() => fallback(text)); }; play(); return;
+      let index = 0; const play = () => { const audio = new Audio(urls[index]); active.push(audio); audio.playbackRate = yenFile ? 1.8 : 1.35; audio.onended = () => { index += 1; if (index < urls.length) play(); else active = []; }; void audio.play().catch(() => fallback(text)); }; play(); return;
     }
     fallback(text);
   } };
 }
-function fallback(text: string): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; window.speechSynthesis.speak(utterance); }
+function fallback(text: string): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
 export function speakReceiptReady(player: SpeechPlayer): void { player.speak("レシートをお受け取りください"); }
