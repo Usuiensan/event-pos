@@ -32,6 +32,11 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              counted_json TEXT NOT NULL, theoretical_yen INTEGER NOT NULL, carryover_yen INTEGER NOT NULL,
              counted_yen INTEGER NOT NULL, difference_yen INTEGER NOT NULL, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
+           );
+           CREATE TABLE IF NOT EXISTS cash_movements (
+             id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, type TEXT NOT NULL,
+             amount_yen INTEGER NOT NULL, transaction_id TEXT, reason TEXT NOT NULL, created_at TEXT NOT NULL,
+             FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
   if (!existing) {
@@ -79,6 +84,22 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
   if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
   db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) SELECT event_id, ?, 'cash_check', ?, ?, ? FROM cash_sessions WHERE session_id = ?").run(check.kind, check.sessionId, JSON.stringify(check), check.createdAt, check.sessionId);
   return check;
+}
+
+export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; createdAt: string };
+
+export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashMovement {
+  if (!Number.isSafeInteger(movement.amountYen) || movement.amountYen <= 0 || !movement.reason.trim()) throw new Error("現金移動が不正です");
+  db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(movement.sessionId, movement.type, movement.amountYen, movement.transactionId ?? null, movement.reason, movement.createdAt);
+  db.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('cash_movement', 'cash_movement', ?, ?, ?)").run(movement.sessionId, JSON.stringify(movement), movement.createdAt);
+  return movement;
+}
+
+export function getTheoreticalCash(db: PosDatabase, sessionId: string): number {
+  const session = db.prepare("SELECT opening_yen FROM cash_sessions WHERE session_id = ?").get(sessionId) as { opening_yen?: number } | undefined;
+  if (!session) throw new Error("cash session not found");
+  const row = db.prepare("SELECT COALESCE(SUM(CASE WHEN type IN ('sale', 'pay_in') THEN amount_yen ELSE -amount_yen END), 0) AS movement_yen FROM cash_movements WHERE session_id = ?").get(sessionId) as { movement_yen: number };
+  return Number(session.opening_yen ?? 0) + Number(row.movement_yen);
 }
 
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {
