@@ -1,6 +1,4 @@
 const digits = ["ぜろ", "いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう"] as const;
-const smallUnits = ["", "じゅう", "ひゃく", "せん"] as const;
-
 function readGroup(value: number): string[] {
   const parts: string[] = [];
   for (let place = 3; place >= 0; place -= 1) {
@@ -9,8 +7,13 @@ function readGroup(value: number): string[] {
     if (digit === 0) continue;
     if (place === 0) parts.push(digits[digit]!);
     else if (place === 1) parts.push(digit === 1 ? "じゅう" : `${digits[digit]}じゅう`);
-    else if (place === 2) parts.push(digit === 1 ? "ひゃく" : `${digits[digit]}ひゃく`);
-    else parts.push(digit === 1 ? "せん" : `${digits[digit]}せん`);
+    else if (place === 2) {
+      const hundreds = ["", "ひゃく", "にひゃく", "さんびゃく", "よんひゃく", "ごひゃく", "ろっぴゃく", "ななひゃく", "はっぴゃく", "きゅうひゃく"] as const;
+      parts.push(hundreds[digit]!);
+    } else {
+      const thousands = ["", "せん", "にせん", "さんぜん", "よんせん", "ごせん", "ろくせん", "ななせん", "はっせん", "きゅうせん"] as const;
+      parts.push(thousands[digit]!);
+    }
   }
   return parts;
 }
