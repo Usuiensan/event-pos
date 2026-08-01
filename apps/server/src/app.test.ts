@@ -19,7 +19,7 @@ describe("server foundation", () => {
   });
   it("rejects duplicate closing and idempotency payload changes", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1", payload: { sessionId: "s1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "s1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(201);
     const movement = { type: "sale", amountYen: 100, reason: "sale", idempotencyKey: "same" };
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: movement })).statusCode).toBe(201);
