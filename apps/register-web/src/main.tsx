@@ -5,7 +5,7 @@ import { createSpeechPlayer, speakChangeReady, speakProductPrice, speakReceiptRe
 import "./styles.css";
 
 const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
-  { productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO001" },
+  { productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO001", tabId: "books", displayColor: "#dbeafe" },
   { productCode: "A002", name: "既刊", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO002" },
   { productCode: "A003", name: "チューハイ 氷結 レモン", priceInclTax: 79, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO003" },
   { productCode: "A004", name: "トリス レモンハイ", priceInclTax: 108, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO004" },
@@ -13,11 +13,11 @@ const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
   { productCode: "A006", name: "いろはす 2L", priceInclTax: 98, taxRate: 8, saleState: "on_sale", internalToken: "P1DEMO006" },
   { productCode: "A007", name: "国鉄杯Ⅲ", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO007" },
   { productCode: "A008", name: "新刊ポストカード", priceInclTax: 300, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO008" },
-  { productCode: "A009", name: "R18新刊", priceInclTax: 800, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO009" },
+  { productCode: "A009", name: "R18新刊", priceInclTax: 800, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO009", ageCheck: "18", tabId: "adult", displayColor: "#fbcfe8" },
 ], quickEntries: [
   { id: "set-1", label: "新刊2冊セット", components: [{ productCode: "A001", quantity: 2 }] },
   { id: "r18-1", label: "R18新刊", components: [{ productCode: "A009", quantity: 1 }] },
-] };
+], productTabs: [{ id: "books", label: "新刊・既刊", color: "#dbeafe" }, { id: "adult", label: "成人向け", color: "#fbcfe8" }] };
 
 function App() {
   const role = new URLSearchParams(window.location.search).get("role") === "customer" ? "customer" : "staff";
@@ -29,6 +29,7 @@ function App() {
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<{ name: string; quantity: number; unitPrice: number } | null>(null);
   const [panel, setPanel] = useState<"detail" | "products">("detail");
+  const [productTab, setProductTab] = useState("all");
   const [showSignIn, setShowSignIn] = useState(true);
   const [showBusinessMenu, setShowBusinessMenu] = useState(false);
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -42,7 +43,7 @@ function App() {
   const [received, setReceived] = useState(0);
   const [inputBuffer, setInputBuffer] = useState("");
   const [paymentFinished, setPaymentFinished] = useState(false);
-  const ageRequirement = (product: ProductDefinition): 18 | 20 | null => /R18|18禁|成人向け/.test(product.name) ? 18 : /チューハイ|レモンハイ|獺祭|酒|ビール/.test(product.name) ? 20 : null;
+  const ageRequirement = (product: ProductDefinition): 18 | 20 | null => product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : product.ageCheck === "none" ? null : /R18|18禁|成人向け/.test(product.name) ? 18 : /チューハイ|レモンハイ|獺祭|酒|ビール/.test(product.name) ? 20 : null;
   const isAgeRestricted = (product: ProductDefinition) => ageRequirement(product) !== null;
   const showError = (message: string) => setErrorModal(message);
   const today = new Date();
@@ -52,6 +53,7 @@ function App() {
   const speech = useMemo<SpeechPlayer>(() => createSpeechPlayer({ speakerId }), []);
   const fileRef = useRef<HTMLInputElement>(null);
   const activeCart = cart.filter((line) => !line.cancelled);
+  const visibleProducts = catalog.products.filter((product) => productTab === "all" || product.tabId === productTab);
   const total = activeCart.reduce((sum, line) => sum + line.product.priceInclTax * line.quantity, 0);
   useEffect(() => {
     const sync = () => { try { const saved = JSON.parse(localStorage.getItem("event-pos-cart") ?? "[]") as Array<{ productCode: string; quantity: number; cancelled?: boolean }>; setCart(saved.flatMap((item) => { const product = catalog.products.find((candidate) => candidate.productCode === item.productCode); return product ? [{ product, quantity: item.quantity, ...(item.cancelled ? { cancelled: true } : {}) }] : []; })); } catch { /* ignore malformed preview state */ } };
@@ -92,8 +94,8 @@ function App() {
   if (role === "customer") return <main className="pos-screen customer-screen"><header className="pos-header"><span>登録明細</span><span>お客様画面</span></header><section className="customer-lines">{customerAgeNotice && <div className={`age-notice ${customerAgeNotice}`}><strong>{customerAgeNotice === "required" ? `${customerAgeMinimum}歳以上の年齢確認が必要です` : `年齢確認済み（${customerAgeMinimum}歳以上）`}</strong></div>}{cart.length === 0 ? <div className="customer-empty">いらっしゃいませ</div> : cart.map((line, index) => <div className={`customer-line ${line.cancelled ? "cancelled-line" : ""}`} key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>@{line.product.priceInclTax.toLocaleString()}</span><span>{line.quantity}点</span></div>)}</section><footer className="customer-total"><span>合計　{activeCart.reduce((sum, line) => sum + line.quantity, 0)}点</span><strong>{total.toLocaleString()}円</strong></footer></main>;
   return <main className="pos-screen register-shell">
     <header><p className="eyebrow">event-pos / {catalog.eventId}</p><h1>{loading ? "カタログ読み込み中" : message}</h1></header>
-    <section className="toolbar"><button className="business-menu-button" onClick={() => setShowBusinessMenu(true)}>業務メニュー</button><label>音声話者<select value={speakerId} onChange={(event) => { const next = Number(event.target.value); setSpeakerId(next); localStorage.setItem("event-pos-speaker", String(next)); speech.setSpeaker(next); }}><option value="1">ずんだもん</option><option value="3">四国めたん</option><option value="8">春日部つむぎ</option><option value="114">あんこもん（つよつよ）</option></select></label><button className="cancel-top" onClick={() => setCancelConfirm(true)}>登録中止</button></section>
-    {panel === "products" ? <section className="product-grid">{catalog.products.map((product) => <button key={product.productCode} disabled={product.saleState !== "on_sale"} onPointerUp={() => addProduct(product)}><strong>{product.name}</strong><span>{product.priceInclTax.toLocaleString()}円</span></button>)}{catalog.quickEntries.map((quick) => <button key={quick.id} className="quick" onPointerUp={() => addQuick(quick)}><strong>{quick.label}</strong></button>)}</section> : <section className="detail-panel"><h2>登録明細 A</h2><div className="detail-head"><span>NO.</span><span>属性</span><span>商品名</span><span>数量</span><span>単価</span><span>値引</span><span>操作</span></div>{cart.map((line, index) => <div role="button" tabIndex={0} onPointerUp={() => setSelectedLine(line.product.productCode)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedLine(line.product.productCode); }} className={`detail-row ${line.cancelled ? "cancelled-line" : ""} ${highlighted === line.product.productCode ? "line-highlight" : ""}`} key={`${line.product.productCode}-${index}`}><span>{index + 1}</span><span>—</span><strong>{line.product.name}</strong><span>{line.quantity}</span><span>{line.product.priceInclTax.toLocaleString()}</span><span>—</span><span>タップして操作</span></div>)}{cart.length === 0 && <div className="empty-detail">登録待ち</div>}</section>}
+    <section className="toolbar"><button className="business-menu-button" onClick={() => setShowBusinessMenu(true)}>業務メニュー</button><label>音声話者<select value={speakerId} onChange={(event) => { const next = Number(event.target.value); setSpeakerId(next); localStorage.setItem("event-pos-speaker", String(next)); speech.setSpeaker(next); }}><option value="1">ずんだもん</option><option value="3">四国めたん</option><option value="8">春日部つむぎ</option><option value="114">あんこもん（つよつよ）</option></select></label><div className="product-tabs"><button className={productTab === "all" ? "active" : ""} onPointerUp={() => setProductTab("all")}>すべて</button>{(catalog.productTabs ?? []).map((tab) => <button key={tab.id} className={productTab === tab.id ? "active" : ""} style={tab.color ? { backgroundColor: tab.color } : undefined} onPointerUp={() => setProductTab(tab.id)}>{tab.label}</button>)}</div><button className="cancel-top" onClick={() => setCancelConfirm(true)}>登録中止</button></section>
+    {panel === "products" ? <section className="product-grid">{visibleProducts.map((product) => <button key={product.productCode} disabled={product.saleState !== "on_sale"} style={product.displayColor ? { backgroundColor: product.displayColor } : undefined} onPointerUp={() => addProduct(product)}><strong>{product.name}</strong><span>{product.ageCheck && product.ageCheck !== "none" ? `${product.ageCheck}歳確認` : "確認不要"}　{product.priceInclTax.toLocaleString()}円</span></button>)}{catalog.quickEntries.map((quick) => <button key={quick.id} className="quick" onPointerUp={() => addQuick(quick)}><strong>{quick.label}</strong></button>)}</section> : <section className="detail-panel"><h2>登録明細 A</h2><div className="detail-head"><span>NO.</span><span>属性</span><span>商品名</span><span>数量</span><span>単価</span><span>値引</span><span>操作</span></div>{cart.map((line, index) => <div role="button" tabIndex={0} onPointerUp={() => setSelectedLine(line.product.productCode)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedLine(line.product.productCode); }} className={`detail-row ${line.cancelled ? "cancelled-line" : ""} ${highlighted === line.product.productCode ? "line-highlight" : ""}`} key={`${line.product.productCode}-${index}`}><span>{index + 1}</span><span>—</span><strong>{line.product.name}</strong><span>{line.quantity}</span><span>{line.product.priceInclTax.toLocaleString()}</span><span>—</span><span>タップして操作</span></div>)}{cart.length === 0 && <div className="empty-detail">登録待ち</div>}</section>}
     <section className="staff-bottom"><div className="last-added">{lastAdded ? <><strong>{lastAdded.name}</strong><span>{lastAdded.quantity}個　{lastAdded.unitPrice.toLocaleString()}</span></> : <span>登録待ち</span>}</div><div className="staff-total"><span>合計</span><strong>{activeCart.reduce((sum, line) => sum + line.quantity, 0)}点　{total.toLocaleString()}円</strong></div><div className="payment-controls"><button onClick={() => { speakSubtotal(speech, `合計金額は ${formatJapaneseYenSpeech(total)}`); setMessage(`合計金額は${total.toLocaleString()}円です`); }}>小計</button><span className="payment-result">お預り {received.toLocaleString()}円　お釣り {Math.max(0, received - total).toLocaleString()}円</span></div></section>
     <button className="panel-switch" onClick={() => setPanel((current) => current === "detail" ? "products" : "detail")}>{panel === "detail" ? "商品登録へ" : "登録明細へ"}</button>
     {inputBuffer && <div className="cash-popup"><span>お預り金額</span><strong>{Number(inputBuffer).toLocaleString()}円</strong><small>Enterで現計・レシート発行</small></div>}

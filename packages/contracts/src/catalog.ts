@@ -5,7 +5,12 @@ export type ProductDefinition = {
   taxRate: number;
   saleState: "on_sale" | "off_sale";
   internalToken?: string;
+  ageCheck?: "none" | "18" | "20";
+  tabId?: string;
+  displayColor?: string;
 };
+
+export type ProductTab = { id: string; label: string; color?: string };
 
 export type QuickEntry = {
   id: string;
@@ -15,7 +20,7 @@ export type QuickEntry = {
   components?: Array<{ productCode: string; quantity: number }>;
 };
 
-export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[] };
+export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; productTabs?: ProductTab[] };
 
 function fail(message: string): never { throw new Error(message); }
 
@@ -32,7 +37,9 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (typeof p.taxRate !== "number" || p.taxRate < 0 || p.taxRate > 100) fail(`products[${index}].taxRateが不正です`);
     if (p.saleState !== "on_sale" && p.saleState !== "off_sale") fail(`products[${index}].saleStateが不正です`);
     const priceInclTax = p.priceInclTax as number;
-    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}) };
+    if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
+    for (const key of ["displayColor", "tabId"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
+    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);
@@ -52,7 +59,8 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (q.components) result.components = q.components;
     return result;
   });
-  return { eventId: value.eventId, products, quickEntries };
+  const productTabs = value.productTabs?.map((raw, index) => { const tab = raw as Partial<ProductTab>; if (typeof tab.id !== "string" || !tab.id.trim() || typeof tab.label !== "string" || !tab.label.trim()) fail(`productTabs[${index}]のid/labelが必要です`); if (tab.color !== undefined && typeof tab.color !== "string") fail(`productTabs[${index}].colorが不正です`); return { id: tab.id, label: tab.label, ...(tab.color ? { color: tab.color } : {}) }; });
+  return { eventId: value.eventId, products, quickEntries, ...(productTabs ? { productTabs } : {}) };
 }
 
 export function importEventCatalog(json: string): EventCatalog { try { return validateEventCatalog(JSON.parse(json)); } catch (error) { throw new Error(error instanceof Error ? error.message : "JSONが不正です"); } }
