@@ -3,7 +3,7 @@ import type { PrinterStatus, PrinterTransport } from "./transport.js";
 
 /** Linux RAW USB transport skeleton. Device/status behavior remains hardware-gated. */
 export class LinuxRawTransport implements PrinterTransport {
-  private handle?: FileHandle;
+  private handle: FileHandle | undefined;
   constructor(private readonly devicePath: string) {}
   async getStatus(): Promise<PrinterStatus> {
     return "unknown";
