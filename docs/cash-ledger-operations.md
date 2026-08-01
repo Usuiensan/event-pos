@@ -10,6 +10,19 @@
 6. 精算後の現金移動・点検が拒否されることを確認する。
 7. 訂正が必要な場合は、理由・担当者・端末を指定して `reopen` を実行する。過去の精算記録は削除しない。
 
+売上・返品は次の原子APIを使う。取引レコードと現金台帳が同一トランザクションで確定する。
+
+```text
+POST /api/v1/cash-sessions/:sessionId/transactions/sale
+POST /api/v1/cash-sessions/:sessionId/transactions/return
+```
+
+過不足調査後に候補を確認した場合は、確認APIを実行して監査へ記録する。
+
+```text
+POST /api/v1/cash-sessions/:sessionId/journal-candidates/confirm
+```
+
 ## SQLiteバックアップ
 
 稼働中のDBファイルを直接コピーせず、サービス停止後にWALを含む3ファイルを保存する。
