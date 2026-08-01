@@ -21,3 +21,38 @@ PRINTER_DEVICE=/dev/usb/lp0 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii \
 ```
 
 `statusBefore=unknown`でも送信可否と印刷結果を分離して記録する。デバイスが未指定の場合はデバイスへ触れず終了コード2とする。送信途中のI/Oエラーは`unknown`として保存し、自動再送しない。
+
+## Goal 6 実機試験手順
+
+試験はLinux端末上で、プリンターを接続した状態から行う。`/dev/usb/lp0`の番号は固定せず、まず実際のデバイス名と権限を記録する。
+
+```sh
+uname -a
+uname -m
+cat /etc/os-release
+ls -l /dev/usb/lp* 2>/dev/null || true
+systemctl status event-pos-printer-host --no-pager || true
+```
+
+### A. RAW送信と紙面
+
+```sh
+PRINTER_DEVICE=/dev/usb/lp0 \
+PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/$(date +%Y%m%d-%H%M%S) \
+pnpm --filter @event-pos/printer-host hardware-test
+```
+
+JSONの`result`、`statusBefore`、`bytesSha256`、`bytesLength`を保存し、紙面の文字・フィード・カットを目視して同じ試験番号へ記録する。送信成功だけでは紙面完了の証拠としない。
+
+### B. 切断・再接続
+
+1. printer-hostを停止し、USBを抜いた状態でprobeを実行する。デバイス未存在またはI/Oエラーは`unknown`になり、自動再送されないことを確認する。
+2. USBを再接続し、`ls -l`でデバイスノードを再確認する。
+3. systemd運用では`systemctl restart event-pos-printer-host`後に`systemctl is-active`とjournalを保存する。
+4. 同じ`jobId`を再送して二重印刷されないこと、紙面確認後の明示再印刷だけが新しい印刷になることを確認する。
+
+### C. status能力表
+
+紙切れ、カバー開放、USB切断を各1回実施し、取得できた値を`ready`、`paper_out`、`offline`、`unknown`のいずれかで記録する。取得できない機種・接続方式は`unknown`のままADR-P002へ記載し、正常扱いに補正しない。
+
+証跡には、試験日時、機種、OS、CPUアーキテクチャ、device path、systemd unit、入力fixtureのhash、結果JSON、紙面写真、操作と判定者を紐付ける。
