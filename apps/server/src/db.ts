@@ -3,6 +3,8 @@ import type { PrintJob, PrintJobRequest, PrintJobStateUpdate } from "@event-pos/
 
 export type PosDatabase = DatabaseSync;
 
+export type CatalogRecord = { eventId: string; catalogJson: string; updatedAt: string };
+
 export function openDatabase(filename = ":memory:"): PosDatabase {
   const db = new DatabaseSync(filename);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
@@ -13,12 +15,19 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              document_type TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL,
              state TEXT NOT NULL, updated_at TEXT NOT NULL, error_message TEXT,
              source TEXT, source_event_id TEXT, renderer_version TEXT, bytes_sha256 TEXT
+           );
+           CREATE TABLE IF NOT EXISTS event_catalogs (
+             event_id TEXT PRIMARY KEY, catalog_json TEXT NOT NULL, updated_at TEXT NOT NULL
+           );
+           CREATE TABLE IF NOT EXISTS audit_log (
+             id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, action TEXT NOT NULL,
+             entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, detail_json TEXT NOT NULL, created_at TEXT NOT NULL
            );`);
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
   if (!existing) {
     db.exec("BEGIN;");
     try {
-      db.prepare("INSERT INTO app_metadata (key, value) VALUES (?, ?)").run("schema_version", "1");
+      db.prepare("INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run("schema_version", "2");
       db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(1, new Date().toISOString());
       db.exec("COMMIT;");
     } catch (error) {
@@ -26,7 +35,28 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
       throw error;
     }
   }
+  const catalogMigration = db.prepare("SELECT version FROM schema_migrations WHERE version = 2").get();
+  if (!catalogMigration) {
+    db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(2, new Date().toISOString());
+    db.prepare("INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run("schema_version", "2");
+  }
   return db;
+}
+
+export function getCatalog(db: PosDatabase, eventId: string): CatalogRecord | undefined {
+  const row = db.prepare("SELECT event_id, catalog_json, updated_at FROM event_catalogs WHERE event_id = ?").get(eventId) as Record<string, unknown> | undefined;
+  return row ? { eventId: String(row.event_id), catalogJson: String(row.catalog_json), updatedAt: String(row.updated_at) } : undefined;
+}
+
+export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: string, action = "upsert"): CatalogRecord {
+  const updatedAt = new Date().toISOString();
+  db.exec("BEGIN;");
+  try {
+    db.prepare("INSERT INTO event_catalogs (event_id, catalog_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET catalog_json = excluded.catalog_json, updated_at = excluded.updated_at").run(eventId, catalogJson, updatedAt);
+    db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'event_catalog', ?, ?, ?)").run(eventId, action, eventId, catalogJson, updatedAt);
+    db.exec("COMMIT;");
+  } catch (error) { db.exec("ROLLBACK;"); throw error; }
+  return { eventId, catalogJson, updatedAt };
 }
 
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {

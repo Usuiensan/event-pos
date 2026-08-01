@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createPrintJob, getPrintJob, updatePrintJob, type PosDatabase } from "./db.js";
-import type { PrintJobRequest, PrintJobState, PrintJobStateUpdate } from "@event-pos/contracts";
+import { createPrintJob, getCatalog, getPrintJob, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { exportEventCatalog, importEventCatalog, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
 const isPrintJobState = (value: unknown): value is PrintJobState => typeof value === "string" && printJobStates.includes(value as PrintJobState);
@@ -21,6 +21,19 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
   app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
+  app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
+    const record = getCatalog(options.database, request.params.eventId);
+    if (!record) return reply.code(404).send({ error: "catalog_not_found" });
+    return { catalog: importEventCatalog(record.catalogJson), updatedAt: record.updatedAt };
+  });
+  app.put<{ Params: { eventId: string }; Body: EventCatalog | { json: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
+    try {
+      const catalog = "json" in (request.body ?? {}) ? importEventCatalog(String((request.body as { json: string }).json)) : importEventCatalog(JSON.stringify(request.body));
+      if (catalog.eventId !== request.params.eventId) return reply.code(400).send({ error: "event_id_mismatch" });
+      const record = saveCatalog(options.database, catalog.eventId, exportEventCatalog(catalog));
+      return reply.code(200).send({ catalog, updatedAt: record.updatedAt });
+    } catch (error) { return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
+  });
   app.post<{ Body: PrintJobRequest }>("/api/v1/print-jobs", async (request, reply) => {
     const body = request.body;
     if (!body?.jobId || !body.transactionId || !body.printerId || !body.documentType || !body.createdAt) return reply.code(400).send({ error: "invalid_print_job" });

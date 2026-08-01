@@ -3,11 +3,37 @@ import { buildApp } from "./app.js";
 import { openDatabase } from "./db.js";
 import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
+import { rmSync } from "node:fs";
 
 const apps: ReturnType<typeof buildApp>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 
 describe("server foundation", () => {
+  it("persists and restores an event catalog through the API", async () => {
+    const databasePath = "./.catalog-persistence-test.sqlite";
+    rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
+    const database = openDatabase(databasePath);
+    const app = buildApp({ database });
+    apps.push(app);
+    const catalog = { eventId: "event-catalog", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1A001" }], quickEntries: [{ id: "set-1", label: "セット", components: [{ productCode: "A001", quantity: 2 }] }] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-catalog/catalog", payload: catalog })).statusCode).toBe(200);
+    expect((await app.inject({ method: "GET", url: "/api/v1/events/event-catalog/catalog" })).json().catalog).toEqual(catalog);
+    await app.close(); apps.splice(apps.indexOf(app), 1);
+    const app2 = buildApp({ database: openDatabase(databasePath) });
+    apps.push(app2);
+    expect((await app2.inject({ method: "GET", url: "/api/v1/events/event-catalog/catalog" })).json().catalog).toEqual(catalog);
+    await app2.close(); apps.splice(apps.indexOf(app2), 1);
+    rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
+  });
+
+  it("rejects invalid catalog references and duplicate product codes", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const product = { productCode: "A", name: "A", priceInclTax: 100, taxRate: 10, saleState: "on_sale" } as const;
+    const base = { eventId: "event-invalid", products: [product], quickEntries: [] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-invalid/catalog", payload: { ...base, products: [product, product] } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-invalid/catalog", payload: { ...base, quickEntries: [{ id: "q", label: "bad", components: [{ productCode: "missing", quantity: 1 }] }] } })).statusCode).toBe(400);
+  });
+
   it("serves live, ready, and info endpoints against SQLite", async () => {
     const app = buildApp({ database: openDatabase() });
     apps.push(app);
