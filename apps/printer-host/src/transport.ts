@@ -9,6 +9,9 @@ export type PrinterTransport = {
 
 export function renderEscPos(job: PrintJob): Uint8Array {
   const payload = job.payload as { lines?: unknown };
+  if (payload && typeof payload === "object" && typeof (payload as { escposBase64?: unknown }).escposBase64 === "string") {
+    return Uint8Array.from(Buffer.from((payload as { escposBase64: string }).escposBase64, "base64"));
+  }
   const lines = Array.isArray(payload.lines) ? payload.lines.map(String) : [job.documentType, job.transactionId];
   return new TextEncoder().encode(`${lines.join("\n")}\n\n`);
 }

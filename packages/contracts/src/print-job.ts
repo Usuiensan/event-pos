@@ -7,6 +7,10 @@ export type PrintJob = {
   printerId: string;
   documentType: string;
   payload: unknown;
+  source?: string;
+  sourceEventId?: string;
+  rendererVersion?: string;
+  bytesSha256?: string;
   createdAt: string;
   state: PrintJobState;
   updatedAt: string;

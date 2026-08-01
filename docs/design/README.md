@@ -21,6 +21,7 @@
 | `09_barcode-namespace-proposal.md` | 伝票・取り置き・商品コードのバーコード名前空間案 |
 | `10_adr-linux-production-host-2026-08-02.md` | Windows本番方針を置き換えるLinux本番ホストADR |
 | `11_adr-print-host-process-boundary-2026-08-02.md` | POS本体とプリンターホストの責務・通信境界ADR |
+| `12_adr-disaster-print-integration-2026-08-02.md` | kishou_server/Discord防災通知とPOS printer-host共用印刷ADR |
 
 ## 固定した技術方針
 

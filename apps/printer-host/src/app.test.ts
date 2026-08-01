@@ -30,4 +30,13 @@ describe("printer host", () => {
     const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
     expect(response.json()).toMatchObject({ state: "unknown", errorMessage: "printer_not_ready" });
   });
+
+  it("passes pre-rendered ESC/POS bytes through unchanged", async () => {
+    const transport = new FakeTransport();
+    const app = buildPrinterHost({ transport }); apps.push(app);
+    const preRendered = Buffer.from([0x1b, 0x40, 0x0a, 0x1d, 0x56, 0x00]).toString("base64");
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, payload: { escposBase64: preRendered }, source: "kishou_server", sourceEventId: "eq-1", rendererVersion: "discord-printer-bot-escpos-1" } });
+    expect(response.json()).toMatchObject({ state: "completed", source: "kishou_server" });
+    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x40, 0x0a, 0x1d, 0x56, 0x00]);
+  });
 });
