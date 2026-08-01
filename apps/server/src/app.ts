@@ -33,10 +33,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
   app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
-  app.post<{ Body: { sessionId: string; eventId: string; businessDate: string } }>("/api/v1/cash-sessions", async (request, reply) => {
+  app.post<{ Body: { sessionId: string; eventId: string; businessDate: string; cashboxId?: string } }>("/api/v1/cash-sessions", async (request, reply) => {
     const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });
-    try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate); return reply.code(201).send({ sessionId: request.body.sessionId, state: "open" }); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
+    try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate, request.body.cashboxId); return reply.code(201).send({ sessionId: request.body.sessionId, cashboxId: request.body.cashboxId ?? "default", state: "open" }); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
   });
   app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
     const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });

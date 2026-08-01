@@ -11,7 +11,7 @@ afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 describe("server foundation", () => {
   it("calculates cash check theoretical amount from the server ledger", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02", cashboxId: "box-1" } })).json()).toMatchObject({ cashboxId: "box-1", state: "open" });
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/movements", payload: { type: "sale", amountYen: 500, reason: "test sale", idempotencyKey: "sale-1" } });
     const interim = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/interim", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }] } });

@@ -24,7 +24,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, detail_json TEXT NOT NULL, created_at TEXT NOT NULL
            );
            CREATE TABLE IF NOT EXISTS cash_sessions (
-             session_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, business_date TEXT NOT NULL,
+             session_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, business_date TEXT NOT NULL, cashbox_id TEXT NOT NULL DEFAULT 'default',
              state TEXT NOT NULL, opening_yen INTEGER, closing_yen INTEGER, created_at TEXT NOT NULL
            );
            CREATE TABLE IF NOT EXISTS cash_checks (
@@ -44,6 +44,8 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              reason TEXT NOT NULL, actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
+  const sessionColumns = db.prepare("PRAGMA table_info(cash_sessions)").all() as Array<{ name: string }>;
+  if (!sessionColumns.some((column) => column.name === "cashbox_id")) db.exec("ALTER TABLE cash_sessions ADD COLUMN cashbox_id TEXT NOT NULL DEFAULT 'default'");
   const movementColumns = db.prepare("PRAGMA table_info(cash_movements)").all() as Array<{ name: string }>;
   if (!movementColumns.some((column) => column.name === "idempotency_key")) db.exec("ALTER TABLE cash_movements ADD COLUMN idempotency_key TEXT");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_cash_movements_idempotency ON cash_movements(idempotency_key) WHERE idempotency_key IS NOT NULL;");
@@ -88,8 +90,9 @@ export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: strin
   return { eventId, catalogJson, updatedAt };
 }
 
-export function createCashSession(db: PosDatabase, sessionId: string, eventId: string, businessDate: string): void {
-  db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, state, created_at) VALUES (?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, new Date().toISOString());
+export function createCashSession(db: PosDatabase, sessionId: string, eventId: string, businessDate: string, cashboxId = "default"): void {
+  if (!cashboxId.trim()) throw new Error("cashbox id is required");
+  db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at) VALUES (?, ?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, cashboxId, new Date().toISOString());
 }
 
 export function reopenCashSession(db: PosDatabase, sessionId: string, reason: string, actorId: string | undefined, terminalId: string | undefined): void {
