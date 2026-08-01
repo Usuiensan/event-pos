@@ -18,6 +18,7 @@ export type QuickEntry = {
   productCode?: string;
   quantity?: number;
   components?: Array<{ productCode: string; quantity: number }>;
+  tabId?: string;
 };
 
 export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; productTabs?: ProductTab[] };
@@ -57,6 +58,7 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (q.productCode) result.productCode = q.productCode;
     if (q.quantity) result.quantity = q.quantity;
     if (q.components) result.components = q.components;
+    if (q.tabId !== undefined) { if (typeof q.tabId !== "string" || !q.tabId.trim()) fail(`quickEntries[${index}].tabIdが不正です`); result.tabId = q.tabId; }
     return result;
   });
   const productTabs = value.productTabs?.map((raw, index) => { const tab = raw as Partial<ProductTab>; if (typeof tab.id !== "string" || !tab.id.trim() || typeof tab.label !== "string" || !tab.label.trim()) fail(`productTabs[${index}]のid/labelが必要です`); if (tab.color !== undefined && typeof tab.color !== "string") fail(`productTabs[${index}].colorが不正です`); return { id: tab.id, label: tab.label, ...(tab.color ? { color: tab.color } : {}) }; });
