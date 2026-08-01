@@ -7,7 +7,7 @@ function readGroup(value: number): string[] {
     const divisor = 10 ** place;
     const digit = Math.floor(value / divisor) % 10;
     if (digit === 0) continue;
-    if (place === 0) parts.push(digits[digit]);
+    if (place === 0) parts.push(digits[digit]!);
     else if (place === 1) parts.push(digit === 1 ? "じゅう" : `${digits[digit]}じゅう`);
     else if (place === 2) parts.push(digit === 1 ? "ひゃく" : `${digits[digit]}ひゃく`);
     else parts.push(digit === 1 ? "せん" : `${digits[digit]}せん`);
