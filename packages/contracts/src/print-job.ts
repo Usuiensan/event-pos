@@ -17,7 +17,7 @@ export type PrintJob = {
   errorMessage?: string;
 };
 
-export type PrintJobRequest = Pick<PrintJob, "jobId" | "transactionId" | "printerId" | "documentType" | "payload" | "createdAt">;
+export type PrintJobRequest = Pick<PrintJob, "jobId" | "transactionId" | "printerId" | "documentType" | "payload" | "createdAt" | "source" | "sourceEventId" | "rendererVersion" | "bytesSha256">;
 export type PrintJobStateUpdate = { state: PrintJobState; errorMessage?: string };
 
 export function isPrintJobState(value: unknown): value is PrintJobState {

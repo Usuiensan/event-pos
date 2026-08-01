@@ -11,7 +11,8 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
            CREATE TABLE IF NOT EXISTS print_jobs (
              job_id TEXT PRIMARY KEY, transaction_id TEXT NOT NULL, printer_id TEXT NOT NULL,
              document_type TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL,
-             state TEXT NOT NULL, updated_at TEXT NOT NULL, error_message TEXT
+             state TEXT NOT NULL, updated_at TEXT NOT NULL, error_message TEXT,
+             source TEXT, source_event_id TEXT, renderer_version TEXT, bytes_sha256 TEXT
            );`);
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
   if (!existing) {
@@ -30,10 +31,11 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
 
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {
   const now = new Date().toISOString();
-  db.prepare(`INSERT INTO print_jobs (job_id, transaction_id, printer_id, document_type, payload_json, created_at, state, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'queued', ?) ON CONFLICT(job_id) DO NOTHING`).run(
+  db.prepare(`INSERT INTO print_jobs (job_id, transaction_id, printer_id, document_type, payload_json, created_at, state, updated_at, source, source_event_id, renderer_version, bytes_sha256)
+    VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?) ON CONFLICT(job_id) DO NOTHING`).run(
     request.jobId, request.transactionId, request.printerId, request.documentType,
-    JSON.stringify(request.payload), request.createdAt, now,
+    JSON.stringify(request.payload), request.createdAt, now, request.source ?? null, request.sourceEventId ?? null,
+    request.rendererVersion ?? null, request.bytesSha256 ?? null,
   );
   const job = getPrintJob(db, request.jobId);
   if (!job) throw new Error("print job was not persisted");
@@ -47,6 +49,10 @@ export function getPrintJob(db: PosDatabase, jobId: string): PrintJob | undefine
     jobId: String(row.job_id), transactionId: String(row.transaction_id), printerId: String(row.printer_id),
     documentType: String(row.document_type), payload: JSON.parse(String(row.payload_json)),
     createdAt: String(row.created_at), state: row.state as PrintJob["state"], updatedAt: String(row.updated_at),
+    ...(row.source ? { source: String(row.source) } : {}),
+    ...(row.source_event_id ? { sourceEventId: String(row.source_event_id) } : {}),
+    ...(row.renderer_version ? { rendererVersion: String(row.renderer_version) } : {}),
+    ...(row.bytes_sha256 ? { bytesSha256: String(row.bytes_sha256) } : {}),
     ...(row.error_message ? { errorMessage: String(row.error_message) } : {}),
   };
 }
