@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const baseUrl = process.env.VOICEVOX_URL ?? "http://localhost:50021";
-const speakers = (process.env.VOICEVOX_SPEAKERS ?? process.env.VOICEVOX_SPEAKER ?? "1,3,8,114").split(",").map(Number);
+const speakers = (process.env.VOICEVOX_SPEAKERS ?? process.env.VOICEVOX_SPEAKER ?? "3,2,8,114").split(",").map(Number);
 const parts = {
   "えん": "yen",
   "ぜろえん": "zeroen",

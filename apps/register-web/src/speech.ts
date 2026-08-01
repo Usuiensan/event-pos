@@ -17,6 +17,7 @@ const yenParts: Record<string, string> = {
   "ひゃくえん": "hyaku-en.wav", "にひゃくえん": "nihyaku-en.wav", "さんびゃくえん": "sanbyaku-en.wav", "よんひゃくえん": "yonhyaku-en.wav", "ごひゃくえん": "gohyaku-en.wav", "ろっぴゃくえん": "roppyaku-en.wav", "ななひゃくえん": "nanahyaku-en.wav", "はっぴゃくえん": "happyaku-en.wav", "きゅうひゃくえん": "kyuuhyaku-en.wav",
   "せんえん": "sen-en.wav", "にせんえん": "nisen-en.wav", "さんぜんえん": "sanzen-en.wav", "よんせんえん": "yonsen-en.wav", "ごせんえん": "gosen-en.wav", "ろくせんえん": "rokusen-en.wav", "ななせんえん": "nanasen-en.wav", "はっせんえん": "hassen-en.wav", "きゅうせんえん": "kyuusen-en.wav",
 };
+const audioRevision = "voice-parts-v2";
 
 export function createSpeechPlayer(options: { speakerId?: number } = {}): SpeechPlayer {
   let speakerId = options.speakerId ?? 1;
@@ -33,10 +34,10 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     const bodyParts = yenFile ? parts.slice(0, yenIndex - 1) : parts;
     for (const part of bodyParts) if (prepared[part]) {
       const genericPath = prepared[part];
-      urls.push(`/audio/speaker/${speakerId}/${genericPath.split("/").at(-1)}`);
+      urls.push(`/audio/speaker/${speakerId}/${genericPath.split("/").at(-1)}?v=${audioRevision}`);
     } else { fallback(text); return; }
-    if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}`);
-    if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.wav`);
+    if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}?v=${audioRevision}`);
+    if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.wav?v=${audioRevision}`);
     if (urls.length && typeof Audio !== "undefined") {
       let index = 0; const play = () => { const audio = new Audio(urls[index]); active.push(audio); audio.playbackRate = yenFile ? 1.8 : 1.35; audio.onended = () => { index += 1; if (index < urls.length) play(); else active = []; }; void audio.play().catch(() => fallback(text)); }; play(); return;
     }
