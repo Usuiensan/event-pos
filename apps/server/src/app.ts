@@ -25,8 +25,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });
     try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate); return reply.code(201).send({ sessionId: request.body.sessionId, state: "open" }); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
   });
-  app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
-    try { const movement = { ...request.body, sessionId: request.params.sessionId, createdAt: new Date().toISOString() }; return reply.code(201).send(saveCashMovement(options.database, movement)); } catch (error) { return reply.code(400).send({ error: "invalid_cash_movement", message: error instanceof Error ? error.message : "invalid_cash_movement" }); }
+  app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
+    try {
+      if (!request.body?.idempotencyKey) return reply.code(400).send({ error: "idempotency_key_required" });
+      const movement = { ...request.body, sessionId: request.params.sessionId, createdAt: new Date().toISOString() };
+      return reply.code(201).send(saveCashMovement(options.database, movement));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "invalid_cash_movement";
+      return reply.code(message.includes("idempotency key") ? 409 : 400).send({ error: "invalid_cash_movement", message });
+    }
   });
   app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; carryoverYen?: number } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
     if (!["opening", "interim", "closing"].includes(request.params.kind)) return reply.code(400).send({ error: "invalid_cash_check_kind" });
