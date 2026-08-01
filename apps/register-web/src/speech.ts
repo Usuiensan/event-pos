@@ -33,10 +33,10 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     const bodyParts = yenFile ? parts.slice(0, yenIndex - 1) : parts;
     for (const part of bodyParts) if (prepared[part]) {
       const genericPath = prepared[part];
-      urls.push(speakerId === 114 ? `/audio/speaker/114/${genericPath.split("/").at(-1)}` : genericPath);
+      urls.push(`/audio/speaker/${speakerId}/${genericPath.split("/").at(-1)}`);
     } else { fallback(text); return; }
     if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}`);
-    if (yenFile && suffixOffset) urls.push(prepared["です"]!);
+    if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.wav`);
     if (urls.length && typeof Audio !== "undefined") {
       let index = 0; const play = () => { const audio = new Audio(urls[index]); active.push(audio); audio.playbackRate = yenFile ? 1.8 : 1.35; audio.onended = () => { index += 1; if (index < urls.length) play(); else active = []; }; void audio.play().catch(() => fallback(text)); }; play(); return;
     }
