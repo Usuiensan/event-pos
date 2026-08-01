@@ -77,14 +77,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(201).send(saveCashCheck(options.database, check));
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
   });
-  app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string; from?: string; to?: string; actorId?: string; terminalId?: string; type?: "sale" | "return" | "pay_in" | "pay_out" } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
+  app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string; from?: string; to?: string; occurredAt?: string; actorId?: string; terminalId?: string; type?: "sale" | "return" | "pay_in" | "pay_out" } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
     const differenceYen = Number(request.query.differenceYen);
     if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) return reply.code(400).send({ error: "difference_required" });
     try {
-      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, { differenceYen, limit: Number(request.query.limit ?? 20), ...(request.query.from ? { from: request.query.from } : {}), ...(request.query.to ? { to: request.query.to } : {}), ...(request.query.actorId ? { actorId: request.query.actorId } : {}), ...(request.query.terminalId ? { terminalId: request.query.terminalId } : {}), ...(request.query.type ? { type: request.query.type } : {}) });
+      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, { differenceYen, limit: Number(request.query.limit ?? 20), ...(request.query.from ? { from: request.query.from } : {}), ...(request.query.to ? { to: request.query.to } : {}), ...(request.query.occurredAt ? { occurredAt: request.query.occurredAt } : {}), ...(request.query.actorId ? { actorId: request.query.actorId } : {}), ...(request.query.terminalId ? { terminalId: request.query.terminalId } : {}), ...(request.query.type ? { type: request.query.type } : {}) });
       options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_search', 'cash_session', ?, ?, ?)").run(request.params.sessionId, JSON.stringify(request.query), new Date().toISOString());
       return { sessionId: request.params.sessionId, differenceYen, candidates };
     } catch (error) { return reply.code(400).send({ error: "journal_search_failed", message: error instanceof Error ? error.message : "journal_search_failed" }); }
+  });
+  app.post<{ Params: { sessionId: string }; Body: { candidateId: number; note?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/journal-candidates/confirm", async (request, reply) => {
+    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    if (!Number.isSafeInteger(request.body?.candidateId)) return reply.code(400).send({ error: "candidate_id_required" });
+    const now = new Date().toISOString();
+    options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_candidate_confirm', 'cash_movement', ?, ?, ?)").run(String(request.body.candidateId), JSON.stringify({ sessionId: request.params.sessionId, note: request.body.note ?? "", actorId: auth.actorId ?? request.body.actorId, terminalId: request.body.terminalId }), now);
+    return reply.code(201).send({ confirmed: true, candidateId: request.body.candidateId });
   });
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
     const record = getCatalog(options.database, request.params.eventId);

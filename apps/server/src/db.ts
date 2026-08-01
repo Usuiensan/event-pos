@@ -193,10 +193,10 @@ export function getTheoreticalCash(db: PosDatabase, sessionId: string): number {
 
 export type CashJournalCandidate = { id: number; type: CashMovement["type"]; amountYen: number; transactionId?: string; reason: string; createdAt: string; score: number };
 
-export type CashJournalSearch = { differenceYen: number; limit?: number; from?: string; to?: string; actorId?: string; terminalId?: string; type?: CashMovement["type"] };
+export type CashJournalSearch = { differenceYen: number; limit?: number; from?: string; to?: string; occurredAt?: string; actorId?: string; terminalId?: string; type?: CashMovement["type"] };
 
 export function findCashJournalCandidates(db: PosDatabase, sessionId: string, search: CashJournalSearch): CashJournalCandidate[] {
-  const { differenceYen, limit = 20, from, to, actorId, terminalId, type } = search;
+  const { differenceYen, limit = 20, from, to, occurredAt, actorId, terminalId, type } = search;
   if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) throw new Error("difference is invalid");
   const clauses = ["session_id = ?"]; const params: Array<string | number> = [sessionId];
   if (from) { clauses.push("created_at >= ?"); params.push(from); }
@@ -208,7 +208,9 @@ export function findCashJournalCandidates(db: PosDatabase, sessionId: string, se
   const target = Math.abs(differenceYen);
   return rows.map((row) => {
     const amount = Number(row.amount_yen);
-    const score = Math.abs(amount - target);
+    const amountDistance = Math.abs(amount - target);
+    const timeDistance = occurredAt ? Math.abs(Date.parse(String(row.created_at)) - Date.parse(occurredAt)) / 60000 : 0;
+    const score = amountDistance + timeDistance;
     return { id: Number(row.id), type: row.type as CashMovement["type"], amountYen: amount, ...(row.transaction_id ? { transactionId: String(row.transaction_id) } : {}), reason: String(row.reason), createdAt: String(row.created_at), score };
   }).sort((a, b) => a.score - b.score || b.id - a.id).slice(0, Math.max(1, Math.min(100, Math.trunc(limit))));
 }
