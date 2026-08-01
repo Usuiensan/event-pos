@@ -24,9 +24,6 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
   return { get speakerId() { return speakerId; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 1; }, speak(text) {
     for (const audio of active) { audio.pause(); audio.currentTime = 0; }
     active = [];
-    // あんこもん(つよつよ)は現在「円付き」パーツのみ収録済みで、数字本体を
-    // ずんだもん等の共通パーツと混ぜると話者が混在するため、完成まで合成音声へ退避する。
-    if (speakerId === 114) { fallback(text); return; }
     const parts = text.split(" ").filter(Boolean);
     const urls: string[] = [];
     const suffixOffset = parts.at(-1) === "です" ? 1 : 0;
@@ -34,7 +31,10 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     const yenPart = yenIndex >= 1 ? `${parts[yenIndex - 1]}えん` : (yenIndex === 0 ? parts[0] : undefined);
     const yenFile = yenParts[yenPart!];
     const bodyParts = yenFile ? parts.slice(0, yenIndex - 1) : parts;
-    for (const part of bodyParts) if (prepared[part]) urls.push(prepared[part]); else { fallback(text); return; }
+    for (const part of bodyParts) if (prepared[part]) {
+      const genericPath = prepared[part];
+      urls.push(speakerId === 114 ? `/audio/speaker/114/${genericPath.split("/").at(-1)}` : genericPath);
+    } else { fallback(text); return; }
     if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}`);
     if (yenFile && suffixOffset) urls.push(prepared["です"]!);
     if (urls.length && typeof Audio !== "undefined") {
