@@ -18,4 +18,5 @@ const sendAsset = async (file: string, reply: { type(value: string): { send(valu
 app.get("/", async (_request, reply) => sendAsset("index.html", reply));
 app.get<{ Params: { file: string } }>("/assets/:file", async (request, reply) => sendAsset(`assets/${basename(request.params.file)}`, reply));
 app.get<{ Params: { file: string } }>("/audio/:file", async (request, reply) => sendAsset(`audio/${basename(request.params.file)}`, reply));
+app.get<{ Params: { speakerId: string; file: string } }>("/audio/yen/:speakerId/:file", async (request, reply) => sendAsset(`audio/yen/${basename(request.params.speakerId)}/${basename(request.params.file)}`, reply));
 await app.listen({ port, host });
