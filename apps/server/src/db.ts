@@ -131,6 +131,19 @@ export function getTheoreticalCash(db: PosDatabase, sessionId: string): number {
   return Number(session.opening_yen ?? 0) + Number(row.movement_yen);
 }
 
+export type CashJournalCandidate = { id: number; type: CashMovement["type"]; amountYen: number; transactionId?: string; reason: string; createdAt: string; score: number };
+
+export function findCashJournalCandidates(db: PosDatabase, sessionId: string, differenceYen: number, limit = 20): CashJournalCandidate[] {
+  if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) throw new Error("difference is invalid");
+  const rows = db.prepare("SELECT id, type, amount_yen, transaction_id, reason, created_at FROM cash_movements WHERE session_id = ? ORDER BY id DESC LIMIT 500").all(sessionId) as Array<Record<string, unknown>>;
+  const target = Math.abs(differenceYen);
+  return rows.map((row) => {
+    const amount = Number(row.amount_yen);
+    const score = Math.abs(amount - target);
+    return { id: Number(row.id), type: row.type as CashMovement["type"], amountYen: amount, ...(row.transaction_id ? { transactionId: String(row.transaction_id) } : {}), reason: String(row.reason), createdAt: String(row.created_at), score };
+  }).sort((a, b) => a.score - b.score || b.id - a.id).slice(0, Math.max(1, Math.min(100, Math.trunc(limit))));
+}
+
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {
   const now = new Date().toISOString();
   db.prepare(`INSERT INTO print_jobs (job_id, transaction_id, printer_id, document_type, payload_json, created_at, state, updated_at, source, source_event_id, renderer_version, bytes_sha256)

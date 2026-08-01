@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createCashSession, createPrintJob, getCatalog, getPrintJob, getTheoreticalCash, saveCashCheck, saveCashMovement, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, saveCashCheck, saveCashMovement, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
@@ -42,6 +42,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const check = createCashCheck(input);
       return reply.code(201).send(saveCashCheck(options.database, check));
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
+  });
+  app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
+    const differenceYen = Number(request.query.differenceYen);
+    if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) return reply.code(400).send({ error: "difference_required" });
+    try {
+      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, differenceYen, Number(request.query.limit ?? 20));
+      options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_search', 'cash_session', ?, ?, ?)").run(request.params.sessionId, JSON.stringify({ differenceYen, limit: request.query.limit ?? "20" }), new Date().toISOString());
+      return { sessionId: request.params.sessionId, differenceYen, candidates };
+    } catch (error) { return reply.code(400).send({ error: "journal_search_failed", message: error instanceof Error ? error.message : "journal_search_failed" }); }
   });
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
     const record = getCatalog(options.database, request.params.eventId);
