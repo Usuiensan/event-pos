@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import type { PrintJob, PrintJobRequest, PrintJobStateUpdate } from "@event-pos/contracts";
+import type { CashCheck, PrintJob, PrintJobRequest, PrintJobStateUpdate } from "@event-pos/contracts";
 
 export type PosDatabase = DatabaseSync;
 
@@ -22,6 +22,16 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
            CREATE TABLE IF NOT EXISTS audit_log (
              id INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT, action TEXT NOT NULL,
              entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, detail_json TEXT NOT NULL, created_at TEXT NOT NULL
+           );
+           CREATE TABLE IF NOT EXISTS cash_sessions (
+             session_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, business_date TEXT NOT NULL,
+             state TEXT NOT NULL, opening_yen INTEGER, closing_yen INTEGER, created_at TEXT NOT NULL
+           );
+           CREATE TABLE IF NOT EXISTS cash_checks (
+             id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, kind TEXT NOT NULL,
+             counted_json TEXT NOT NULL, theoretical_yen INTEGER NOT NULL, carryover_yen INTEGER NOT NULL,
+             counted_yen INTEGER NOT NULL, difference_yen INTEGER NOT NULL, created_at TEXT NOT NULL,
+             FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
   if (!existing) {
@@ -57,6 +67,18 @@ export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: strin
     db.exec("COMMIT;");
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
   return { eventId, catalogJson, updatedAt };
+}
+
+export function createCashSession(db: PosDatabase, sessionId: string, eventId: string, businessDate: string): void {
+  db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, state, created_at) VALUES (?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, new Date().toISOString());
+}
+
+export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
+  db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.createdAt);
+  if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
+  if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
+  db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) SELECT event_id, ?, 'cash_check', ?, ?, ? FROM cash_sessions WHERE session_id = ?").run(check.kind, check.sessionId, JSON.stringify(check), check.createdAt, check.sessionId);
+  return check;
 }
 
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {

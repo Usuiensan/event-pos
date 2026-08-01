@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createPrintJob, getCatalog, getPrintJob, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
-import { exportEventCatalog, importEventCatalog, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
+import { createCashSession, createPrintJob, getCatalog, getPrintJob, saveCashCheck, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashCheck, exportEventCatalog, importEventCatalog, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
 const isPrintJobState = (value: unknown): value is PrintJobState => typeof value === "string" && printJobStates.includes(value as PrintJobState);
@@ -21,6 +21,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
   app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
+  app.post<{ Body: { sessionId: string; eventId: string; businessDate: string } }>("/api/v1/cash-sessions", async (request, reply) => {
+    if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });
+    try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate); return reply.code(201).send({ sessionId: request.body.sessionId, state: "open" }); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
+  });
+  app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; theoreticalYen: number; carryoverYen?: number } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
+    if (!["opening", "interim", "closing"].includes(request.params.kind)) return reply.code(400).send({ error: "invalid_cash_check_kind" });
+    try {
+      const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: request.body.theoreticalYen, ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }) };
+      const check = createCashCheck(input);
+      return reply.code(201).send(saveCashCheck(options.database, check));
+    } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
+  });
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
     const record = getCatalog(options.database, request.params.eventId);
     if (!record) return reply.code(404).send({ error: "catalog_not_found" });
