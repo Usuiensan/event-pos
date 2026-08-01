@@ -62,7 +62,7 @@ function App() {
   useEffect(() => { if (role !== "staff") return; const onKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; } if (event.key === "Escape") { setInputBuffer(""); return; } if (event.key === "Enter" && inputBuffer) { event.preventDefault(); if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; } const amount = Number(inputBuffer); if (amount >= total) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); } else { setInputBuffer(""); showError("預り金が不足しています。合計金額以上を入力してください。"); } return; } if (paymentFinished && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt") { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setAgeVerified(false); localStorage.removeItem("event-pos-age-check"); setMessage("会計待ち"); } }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [inputBuffer, paymentFinished, role, speech, total, catalog.products]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then((loaded) => { setCatalog(loaded); setLoading(false); }).catch(() => { setMessage("カタログを読み込めません。初期値を表示しています"); setLoading(false); }); }, []);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
-  const addProduct = (product: ProductDefinition, quantity = 1) => {
+  const addProduct = (product: ProductDefinition, quantity = 1, announce = true) => {
     if (product.saleState !== "on_sale") return showError("この商品は販売停止中のため登録できません。");
     if (isAgeRestricted(product) && !ageVerified) { localStorage.setItem("event-pos-age-check", `required:${ageRequirement(product)}`); return setAgeProduct(product); }
     if (paymentFinished) { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setAgeVerified(false); localStorage.removeItem("event-pos-age-check"); }
@@ -73,12 +73,14 @@ function App() {
       setHighlighted(product.productCode); window.setTimeout(() => setHighlighted(null), 900);
       return current.map((line, index) => index === existing ? { ...line, quantity: line.quantity + quantity } : line);
     });
-    speakProductPrice(speech, formatJapaneseYenSpeech(product.priceInclTax));
+    if (announce) speakProductPrice(speech, formatJapaneseYenSpeech(product.priceInclTax));
     setMessage(`${product.name}を登録しました`);
   };
   const addQuick = (quick: QuickEntry) => {
-    if (quick.productCode) { const p = catalog.products.find((item) => item.productCode === quick.productCode); if (p) addProduct(p, quick.quantity ?? 1); return; }
-    for (const component of quick.components ?? []) { const p = catalog.products.find((item) => item.productCode === component.productCode); if (p) addProduct(p, component.quantity); }
+    const components = quick.productCode ? [{ productCode: quick.productCode, quantity: quick.quantity ?? 1 }] : (quick.components ?? []);
+    let addedTotal = 0;
+    for (const component of components) { const p = catalog.products.find((item) => item.productCode === component.productCode); if (p) { if (isAgeRestricted(p) && !ageVerified) { addProduct(p, component.quantity, false); return; } addedTotal += p.priceInclTax * component.quantity; addProduct(p, component.quantity, false); } }
+    if (addedTotal > 0) speakProductPrice(speech, formatJapaneseYenSpeech(addedTotal));
   };
   const changeQuantity = (productCode: string, delta: number) => setCart((current) => current.flatMap((line) => line.product.productCode === productCode ? (line.quantity + delta > 0 ? [{ ...line, quantity: line.quantity + delta }] : []) : [line]));
   const setQuantity = (productCode: string) => { const value = window.prompt("数量を入力", "1"); const quantity = Number(value); if (Number.isSafeInteger(quantity) && quantity > 0) setCart((current) => current.map((line) => line.product.productCode === productCode ? { ...line, quantity } : line)); };
