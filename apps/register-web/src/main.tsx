@@ -29,6 +29,7 @@ function App() {
   const [showPayment, setShowPayment] = useState(false);
   const [ageProduct, setAgeProduct] = useState<ProductDefinition | null>(null);
   const [ageVerified, setAgeVerified] = useState(false);
+  const [customerAgeNotice, setCustomerAgeNotice] = useState<"required" | "verified" | null>(null);
   const [received, setReceived] = useState(0);
   const [inputBuffer, setInputBuffer] = useState("");
   const [paymentFinished, setPaymentFinished] = useState(false);
@@ -41,12 +42,13 @@ function App() {
     sync(); window.addEventListener("storage", sync); return () => window.removeEventListener("storage", sync);
   }, [catalog.products]);
   useEffect(() => { if (role === "staff") localStorage.setItem("event-pos-cart", JSON.stringify(cart.map((line) => ({ productCode: line.product.productCode, quantity: line.quantity })))); }, [cart, role]);
+  useEffect(() => { if (role !== "customer") return; const syncAge = () => { const value = localStorage.getItem("event-pos-age-check"); setCustomerAgeNotice(value === "verified" ? "verified" : value === "required" ? "required" : null); }; syncAge(); window.addEventListener("storage", syncAge); return () => window.removeEventListener("storage", syncAge); }, [role]);
   useEffect(() => { if (role !== "staff") return; const onKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; } if (event.key === "Enter" && inputBuffer) { event.preventDefault(); const amount = Number(inputBuffer); if (amount >= total && total > 0) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); } return; } if (paymentFinished && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt") { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setMessage("会計待ち"); } }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [inputBuffer, paymentFinished, role, speech, total]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then((loaded) => { setCatalog(loaded); setLoading(false); }).catch(() => { setMessage("カタログを読み込めません。初期値を表示しています"); setLoading(false); }); }, []);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
   const addProduct = (product: ProductDefinition, quantity = 1) => {
     if (product.saleState !== "on_sale") return setMessage("販売停止中の商品です");
-    if (isAgeRestricted(product) && !ageVerified) return setAgeProduct(product);
+    if (isAgeRestricted(product) && !ageVerified) { localStorage.setItem("event-pos-age-check", "required"); return setAgeProduct(product); }
     if (paymentFinished) { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); }
     setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax });
     setCart((current) => {
@@ -62,9 +64,9 @@ function App() {
     if (quick.productCode) { const p = catalog.products.find((item) => item.productCode === quick.productCode); if (p) addProduct(p, quick.quantity ?? 1); return; }
     for (const component of quick.components ?? []) { const p = catalog.products.find((item) => item.productCode === component.productCode); if (p) addProduct(p, component.quantity); }
   };
-  const confirmAge = () => { setAgeVerified(true); if (ageProduct) { const product = ageProduct; setAgeProduct(null); addProduct(product); } };
+  const confirmAge = () => { setAgeVerified(true); localStorage.setItem("event-pos-age-check", "verified"); if (ageProduct) { const product = ageProduct; setAgeProduct(null); addProduct(product); } };
   const importJson = (text: string) => { try { const next = importEventCatalog(text); void saveCatalog(next).then(() => { setCart([]); setMessage("商品JSONを保存しました"); }).catch((error) => setMessage(error instanceof Error ? error.message : "カタログ保存に失敗しました")); } catch (error) { setMessage(error instanceof Error ? error.message : "JSONが不正です"); } };
-  if (role === "customer") return <main className="pos-screen customer-screen"><header className="pos-header"><span>登録明細</span><span>お客様画面</span></header><section className="customer-lines">{cart.length === 0 ? <div className="customer-empty">いらっしゃいませ</div> : cart.map((line, index) => <div className="customer-line" key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{line.product.priceInclTax.toLocaleString()}</span><span>{line.quantity}点</span></div>)}</section><footer className="customer-total"><span>合計　{cart.reduce((sum, line) => sum + line.quantity, 0)}点</span><strong>{total.toLocaleString()}円</strong></footer></main>;
+  if (role === "customer") return <main className="pos-screen customer-screen"><header className="pos-header"><span>登録明細</span><span>お客様画面</span></header><section className="customer-lines">{customerAgeNotice && <div className={`age-notice ${customerAgeNotice}`}><strong>{customerAgeNotice === "required" ? "年齢確認が必要です" : "年齢確認済み（20歳以上）"}</strong><span>{customerAgeNotice === "required" ? "店員が確認しています" : "確認方式：容貌確認"}</span></div>}{cart.length === 0 ? <div className="customer-empty">いらっしゃいませ</div> : cart.map((line, index) => <div className="customer-line" key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{line.product.priceInclTax.toLocaleString()}</span><span>{line.quantity}点</span></div>)}</section><footer className="customer-total"><span>合計　{cart.reduce((sum, line) => sum + line.quantity, 0)}点</span><strong>{total.toLocaleString()}円</strong></footer></main>;
   return <main className="pos-screen register-shell">
     <header><p className="eyebrow">event-pos / {catalog.eventId}</p><h1>{loading ? "カタログ読み込み中" : message}</h1></header>
     <section className="toolbar"><button onClick={() => setPanel("detail")}>登録明細へ</button><button onClick={() => setPanel("products")}>商品登録へ</button><button onClick={() => fileRef.current?.click()}>JSONインポート</button><input ref={fileRef} hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) file.text().then(importJson); }} /><label>音声話者<select value={speakerId} onChange={(event) => { const next = Number(event.target.value); setSpeakerId(next); localStorage.setItem("event-pos-speaker", String(next)); speech.setSpeaker(next); }}><option value="1">ずんだもん</option><option value="3">四国めたん</option><option value="8">春日部つむぎ</option><option value="114">あんこもん（つよつよ）</option></select></label></section>
