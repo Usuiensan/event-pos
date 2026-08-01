@@ -24,4 +24,10 @@ describe("printer host", () => {
     const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
     expect(response.json()).toMatchObject({ state: "unknown", errorMessage: "printer_not_ready" });
   });
+
+  it("does not treat paper-out as ready", async () => {
+    const app = buildPrinterHost({ transport: new FakeTransport(undefined, "paper_out") }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
+    expect(response.json()).toMatchObject({ state: "unknown", errorMessage: "printer_not_ready" });
+  });
 });

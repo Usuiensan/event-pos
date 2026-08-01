@@ -10,7 +10,12 @@ export class LinuxRawTransport implements PrinterTransport {
   }
   async send(bytes: Uint8Array): Promise<void> {
     this.handle ??= await open(this.devicePath, "w");
-    await this.handle.write(bytes);
+    try {
+      await this.handle.write(bytes);
+    } catch (error) {
+      await this.close();
+      throw error;
+    }
   }
   async close(): Promise<void> {
     await this.handle?.close();

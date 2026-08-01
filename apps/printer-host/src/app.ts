@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import type { PrintJob, PrintJobState, PrintJobStateUpdate } from "@event-pos/contracts";
 import { renderEscPos, type PrinterTransport } from "./transport.js";
+import { AsyncMutex } from "./mutex.js";
 
 export type StateSink = { update(jobId: string, update: PrintJobStateUpdate): Promise<void> };
 export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink };
@@ -8,6 +9,7 @@ export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: Stat
 export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   const app = Fastify({ logger: false });
   const jobs = new Map<string, PrintJob>();
+  const printerMutex = new AsyncMutex();
   const setState = async (job: PrintJob, state: PrintJobState, errorMessage?: string) => {
     const updated: PrintJob = { ...job, state, updatedAt: new Date().toISOString(), ...(errorMessage ? { errorMessage } : {}) };
     jobs.set(job.jobId, updated);
@@ -29,9 +31,9 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
     jobs.set(job.jobId, job);
     job = await setState(job, "accepted");
     try {
-      if (await options.transport.getStatus() !== "ready") throw new Error("printer_not_ready");
+      if (await printerMutex.runExclusive(() => options.transport.getStatus()) !== "ready") throw new Error("printer_not_ready");
       job = await setState(job, "printing");
-      await options.transport.send(renderEscPos(job));
+      await printerMutex.runExclusive(() => options.transport.send(renderEscPos(job)));
       job = await setState(job, "completed");
     } catch (error) {
       job = await setState(job, "unknown", error instanceof Error ? error.message : "printer_error");

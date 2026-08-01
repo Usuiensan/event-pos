@@ -1,0 +1,21 @@
+[Unit]
+Description=event-pos printer host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=event-pos
+Group=lp
+WorkingDirectory=/opt/event-pos
+EnvironmentFile=-/etc/event-pos/printer-host.env
+ExecStart=/usr/bin/node /opt/event-pos/apps/printer-host/dist/index.js
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/event-pos
+
+[Install]
+WantedBy=multi-user.target

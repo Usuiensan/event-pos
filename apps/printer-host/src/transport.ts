@@ -15,8 +15,8 @@ export function renderEscPos(job: PrintJob): Uint8Array {
 
 export class FakeTransport implements PrinterTransport {
   readonly sent: Uint8Array[] = [];
-  constructor(private readonly failure?: Error) {}
-  async getStatus(): Promise<PrinterStatus> { return this.failure ? "unknown" : "ready"; }
+  constructor(private readonly failure?: Error, private readonly status: PrinterStatus = failure ? "unknown" : "ready") {}
+  async getStatus(): Promise<PrinterStatus> { return this.status; }
   async send(bytes: Uint8Array): Promise<void> { if (this.failure) throw this.failure; this.sent.push(bytes); }
   async close(): Promise<void> {}
 }
