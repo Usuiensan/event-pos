@@ -16,6 +16,20 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    develop:
+      watch:
+        - action: rebuild
+          path: apps/server/src
+        - action: rebuild
+          path: apps/register-web/src
+        - action: rebuild
+          path: packages/contracts/src
+        - action: rebuild
+          path: Dockerfile
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: pnpm-lock.yaml
 
 volumes:
   pos-data:
