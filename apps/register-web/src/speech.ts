@@ -24,6 +24,9 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
   return { get speakerId() { return speakerId; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 1; }, speak(text) {
     for (const audio of active) { audio.pause(); audio.currentTime = 0; }
     active = [];
+    // あんこもん(つよつよ)は現在「円付き」パーツのみ収録済みで、数字本体を
+    // ずんだもん等の共通パーツと混ぜると話者が混在するため、完成まで合成音声へ退避する。
+    if (speakerId === 114) { fallback(text); return; }
     const parts = text.split(" ").filter(Boolean);
     const urls: string[] = [];
     const suffixOffset = parts.at(-1) === "です" ? 1 : 0;
