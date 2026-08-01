@@ -19,7 +19,7 @@ ReceiptSnapshot
 - 差込み値をコマンド文字列へ直接連結せず、必ずliteral AST nodeとして生成する。
 - Discord用コマンド文字列は要件で指定された中間表現である。ASTからcanonical serializeし、既存変換器のstrict parserを通す。
 - ESC/POS変換はOS非依存の純粋関数とする。
-- USB、Windows spooler、状態取得は `PrinterTransport` に限定する。
+- USB、Linux device、状態取得は `PrinterTransport` に限定する。
 
 ## 2. 既存Discordプリンターボットの再利用
 
@@ -28,7 +28,7 @@ ReceiptSnapshot
 1. ESC/POS builder、文字コード、画像ラスタ、QR/バーコード、カットのgolden testを固定する。
 2. Discord messageやbot configへの依存を除き、`packages/escpos` と `packages/receipt-ir` へ分離する。
 3. POSが使用するコマンドallowlistと引数範囲を明文化する。
-4. 同じIRから同じbytesが出ることをWindows/Linux共通テストで保証する。
+4. 同じIRから同じbytesが出ることをWindows開発環境とLinux CI/本番環境の共通テストで保証する。
 5. TM-T70II実機で文字、円記号、画像、紙送り、部分カットを確認する。
 
 既存実装の知見として、次を設計制約にする。
@@ -206,21 +206,21 @@ adapterが部分writeを内部継続してよいのは、同一接続内の未�
 
 ## 7. OSアダプター
 
-### Windows
+### Windows（開発・将来候補）
 
-- 選定USB/RAW方式はADR-P001で決定する。
+- 初期本番のUSB送信には使用しない。将来対応する場合は別ADRで選定する。
 - Windows spoolerを使う場合、job ID、spooler job ID、bytes hashを証跡にする。
 - OPOSを状態取得だけに使う場合は、印刷との排他・Claim timeoutを測定する。
 - Windows serviceは専用アカウントで動かし、UIセッションを必要としない。
 
-### Linux
+### Linux（本番）
 
-- 選定ライブラリーまたは `/dev/usb/lp*` 方式はADR-P001で決定する。
+- `/dev/usb/lp*` への直接送信を第一候補とし、双方向statusが必要な場合のlibusb等との排他・driver detach要否をADR-P001で実測して決定する。
 - デバイスパスを固定値とみなさず、udev ruleによる安定名を使う。
 - service user、group、device permissionを導入手順で検証する。
 - read/write双方向可否とDLE EOT応答を実機能力表へ記録する。
 
-両OSアダプターは同じcontract testを通す。status能力差は実装で埋めず、`unsupported/unknown` として表現する。
+Linux adapterとfake adapterは同じcontract testを通す。Windowsでも純粋な業務・ESC/POS試験を実行できるようにするが、実機status能力差は推測で埋めず、`unsupported/unknown` として表現する。
 
 ## 8. 実機試験証跡
 
@@ -234,4 +234,4 @@ adapterが部分writeを内部継続してよいのは、同一接続内の未�
 - 紙面写真またはscan、担当者判定
 - cut/drawerではコマンドbytes、設定、物理結果
 
-同じ内容の両OS比較は、IR hashとbytes hashの一致を自動証明し、紙面は人間が取引番号、全文、配置、文字化け、カットを比較する。
+Linux実機では、IR hashとbytes hashを自動保存し、紙面は人間が取引番号、全文、配置、文字化け、カットを確認する。x86_64とARM64でbytesが一致することも自動試験する。

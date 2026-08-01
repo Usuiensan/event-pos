@@ -16,7 +16,7 @@
 | 認証 | サーバーセッション、HttpOnly/SameSite Cookie、PINはArgon2id |
 | テスト | Vitest、Supertest相当のFastify inject、Playwright、k6 |
 | ログ | pino JSON。秘密・PIN・身分証情報を構造化redaction |
-| 配布 | Webアセットをサーバーへ同梱。Windows serviceとsystemdを提供 |
+| 配布 | Webアセットをサーバーへ同梱。Linux systemd unitと導入・更新・復旧scriptを提供 |
 
 ### 採用理由
 
@@ -34,8 +34,8 @@
                                         ├─ SQLite
                                         ├─ Print queue worker
                                         └─ PrinterTransport
-                                             ├─ Windows adapter
-                                             ├─ Linux adapter
+                                             ├─ Linux adapter（本番）
+                                             ├─ Windows adapter（開発・将来候補）
                                              └─ Fake adapter
 ```
 
@@ -58,16 +58,15 @@ packages/
   receipt-ir/             DiscordコマンドIR parser/validator/canonicalizer
   escpos/                 IRからESC/POSへの純粋変換
   printer-port/           Transport/Status interface
-  printer-windows/        Windows USB/RAW実装
-  printer-linux/          Linux USB実装
+  printer-linux/          Linux USB/RAW実装（本番）
+  printer-windows/        Windows実装（初期本番対象外）
   test-fixtures/          決定的fixture、golden、fake clock
 tools/
   load-test/              k6シナリオ
   hardware-test/          実機試験CLIと証跡収集
   backup/                 バックアップ、検証、オフラインCSV出力
 deploy/
-  windows/                Windows service登録・更新・復旧
-  linux/                  systemd unit、更新・復旧
+  linux/                  systemd unit、udev、更新・復旧
 docs/
   adr/                    Accepted/Superseded ADR
 ```

@@ -1,6 +1,6 @@
 # プリンター比較基準
 
-Discord botが稼働するDebian環境から、Windows実機試験の比較資料を保存する。
+Discord botが稼働するDebian環境から、POS用Linux PrinterTransportの比較資料を保存する。
 
 ## 保存するもの
 

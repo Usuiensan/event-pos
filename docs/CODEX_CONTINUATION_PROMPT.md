@@ -13,14 +13,14 @@ C:\private\event-pos の開発を引き継いでください。
 - docs/design/05_pending-adrs.md
 - docs/design/06_phase-goals.md
 - docs/design/09_barcode-namespace-proposal.md
+- docs/design/10_adr-linux-production-host-2026-08-02.md
 
 このリポジトリは、C:\private\discord-printer-bot から分離した即売会向けPOSです。
 Discord botを実行時依存にしないでください。
 
-本番プリンターホストは、このWindowsノートPCです。
-TM-T70IIは通常Debian上のDiscord botにつながっているため、Windows実機試験ではサービス停止とUSBつなぎ替えを明示的に確認してください。
+本番プリンターホストは64bit Linux機です。Windowsは開発・管理端末として使用できます。
+TM-T70IIは現在Debian上のDiscord botにつながっているため、POS用Linux実機試験ではDiscord bot service停止、USB排他、device、udev、systemd状態を明示的に確認してください。
 
 まずgit status、現在のbranch、直近commit、未確定ADRを確認し、docs/HANDOFF.mdの「次の作業」と現状との差分を報告してください。
 ユーザーの既存変更を保持し、force-pushは本当に必要か再考してください。
 ```
-

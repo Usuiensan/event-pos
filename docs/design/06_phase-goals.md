@@ -10,7 +10,7 @@
 
 ## Goal 1: 基盤・認証・監査
 
-> Accepted済みのADR-D014/D020に従い、pnpm/TypeScript monorepo、Fastify、React shell、SQLite migration、設定、認証session、role権限、責任者番号のevent別履歴、責任者承認、取引・取り置き共通の営業セッション1桁＋連番6桁＋Damm検査数字受付番号、営業、端末、追記型監査、CIを実装する。Windows/Linuxで同じDBと業務コードを使い、OS固有処理をprinter portとservice管理の外へ漏らさない。PINと身分証情報をログへ保存しない。空DB/更新DB migration、並行採番・欠番・同日複数開局・締め取消再開・桁上限、認証・権限拒否、自己承認監査、両OS起動の自動試験が成功し、設計差分が記録されたら完了とする。
+> Accepted済みのADR-D014/D020に従い、pnpm/TypeScript monorepo、Fastify、React shell、SQLite migration、設定、認証session、role権限、責任者番号のevent別履歴、責任者承認、取引・取り置き共通の営業セッション1桁＋連番6桁＋Damm検査数字受付番号、営業、端末、追記型監査、CIを実装する。Windows開発環境とLinux本番環境で同じDBと業務コードを使い、OS固有処理をprinter portとservice管理の外へ漏らさない。PINと身分証情報をログへ保存しない。空DB/更新DB migration、並行採番・欠番・同日複数開局・締め取消再開・桁上限、認証・権限拒否、自己承認監査、Windows x64/Linux x86_64・ARM64の自動試験が成功し、設計差分が記録されたら完了とする。
 
 ## Goal 2: 商品・在庫・値引き
 
@@ -30,11 +30,11 @@
 
 ## Goal 6: プリンター技術検証とADR決定
 
-> 本番対象のWindows PCで最小probeを作り、候補USB/RAW方式でTM-T70IIへのbytes送信、排他、再接続、紙切れ、カバー、USB切断、status raw responseを測定する。現在のDiscord bot用Debian環境から同じESC/POS bytesを送った結果を比較基準として保存する。drawer型番が提供された場合は安全なpulse試験も行う。Windows version/CPU/driver/library/USB class/実測結果を比較し、推測せずADR-P001/P002/P003をAcceptedまたは追加証拠待ちに更新する。Accepted方式と能力表、再現可能なprobe、ログ・紙面証拠が揃ったら完了とする。
+> 既存Debianおよび本番候補Linuxで最小probeを作り、`/dev/usb/lp*`と必要な双方向方式でTM-T70IIへのbytes送信、排他、再接続、紙切れ、カバー、USB切断、status raw responseを測定する。udev安定名、systemd再起動、x86_64/ARM64差も記録する。drawer型番が提供された場合は安全なpulse試験も行う。distribution/CPU/driver/library/USB class/実測結果を比較し、推測せずADR-P001/P002/P003をAcceptedまたは追加証拠待ちに更新する。Accepted方式と能力表、再現可能なprobe、ログ・紙面証拠が揃ったら完了とする。
 
-## Goal 7: Windowsプリンター実機統合
+## Goal 7: Linuxプリンター実機統合
 
-> Accepted済みのADR-P001/P002/P003に従い、本番用Windows PrinterTransport、USB/RAW送信、status、排他、再接続、部分カット、drawer専用operationを実装する。取得不能状態を正常/異常と推測せずunknownとする。Windowsから既存Debian環境と同じIR/bytesをTM-T70IIへ送り、紙切れ、カバー、USB切断、送信途中停止、復旧再印刷、4レジ同時投入、カット、drawerを検証する。PR-01〜07/10のA/H/R証跡がすべてそろったら完了とする。
+> Accepted済みのADR-P001/P002/P003に従い、本番用Linux PrinterTransport、USB/RAW送信、status、排他、再接続、部分カット、drawer専用operationを実装する。取得不能状態を正常/異常と推測せずunknownとする。本番候補Linuxから既存Debian環境と同じIR/bytesをTM-T70IIへ送り、紙切れ、カバー、USB切断、送信途中停止、復旧再印刷、4レジ同時投入、カット、drawerを検証する。PR-01〜07/10のA/H/R証跡がすべてそろったら完了とする。
 
 ## Goal 8: 締め・CSV・バックアップ・復旧
 
@@ -42,4 +42,4 @@
 
 ## Goal 9: 総合受入・運用引渡し
 
-> ADR-P006で決定したWindows本番相当構成を使用し、要件18章46件を `04_test-strategy-and-acceptance.md` の台帳で実行する。各項目にcommit、環境、入力、期待値、実測値、ログ、画面、紙面または実機動画、判定者を紐付ける。60会計/分、10端末、Windows実機印刷、障害復旧、停電/再起動、backup restoreを再実施する。未決ADR、未実施タグ、重大不具合、説明できないデータ差異が0件であり、運用・復旧runbookを実演できた場合だけ完了とする。
+> ADR-P006で決定したLinux本番相当構成を使用し、要件18章46件を `04_test-strategy-and-acceptance.md` の台帳で実行する。各項目にcommit、環境、入力、期待値、実測値、ログ、画面、紙面または実機動画、判定者を紐付ける。60会計/分、10端末、Linux実機印刷、障害復旧、停電/再起動、backup restoreを再実施する。未決ADR、未実施タグ、重大不具合、説明できないデータ差異が0件であり、運用・復旧runbookを実演できた場合だけ完了とする。

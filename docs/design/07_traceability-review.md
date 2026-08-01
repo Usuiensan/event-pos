@@ -125,7 +125,7 @@
 - P001〜P003/P006の実機・本番構成決定
 - D020バーコード名前空間はAccepted。残件は使用予定scanner・58 mm実機読取り結果
 - P004/P005/D010による要件差分は `docs/requirements/即売会向けPOSレジ_要件定義_v0.5.md` へ反映済み
-- 本番WindowsのUSB・status実測能力表。既存Debian環境は比較基準
+- 本番候補LinuxのUSB・status実測能力表。既存Debian環境を初期基準にする
 - drawer型番/pulse
 - 税/値引き/返品の業務判断
 - 本番hardwareと復旧目標
@@ -155,3 +155,10 @@
 | Goal整合 | Goal 2/3/8の前提と対象外機能を更新 |
 | 最終保留 | 実機・本番構成P001〜P003/P006、およびD020のscanner・58 mm実機読取りがPending |
 | 追加提案 | D020で伝票・取り置き・商品・ISDNを分離するCode 128名前空間を提案 |
+
+## 7. 2026-08-02 Linux本番方針更新
+
+- Windows本番ホスト方針を `10_adr-linux-production-host-2026-08-02.md` で置き換えた。
+- 要件v0.6、Architecture、Printing、受入、Pending ADR、Goal、引継ぎ文書をLinux本番へ更新した。
+- Windowsは開発・管理端末として残し、本番USB・障害復旧・性能受入は64bit Linuxで行う。
+- x86_64とARM64の双方を自動試験対象とし、採用ハードウェアはP006の実測後に確定する。

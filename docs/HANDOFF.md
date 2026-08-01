@@ -1,8 +1,8 @@
 # event-pos 引継ぎ資料
 
-更新日: 2026-07-24
+更新日: 2026-08-02
 
-この文書は、別のWindows PCへ開発環境を移したときに、Codexの会話履歴が参照できなくても作業を再開できるようにするための正本である。
+この文書は、別PCや本番Linux機へ作業を引き継いだときに、Codexの会話履歴が参照できなくても作業を再開できるようにするための正本である。
 
 ## 1. リポジトリ
 
@@ -23,8 +23,9 @@
 - 売上、税込価格、税率、値引き、返品、在庫、取り置き、R18確認を扱う。
 - 管理端末、レジ端末、カスタマーディスプレイを会場LANで接続する。
 - レシートはEPSON TM-T70IIへ印刷する。
-- 初期本番構成ではWindows PCをPOS server兼プリンターホスト候補とする。
-- 現在TM-T70IIが接続されているDiscord bot用Debian環境は、既存動作と紙面の比較基準として扱う。
+- 本番構成では64bit Linux機をPOS server兼プリンターホストとする。
+- Debian、Ubuntu、Raspberry Pi OS等を候補とし、現在TM-T70IIが接続されているDiscord bot用Debian環境を初期実測基準とする。
+- Windows PCは開発・管理・ブラウザークライアントとして継続利用できる。
 
 ## 3. 技術方針
 
@@ -34,13 +35,13 @@
 - SQLite
 - DB、USB、時刻、ID採番はport越しに注入する。
 - ESC/POS生成はOS非依存の純粋処理にする。
-- 本番対象PrinterTransportはWindows。
+- 本番対象PrinterTransportはLinux。
 - プリンター状態を推測しない。取得不能は `unknown`。
 - プリンターへ送信開始後に結果不明となったjobは自動再送せず、人間が紙面を確認して再印刷する。
 - 内部IDはUUIDv7。
 - 確定済み取引、在庫移動、監査記録は上書き・削除せず、訂正イベントを追記する。
 
-詳細は `docs/design/01_architecture.md` から `09_barcode-namespace-proposal.md` を参照する。
+詳細は `docs/design/01_architecture.md` から `10_adr-linux-production-host-2026-08-02.md` を参照する。
 
 ## 4. 受付番号
 
@@ -75,7 +76,7 @@ S NNNNNN C
 - `PS13`: POS発行の商品ラベル
 - 完全な128bit UUIDの10進表現は最大39桁となり、58mm紙のCode 128には長すぎるため採用しない。
 - DBの正本はUUIDv7、バーコードはDB一意制約を持つscanner専用alternate tokenとする。
-- Code 128のmodule幅、quiet zone、100回連続読取りはWindows実機で確定する。
+- Code 128のmodule幅、quiet zone、100回連続読取りは本番候補Linux、TM-T70II、使用予定scannerで確定する。
 
 ## 6. 主な業務判断
 
@@ -98,17 +99,17 @@ S NNNNNN C
 
 ## 7. プリンター方針
 
-- 本番プリンターホスト: 即売会へ持ち込むWindowsノートPC
-- 開発中のPCもWindowsだが、本番ノートPCは後で別途用意する。
-- 現在TM-T70IIはDiscord botのDebian環境へUSB接続されている。
-- 別PCへCodexと本リポジトリを導入後、プリンターを一時的にWindowsへつなぎ替えて比較試験する。
-- Windows Spooler RAWと、TM-T70IIで利用可能なEpson提供方式をprobeで比較する。
-- Debian側で同一fixtureのESC/POS bytes、SHA-256、紙面、障害時ログを保存する。
-- Windows側で送信、排他、紙切れ、カバー開、USB切断、再接続、部分カットを測定する。
-- Windowsでの実測が終わるまでADR-P001/P002をAcceptedにしない。
+- 本番プリンターホスト: 即売会へ持ち込む64bit Linux機
+- 候補: Debian/Ubuntu x86_64・ARM64、Raspberry Pi OS 64bit
+- 現在TM-T70IIはDiscord botのDebian環境へUSB接続されており、ここからPOS用probeを開始できる。
+- `/dev/usb/lp*`直接送信と、必要な双方向status方式を比較する。
+- 同一fixtureのESC/POS bytes、SHA-256、紙面、USB・udev・systemd設定、障害時ログを保存する。
+- 送信、排他、紙切れ、カバー開、USB切断、再接続、部分カットをLinuxで測定する。
+- Linuxでの実測が終わるまでADR-P001/P002をAcceptedにしない。
+- Raspberry Pi採用時はmicroSD単独を正本DB保存先にせず、USB SSD等を使用する。
 - キャッシュドロアーは型番・pin・pulse・連続駆動制限が判明するまで実機駆動しない。
 
-比較資料は `docs/printer-baseline/`、probeは `tools/hardware-test/`、Windows導入手順は `deploy/windows/` に置く。
+比較資料は `docs/printer-baseline/`、probeは `tools/hardware-test/`、Linux導入手順は `deploy/linux/` に置く。
 
 ## 8. 別PCでの再開手順
 
@@ -126,8 +127,8 @@ git status
 4. Codexで `C:\private\event-pos` を開く。
 5. `AGENTS.md`、この文書、`docs/design/README.md`を読ませる。
 6. `docs/CODEX_CONTINUATION_PROMPT.md`の文面で新しいタスクを開始する。
-7. プリンターをDebianから外す前にDiscord bot serviceを停止し、USB使用中でないことを確認する。
-8. Windowsへ接続し、driver情報とUSB device情報を記録してからprobeを開始する。
+7. 既存DebianでDiscord bot serviceを停止し、USB使用中でないことを確認する。
+8. Linuxのdistribution、CPU、driver、USB device、udev、systemd情報を記録してからPOS用probeを開始する。
 
 ## 9. 移行してはいけないもの
 
@@ -145,14 +146,15 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 
 ## 10. 次の作業
 
-実機がない現在のPCでは、Goal 1からGoal 5までのソフトウェア基盤を進められる。ただし、プリンター方式を固定する実装はWindows本番ノートPCでのprobe後に行う。
+Windows開発PCではGoal 1からGoal 5までのソフトウェア基盤を進められる。Goal 6は現在プリンターが接続されているDebianで開始でき、PrinterTransportの採用方式はLinux probe後に固定する。
 
-要件v0.5は `docs/requirements/即売会向けPOSレジ_要件定義_v0.5.md` として作成済み。
+最新要件は `docs/requirements/即売会向けPOSレジ_要件定義_v0.6.md`。v0.5以前は履歴として保持する。
 
 直近の推奨作業:
 
 1. pnpm/TypeScript monorepo、Fastify、React、SQLite migrationの骨格を作る。
 2. UUIDv7、共通受付番号、Damm検査数字を実装し、自動試験を追加する。
 3. fake PrinterTransportとESC/POS golden testの境界を作る。
-4. Discord botから移植する印刷コードの一覧と移植元commitを記録する。
+4. Discord botから移植する印刷コードとLinux USB運用の一覧、移植元commitを記録する。
+5. 既存Debian上でPOS用printer probeを作り、P001/P002の実測を開始する。
 

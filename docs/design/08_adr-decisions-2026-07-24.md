@@ -210,3 +210,5 @@ HTTPでは、同じWi-Fi上の第三者や不正アクセスポイントに通�
 ## 5. 残る別ADR
 
 本書で扱ったP004/P005およびD007〜D020はすべてAcceptedになった。実機・本番構成のP001〜P003/P006は別途決定する。本番プリンターホストOSはWindows PCに決定済みで、現在のDiscord bot用Debian環境は既存動作の比較基準として扱う。
+
+> 2026-08-02追記: 本段落のWindows本番方針は `10_adr-linux-production-host-2026-08-02.md` によりSupersededとなった。

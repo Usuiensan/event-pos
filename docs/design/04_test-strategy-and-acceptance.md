@@ -5,7 +5,7 @@
 受入条件には次のタグを複数付けられる。複合タグは全証跡がそろうまで未完了とする。
 
 - `A`: 自動試験。単体、DB/API統合、ブラウザーE2E、並行・負荷、障害注入、goldenを含む。
-- `H`: 実機試験。TM-T70II、USB、本番対象Windows、キャッシュドロアー、紙面を使う。既存Debian環境は比較基準に用いる。
+- `H`: 実機試験。TM-T70II、USB、本番候補Linux、キャッシュドロアー、紙面を使う。既存Debian環境を最初の実測基準にする。
 - `R`: 人間レビュー。表示・紙面・操作・プライバシー・運用・設計境界を確認する。
 
 各証跡には受入ID、実行日時、OS/機器、commit、設定、入力fixture、期待値、実測値、ログ/画像、判定者を記録する。
@@ -20,12 +20,12 @@
 | API contract | schema、認証、権限、エラーcode、版競合 |
 | Browser E2E | レジ/顧客/管理、キーボード、音声+表示、切断再接続 |
 | Print golden | snapshot→AST→IR→bytes/hash、旧版再現、禁止コマンド |
-| Adapter contract | fake/Windowsが同じport契約を満たす。既存Linux実装は比較・回帰確認に用いる |
+| Adapter contract | fake/Linuxが同じport契約を満たす。WindowsではUSB非依存の業務・生成試験を実行する |
 | Load/concurrency | 10端末、60会計/分、連打、同一商品の同時販売 |
 | Fault injection | DB/USB切断、送信前後crash、service再起動、lease回収 |
 | Privacy scan | DB/log/CSV/receipt/backupに禁止された身分証情報がない |
 
-CIはunit、property、DB、API、browser、golden、fake adapterを必須にする。実機suiteは環境ラベル付き手動ジョブとし、リリース候補ごとに本番対象Windowsで実行する。
+CIはunit、property、DB、API、browser、golden、fake adapterを必須にし、Windows x64とLinux x86_64/ARM64で実行する。実機suiteは環境ラベル付き手動ジョブとし、リリース候補ごとに本番対象Linuxで実行する。
 
 ## 3. 18.1 会計・同時処理
 
@@ -58,9 +58,9 @@ CIはunit、property、DB、API、browser、golden、fake adapterを必須にす
 
 | ID | 受入条件（要約） | 分類 | 必須証跡 |
 | --- | --- | --- | --- |
-| PR-01 | Windowsから既存Debian環境と同じ内容をTM-T70IIへ印刷 | A+H+R | IR/bytes hash、Windows実機、Debian基準紙面との比較 |
+| PR-01 | 本番Linuxから同じ内容をTM-T70IIへ印刷 | A+H+R | IR/bytes hash、Linux実機、既存Debian基準紙面との比較 |
 | PR-02 | 4レジ同時印刷でも混線しない | A+H+R | 並行queue、実機連続印刷、取引番号照合 |
-| PR-03 | 紙切れ/カバー/USB切断を検出またはunknown表示 | A+H+R | 障害注入、Windows実機能力表、表示レビュー |
+| PR-03 | 紙切れ/カバー/USB切断を検出またはunknown表示 | A+H+R | 障害注入、Linux実機能力表、表示レビュー |
 | PR-04 | 復旧後に対象取引だけ再印刷 | A+H | failure→reprint統合、現物結果3値、自己/別人承認、実機 |
 | PR-05 | 再印刷で売上を再計上しない | A | 取引/支払/在庫不変、jobのみ追加 |
 | PR-06 | カット・ドロアーが設定どおり | A+H+R | bytes、実機動作、ADR-P003との照合 |
