@@ -13,7 +13,8 @@ export function renderEscPos(job: PrintJob): Uint8Array {
     return Uint8Array.from(Buffer.from((payload as { escposBase64: string }).escposBase64, "base64"));
   }
   const lines = Array.isArray(payload.lines) ? payload.lines.map(String) : [job.documentType, job.transactionId];
-  return new TextEncoder().encode(`${lines.join("\n")}\n\n`);
+  // TM-T70IIはカット位置まで紙送りしてからカットする。即時カットでは最終行が切れる。
+  return Uint8Array.from([...new TextEncoder().encode(`${lines.join("\n")}\n\n\n`), 0x1d, 0x56, 0x00]);
 }
 
 export class FakeTransport implements PrinterTransport {
