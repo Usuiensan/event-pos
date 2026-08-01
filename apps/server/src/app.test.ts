@@ -45,6 +45,12 @@ describe("server foundation", () => {
     await app2.close(); apps.splice(apps.indexOf(app2), 1);
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
   });
+  it("enforces cash roles when enabled without logging credentials", async () => {
+    const app = buildApp({ database: openDatabase(), requireCashAuth: true }); apps.push(app);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "auth-1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { sessionId: "auth-1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/auth-1/reopen", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { reason: "no" } })).statusCode).toBe(403);
+  });
   it("persists and restores an event catalog through the API", async () => {
     const databasePath = "./.catalog-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
