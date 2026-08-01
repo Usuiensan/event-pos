@@ -11,7 +11,7 @@
 | 入出力検証 | TypeBox。APIスキーマを実行時検証とOpenAPIへ共用 |
 | UI | React、Vite、React Router、TanStack Query |
 | 状態同期 | RESTを正、WebSocketは更新通知と顧客画面投影に限定 |
-| DB | SQLite 3、WAL、foreign keys有効、busy timeout設定 |
+| DB | SQLite 3、Node.js 24の`node:sqlite`、WAL、foreign keys有効、busy timeout設定 |
 | DBアクセス | Kysely + `better-sqlite3`。マイグレーションは順序付きSQL |
 | 認証 | サーバーセッション、HttpOnly/SameSite Cookie、PINはArgon2id |
 | テスト | Vitest、Supertest相当のFastify inject、Playwright、k6 |

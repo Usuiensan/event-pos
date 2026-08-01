@@ -1,0 +1,12 @@
+{
+  "name": "event-pos",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r build"
+  }
+}

@@ -24,6 +24,7 @@ docs/CODEX_CONTINUATION_PROMPT.md  新しいCodexタスクの開始文
 docs/printer-baseline/   Debian環境のbytes・設定・紙面比較資料
 tools/hardware-test/     Linux/TM-T70II実機検証ツール
 deploy/linux/            systemd、udev、導入・更新・復旧手順
+.github/workflows/       Linux CI（型チェック、テスト、build）
 ```
 
 ## リポジトリ境界
@@ -31,6 +32,19 @@ deploy/linux/            systemd、udev、導入・更新・復旧手順
 このリポジトリは `discord-printer-bot` から独立させる。
 
 再利用するESC/POS生成、文字・画像ラスタ、Linux USB送信、カット処理、golden testは、移植元commitとファイルを記録したうえでこのリポジトリへ移植する。Discord連携、AI機能、Discord設定には依存しない。既存Debianのsystemd・udev・USB運用知見はPOS用に再設計して取り込む。
+
+## 開発コマンド
+
+Node.js 24以上とpnpm 11を使用する。SQLiteはNode.jsの`node:sqlite`を使うため、Windows開発環境とLinux CIで同じ実行条件にする。
+
+```powershell
+pnpm install
+pnpm check
+pnpm --filter @event-pos/server dev
+pnpm --filter @event-pos/register-web dev
+```
+
+`pnpm check`は全workspaceの型チェック、テスト、buildを実行する。React画面の実テストはUI実装タスクで追加する。
 
 ## 次の作業
 
