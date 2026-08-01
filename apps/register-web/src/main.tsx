@@ -7,6 +7,12 @@ import "./styles.css";
 const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
   { productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO001" },
   { productCode: "A002", name: "既刊", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO002" },
+  { productCode: "A003", name: "チューハイ 氷結 レモン", priceInclTax: 79, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO003" },
+  { productCode: "A004", name: "トリス レモンハイ", priceInclTax: 108, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO004" },
+  { productCode: "A005", name: "獺祭 純米大吟醸", priceInclTax: 1298, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO005" },
+  { productCode: "A006", name: "いろはす 2L", priceInclTax: 98, taxRate: 8, saleState: "on_sale", internalToken: "P1DEMO006" },
+  { productCode: "A007", name: "国鉄杯Ⅲ", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO007" },
+  { productCode: "A008", name: "新刊ポストカード", priceInclTax: 300, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO008" },
 ], quickEntries: [{ id: "set-1", label: "新刊2冊セット", components: [{ productCode: "A001", quantity: 2 }] }] };
 
 function App() {
@@ -15,7 +21,8 @@ function App() {
   const [cart, setCart] = useState<Array<{ product: ProductDefinition; quantity: number }>>([]);
   const [message, setMessage] = useState("会計待ち");
   const [loading, setLoading] = useState(true);
-  const [speakerId, setSpeakerId] = useState(1);
+  const [speakerId, setSpeakerId] = useState(() => Number(localStorage.getItem("event-pos-speaker") ?? 1));
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const [panel, setPanel] = useState<"detail" | "products">("detail");
   const [showSignIn, setShowSignIn] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
@@ -31,7 +38,12 @@ function App() {
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
   const addProduct = (product: ProductDefinition, quantity = 1) => {
     if (product.saleState !== "on_sale") return setMessage("販売停止中の商品です");
-    setCart((current) => [...current, { product, quantity }]);
+    setCart((current) => {
+      const existing = current.findIndex((line) => line.product.productCode === product.productCode);
+      if (existing < 0) return [...current, { product, quantity }];
+      setHighlighted(product.productCode); window.setTimeout(() => setHighlighted(null), 900);
+      return current.map((line, index) => index === existing ? { ...line, quantity: line.quantity + quantity } : line);
+    });
     speakProductPrice(speech, formatJapaneseYenSpeech(product.priceInclTax));
     setMessage(`${product.name}を登録しました`);
   };
@@ -43,9 +55,9 @@ function App() {
   if (role === "customer") return <main className="pos-screen customer-screen"><header className="pos-header"><span>登録明細</span><span>お客様画面</span></header><section className="customer-lines">{cart.length === 0 ? <div className="customer-empty">商品を登録してください</div> : cart.map((line, index) => <div className="customer-line" key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{line.product.priceInclTax.toLocaleString()}円</span><span>{line.quantity}点</span><b>{(line.product.priceInclTax * line.quantity).toLocaleString()}円</b></div>)}</section><footer className="customer-total"><span>合計　{cart.reduce((sum, line) => sum + line.quantity, 0)}点</span><strong>{total.toLocaleString()}円</strong></footer></main>;
   return <main className="pos-screen register-shell">
     <header><p className="eyebrow">event-pos / {catalog.eventId}</p><h1>{loading ? "カタログ読み込み中" : message}</h1></header>
-    <section className="toolbar"><button onClick={() => fileRef.current?.click()}>JSONインポート</button><input ref={fileRef} hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) file.text().then(importJson); }} /><label>音声話者<select value={speakerId} onChange={(event) => { const next = Number(event.target.value); setSpeakerId(next); speech.setSpeaker(next); }}><option value="1">ずんだもん</option><option value="3">四国めたん</option><option value="8">春日部つむぎ</option><option value="114">あんこもん（つよつよ）</option></select></label></section>
-    {panel === "products" ? <section className="product-grid"><h2>商品登録 B</h2>{catalog.products.map((product) => <button key={product.productCode} disabled={product.saleState !== "on_sale"} onClick={() => addProduct(product)}><strong>{product.name}</strong><span>{product.priceInclTax.toLocaleString()}円</span><small>{product.productCode}</small></button>)}<h2>ワンタップ</h2>{catalog.quickEntries.map((quick) => <button key={quick.id} className="quick" onClick={() => addQuick(quick)}><strong>{quick.label}</strong><small>{quick.id}</small></button>)}</section> : <section className="detail-panel"><h2>登録明細 A</h2><div className="detail-head">NO.　属性　商品名　　　　　　　 数量　単価　値引　金額</div>{cart.map((line, index) => <div className="detail-row" key={`${line.product.productCode}-${index}`}><span>{index + 1}</span><span>—</span><strong>{line.product.name}</strong><span>{line.quantity}</span><span>{line.product.priceInclTax.toLocaleString()}円</span><span>—</span><b>{(line.product.priceInclTax * line.quantity).toLocaleString()}円</b></div>)}{cart.length === 0 && <div className="empty-detail">登録待ち</div>}</section>}
-    <section className="cart"><h2>客側表示</h2>{cart.length === 0 ? <p>商品を登録してください。</p> : cart.map((line, index) => <p key={`${line.product.productCode}-${index}`}>{line.product.name} × {line.quantity} <b>{(line.product.priceInclTax * line.quantity).toLocaleString()}円</b></p>)}<h2>合計 {total.toLocaleString()}円</h2><button onClick={() => { speakSubtotal(speech, `合計金額は ${formatJapaneseYenSpeech(total)}`); setMessage(`合計金額は${total.toLocaleString()}円です`); }}>小計</button><button onClick={() => { speakReceiptReady(speech); setShowPayment(true); setMessage("レシートをお受け取りください"); }}>レシート発行</button><button onClick={() => { speakChangeReady(speech); setMessage("おつりをおたしかめください"); }}>釣銭確認</button></section>
+    <section className="toolbar"><button onClick={() => fileRef.current?.click()}>JSONインポート</button><input ref={fileRef} hidden type="file" accept="application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) file.text().then(importJson); }} /><label>音声話者<select value={speakerId} onChange={(event) => { const next = Number(event.target.value); setSpeakerId(next); localStorage.setItem("event-pos-speaker", String(next)); speech.setSpeaker(next); }}><option value="1">ずんだもん</option><option value="3">四国めたん</option><option value="8">春日部つむぎ</option><option value="114">あんこもん（つよつよ）</option></select></label></section>
+    {panel === "products" ? <section className="product-grid"><h2>商品登録 B</h2>{catalog.products.map((product) => <button key={product.productCode} disabled={product.saleState !== "on_sale"} onClick={() => addProduct(product)}><strong>{product.name}</strong><span>{product.priceInclTax.toLocaleString()}円</span><small>{product.productCode}</small></button>)}<h2>ワンタップ</h2>{catalog.quickEntries.map((quick) => <button key={quick.id} className="quick" onClick={() => addQuick(quick)}><strong>{quick.label}</strong><small>{quick.id}</small></button>)}</section> : <section className="detail-panel"><h2>登録明細 A</h2><div className="detail-head">NO.　属性　商品名　　　　　　　 数量　単価　値引　金額</div>{cart.map((line, index) => <div className={`detail-row ${highlighted === line.product.productCode ? "line-highlight" : ""}`} key={`${line.product.productCode}-${index}`}><span>{index + 1}</span><span>—</span><strong>{line.product.name}</strong><span>{line.quantity}</span><span>{line.product.priceInclTax.toLocaleString()}円</span><span>—</span><b>{(line.product.priceInclTax * line.quantity).toLocaleString()}円</b></div>)}{cart.length === 0 && <div className="empty-detail">登録待ち</div>}</section>}
+    <section className="cart"><h2>会計操作</h2><h2>合計 {total.toLocaleString()}円</h2><button onClick={() => { speakSubtotal(speech, `合計金額は ${formatJapaneseYenSpeech(total)}`); setMessage(`合計金額は${total.toLocaleString()}円です`); }}>小計</button><button onClick={() => { speakReceiptReady(speech); setShowPayment(true); setMessage("レシートをお受け取りください"); }}>レシート発行</button><button onClick={() => { speakChangeReady(speech); setMessage("おつりをおたしかめください"); }}>釣銭確認</button></section>
     <button className="panel-switch" onClick={() => setPanel((current) => current === "detail" ? "products" : "detail")}>{panel === "detail" ? "商品登録 B" : "登録明細 A"}</button>
     {showSignIn && <div className="modal-backdrop"><div className="modal sign-in"><h2>■■ サインオン（責任者入力） ■■</h2><p>責任者コード入力後、【サインオン】をタッチ</p><input placeholder="責任者No." /><p>・責任者コードを訂正する場合は【C】を押してください。<br />・2人制の操作を行う場合は【2人制】を押してください。</p><button onClick={() => setShowSignIn(false)}>サインオン</button></div></div>}
     {showPayment && <div className="modal-backdrop"><div className="modal payment"><h2>■■■ 支払い完了 ■■■</h2><p className="receipt-icon">🧾 🪙</p><p>レシートも忘れずにお受け取りください。</p><div className="payment-line">合計　{cart.length}点　{total.toLocaleString()}円</div><div className="payment-line">お預り　　　　　{total.toLocaleString()}円</div><div className="payment-line change">お釣り　　　　　　 0円</div><button onClick={() => { setShowPayment(false); setCart([]); setMessage("会計待ち"); }}>閉じる</button></div></div>}
