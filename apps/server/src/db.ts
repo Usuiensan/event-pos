@@ -43,6 +43,11 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, action TEXT NOT NULL,
              reason TEXT NOT NULL, actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
+           );
+           CREATE TABLE IF NOT EXISTS transactions (
+             transaction_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, total_yen INTEGER NOT NULL,
+             idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
+             FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
   const sessionColumns = db.prepare("PRAGMA table_info(cash_sessions)").all() as Array<{ name: string }>;
   if (!sessionColumns.some((column) => column.name === "cashbox_id")) db.exec("ALTER TABLE cash_sessions ADD COLUMN cashbox_id TEXT NOT NULL DEFAULT 'default'");
@@ -128,6 +133,30 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
 }
 
 export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string; createdAt: string };
+
+export type SaleTransaction = { transactionId: string; sessionId: string; amountYen: number; idempotencyKey: string; reason: string; actorId?: string; terminalId?: string };
+
+export function saveSaleTransaction(db: PosDatabase, sale: SaleTransaction): { transactionId: string; sessionId: string; amountYen: number; createdAt: string } {
+  if (!sale.transactionId || !sale.idempotencyKey || !Number.isSafeInteger(sale.amountYen) || sale.amountYen <= 0) throw new Error("取引が不正です");
+  const session = db.prepare("SELECT event_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(sale.sessionId) as { event_id: string; state: string; opening_yen: number | null } | undefined;
+  if (!session) throw new Error("cash session not found");
+  if (session.state !== "open") throw new Error("cash session is closed");
+  if (session.opening_yen === null) throw new Error("opening check is required");
+  const existing = db.prepare("SELECT transaction_id, session_id, total_yen, created_at FROM transactions WHERE idempotency_key = ?").get(sale.idempotencyKey) as { transaction_id: string; session_id: string; total_yen: number; created_at: string } | undefined;
+  if (existing) {
+    if (existing.session_id !== sale.sessionId || existing.total_yen !== sale.amountYen) throw new Error("idempotency key payload mismatch");
+    return { transactionId: existing.transaction_id, sessionId: existing.session_id, amountYen: existing.total_yen, createdAt: existing.created_at };
+  }
+  const createdAt = new Date().toISOString();
+  db.exec("BEGIN;");
+  try {
+    db.prepare("INSERT INTO transactions (transaction_id, session_id, total_yen, idempotency_key, created_at) VALUES (?, ?, ?, ?, ?)").run(sale.transactionId, sale.sessionId, sale.amountYen, sale.idempotencyKey, createdAt);
+    db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, actor_id, terminal_id, created_at) VALUES (?, 'sale', ?, ?, ?, ?, ?, ?, ?)").run(sale.sessionId, sale.amountYen, sale.transactionId, sale.reason, `tx:${sale.idempotencyKey}`, sale.actorId ?? null, sale.terminalId ?? null, createdAt);
+    db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, 'sale', 'transaction', ?, ?, ?)").run(session.event_id, sale.transactionId, JSON.stringify({ sessionId: sale.sessionId, amountYen: sale.amountYen, actorId: sale.actorId, terminalId: sale.terminalId }), createdAt);
+    db.exec("COMMIT;");
+  } catch (error) { db.exec("ROLLBACK;"); throw error; }
+  return { transactionId: sale.transactionId, sessionId: sale.sessionId, amountYen: sale.amountYen, createdAt };
+}
 
 export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashMovement {
   if (!Number.isSafeInteger(movement.amountYen) || movement.amountYen <= 0 || !movement.reason.trim()) throw new Error("現金移動が不正です");

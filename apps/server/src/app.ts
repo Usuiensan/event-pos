@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
@@ -48,6 +48,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const message = error instanceof Error ? error.message : "invalid_cash_movement";
       return reply.code(message.includes("idempotency key") ? 409 : 400).send({ error: "invalid_cash_movement", message });
     }
+  });
+  app.post<{ Params: { sessionId: string }; Body: { transactionId: string; amountYen: number; idempotencyKey: string; reason?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/transactions/sale", async (request, reply) => {
+    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    try {
+      const result = saveSaleTransaction(options.database, { ...request.body, sessionId: request.params.sessionId, reason: request.body.reason ?? "sale", ...(auth.actorId ? { actorId: auth.actorId } : {}) });
+      return reply.code(201).send(result);
+    } catch (error) { const message = error instanceof Error ? error.message : "invalid_sale"; return reply.code(message.includes("idempotency") ? 409 : 400).send({ error: "invalid_sale", message }); }
   });
   app.post<{ Params: { sessionId: string }; Body: { reason: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/reopen", async (request, reply) => {
     const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });

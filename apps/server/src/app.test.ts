@@ -56,6 +56,15 @@ describe("server foundation", () => {
     const responses = await Promise.all([1, 2].map(() => app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "concurrent-1", eventId: "e1", businessDate: "2026-08-02" } })));
     expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 409]);
   });
+  it("commits sale transaction and cash movement atomically", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "tx-1", eventId: "e1", businessDate: "2026-08-02" } });
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
+    const result = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-1", amountYen: 300, idempotencyKey: "tx-key", reason: "商品売上" } });
+    expect(result.statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-1", amountYen: 300, idempotencyKey: "tx-key" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-2", amountYen: 400, idempotencyKey: "tx-key" } })).statusCode).toBe(409);
+  });
   it("persists and restores an event catalog through the API", async () => {
     const databasePath = "./.catalog-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
