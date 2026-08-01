@@ -16,6 +16,7 @@ COPY --from=build /workspace/packages/contracts/dist /app/packages/contracts/dis
 COPY --from=build /workspace/apps/server/dist /app/apps/server/dist
 COPY --from=build /workspace/apps/server/package.json /app/apps/server/package.json
 COPY --from=build /workspace/apps/register-web/dist /app/register-web
+RUN node -e "const fs=require('fs'); const p='/app/packages/contracts/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.exports['.'].default='./dist/index.js'; fs.writeFileSync(p, JSON.stringify(j)+'\n');"
 RUN pnpm install --prod --frozen-lockfile && mkdir -p /var/lib/event-pos
 EXPOSE 3000
 CMD ["node", "apps/server/dist/index.js"]
