@@ -13,7 +13,11 @@ const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
   { productCode: "A006", name: "いろはす 2L", priceInclTax: 98, taxRate: 8, saleState: "on_sale", internalToken: "P1DEMO006" },
   { productCode: "A007", name: "国鉄杯Ⅲ", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO007" },
   { productCode: "A008", name: "新刊ポストカード", priceInclTax: 300, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO008" },
-], quickEntries: [{ id: "set-1", label: "新刊2冊セット", components: [{ productCode: "A001", quantity: 2 }] }] };
+  { productCode: "A009", name: "R18新刊", priceInclTax: 800, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO009" },
+], quickEntries: [
+  { id: "set-1", label: "新刊2冊セット", components: [{ productCode: "A001", quantity: 2 }] },
+  { id: "r18-1", label: "R18新刊", components: [{ productCode: "A009", quantity: 1 }] },
+] };
 
 function App() {
   const role = new URLSearchParams(window.location.search).get("role") === "customer" ? "customer" : "staff";
