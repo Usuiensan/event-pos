@@ -51,7 +51,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const differenceYen = Number(request.query.differenceYen);
     if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) return reply.code(400).send({ error: "difference_required" });
     try {
-      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, { differenceYen, limit: Number(request.query.limit ?? 20), from: request.query.from, to: request.query.to, actorId: request.query.actorId, terminalId: request.query.terminalId, type: request.query.type });
+      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, { differenceYen, limit: Number(request.query.limit ?? 20), ...(request.query.from ? { from: request.query.from } : {}), ...(request.query.to ? { to: request.query.to } : {}), ...(request.query.actorId ? { actorId: request.query.actorId } : {}), ...(request.query.terminalId ? { terminalId: request.query.terminalId } : {}), ...(request.query.type ? { type: request.query.type } : {}) });
       options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_search', 'cash_session', ?, ?, ?)").run(request.params.sessionId, JSON.stringify(request.query), new Date().toISOString());
       return { sessionId: request.params.sessionId, differenceYen, candidates };
     } catch (error) { return reply.code(400).send({ error: "journal_search_failed", message: error instanceof Error ? error.message : "journal_search_failed" }); }
