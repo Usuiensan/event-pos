@@ -38,6 +38,11 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
              amount_yen INTEGER NOT NULL, transaction_id TEXT, reason TEXT NOT NULL, idempotency_key TEXT,
              actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
+           );
+           CREATE TABLE IF NOT EXISTS cash_session_actions (
+             id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, action TEXT NOT NULL,
+             reason TEXT NOT NULL, actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
+             FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
   const movementColumns = db.prepare("PRAGMA table_info(cash_movements)").all() as Array<{ name: string }>;
   if (!movementColumns.some((column) => column.name === "idempotency_key")) db.exec("ALTER TABLE cash_movements ADD COLUMN idempotency_key TEXT");
@@ -85,6 +90,21 @@ export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: strin
 
 export function createCashSession(db: PosDatabase, sessionId: string, eventId: string, businessDate: string): void {
   db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, state, created_at) VALUES (?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, new Date().toISOString());
+}
+
+export function reopenCashSession(db: PosDatabase, sessionId: string, reason: string, actorId: string | undefined, terminalId: string | undefined): void {
+  if (!reason.trim()) throw new Error("再開理由が必要です");
+  const session = db.prepare("SELECT event_id, state FROM cash_sessions WHERE session_id = ?").get(sessionId) as { event_id: string; state: string } | undefined;
+  if (!session) throw new Error("cash session not found");
+  if (session.state !== "closed") throw new Error("cash session is not closed");
+  const now = new Date().toISOString();
+  db.exec("BEGIN;");
+  try {
+    db.prepare("INSERT INTO cash_session_actions (session_id, action, reason, actor_id, terminal_id, created_at) VALUES (?, 'reopen', ?, ?, ?, ?)").run(sessionId, reason, actorId ?? null, terminalId ?? null, now);
+    db.prepare("UPDATE cash_sessions SET state = 'open' WHERE session_id = ?").run(sessionId);
+    db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, 'reopen', 'cash_session', ?, ?, ?)").run(session.event_id, sessionId, JSON.stringify({ reason, actorId, terminalId }), now);
+    db.exec("COMMIT;");
+  } catch (error) { db.exec("ROLLBACK;"); throw error; }
 }
 
 export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {

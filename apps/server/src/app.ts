@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, saveCashCheck, saveCashMovement, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
@@ -34,6 +34,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
       const message = error instanceof Error ? error.message : "invalid_cash_movement";
       return reply.code(message.includes("idempotency key") ? 409 : 400).send({ error: "invalid_cash_movement", message });
     }
+  });
+  app.post<{ Params: { sessionId: string }; Body: { reason: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/reopen", async (request, reply) => {
+    try { reopenCashSession(options.database, request.params.sessionId, request.body?.reason ?? "", request.body?.actorId, request.body?.terminalId); return { sessionId: request.params.sessionId, state: "open" }; }
+    catch (error) { return reply.code(400).send({ error: "invalid_reopen", message: error instanceof Error ? error.message : "invalid_reopen" }); }
   });
   app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; carryoverYen?: number; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
     if (!["opening", "interim", "closing"].includes(request.params.kind)) return reply.code(400).send({ error: "invalid_cash_check_kind" });
