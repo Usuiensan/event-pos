@@ -44,3 +44,11 @@ POSコンテナからUSBプリンターを直接扱わない。Windowsのプリ�
 - `apps/printer-host`へWindows spooler transportを追加し、既存`discord-printer-bot/tools/rawprint.ps1`相当のRAW送信を共通`PrinterTransport`へ実装する。
 - Docker Compose、`.env.example`、Surface向け起動runbookを追加する。
 - Windows printer-hostとPOSコンテナ間のHTTP接続、再起動、ジョブ状態、会計レシートと防災通知の混線なしを試験する。
+
+## リポジトリ内の起動ファイル
+
+- `Dockerfile`: POS server runtimeのみをLinuxコンテナへ収める。
+- `docker-compose.yml`: `127.0.0.1:3000`と`pos-data` volumeを定義する。
+- `.env.example`: Surface用の初期環境変数を定義する。
+
+Surfaceでは`.env.example`を`.env`へコピーし、`docker compose up -d --build`で起動する。Windows printer-hostは別途`PRINTER_BACKEND=windows-spooler`で起動し、Docker Desktopの`host.docker.internal`を介して接続する。DockerコンテナへUSBデバイスを渡す設定は行わない。

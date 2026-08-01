@@ -1,6 +1,9 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { createPrintJob, getPrintJob, updatePrintJob, type PosDatabase } from "./db.js";
-import { isPrintJobState, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
+import type { PrintJobRequest, PrintJobState, PrintJobStateUpdate } from "@event-pos/contracts";
+
+const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
+const isPrintJobState = (value: unknown): value is PrintJobState => typeof value === "string" && printJobStates.includes(value as PrintJobState);
 
 export type PrinterHost = { accept(job: ReturnType<typeof createPrintJob>): Promise<void> };
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost };
