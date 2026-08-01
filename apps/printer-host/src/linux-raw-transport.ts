@@ -11,7 +11,12 @@ export class LinuxRawTransport implements PrinterTransport {
   async send(bytes: Uint8Array): Promise<void> {
     this.handle ??= await open(this.devicePath, "w");
     try {
-      await this.handle.write(bytes);
+      let offset = 0;
+      while (offset < bytes.byteLength) {
+        const result = await this.handle.write(bytes, offset, bytes.byteLength - offset);
+        if (result.bytesWritten <= 0) throw new Error("printer write made no progress");
+        offset += result.bytesWritten;
+      }
     } catch (error) {
       await this.close();
       throw error;
