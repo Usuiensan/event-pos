@@ -8,7 +8,7 @@ services:
       PORT: 3000
       POS_DATABASE_PATH: /var/lib/event-pos/event-pos.sqlite
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
     volumes:
       - pos-data:/var/lib/event-pos
     healthcheck:
