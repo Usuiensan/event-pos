@@ -158,9 +158,18 @@ export function getTheoreticalCash(db: PosDatabase, sessionId: string): number {
 
 export type CashJournalCandidate = { id: number; type: CashMovement["type"]; amountYen: number; transactionId?: string; reason: string; createdAt: string; score: number };
 
-export function findCashJournalCandidates(db: PosDatabase, sessionId: string, differenceYen: number, limit = 20): CashJournalCandidate[] {
+export type CashJournalSearch = { differenceYen: number; limit?: number; from?: string; to?: string; actorId?: string; terminalId?: string; type?: CashMovement["type"] };
+
+export function findCashJournalCandidates(db: PosDatabase, sessionId: string, search: CashJournalSearch): CashJournalCandidate[] {
+  const { differenceYen, limit = 20, from, to, actorId, terminalId, type } = search;
   if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) throw new Error("difference is invalid");
-  const rows = db.prepare("SELECT id, type, amount_yen, transaction_id, reason, created_at FROM cash_movements WHERE session_id = ? ORDER BY id DESC LIMIT 500").all(sessionId) as Array<Record<string, unknown>>;
+  const clauses = ["session_id = ?"]; const params: Array<string | number> = [sessionId];
+  if (from) { clauses.push("created_at >= ?"); params.push(from); }
+  if (to) { clauses.push("created_at <= ?"); params.push(to); }
+  if (actorId) { clauses.push("actor_id = ?"); params.push(actorId); }
+  if (terminalId) { clauses.push("terminal_id = ?"); params.push(terminalId); }
+  if (type) { clauses.push("type = ?"); params.push(type); }
+  const rows = db.prepare(`SELECT id, type, amount_yen, transaction_id, reason, created_at FROM cash_movements WHERE ${clauses.join(" AND ")} ORDER BY id DESC LIMIT 500`).all(...params) as Array<Record<string, unknown>>;
   const target = Math.abs(differenceYen);
   return rows.map((row) => {
     const amount = Number(row.amount_yen);

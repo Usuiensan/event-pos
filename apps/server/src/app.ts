@@ -47,12 +47,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(201).send(saveCashCheck(options.database, check));
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
   });
-  app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
+  app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string; from?: string; to?: string; actorId?: string; terminalId?: string; type?: "sale" | "return" | "pay_in" | "pay_out" } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
     const differenceYen = Number(request.query.differenceYen);
     if (!Number.isSafeInteger(differenceYen) || differenceYen === 0) return reply.code(400).send({ error: "difference_required" });
     try {
-      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, differenceYen, Number(request.query.limit ?? 20));
-      options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_search', 'cash_session', ?, ?, ?)").run(request.params.sessionId, JSON.stringify({ differenceYen, limit: request.query.limit ?? "20" }), new Date().toISOString());
+      const candidates = findCashJournalCandidates(options.database, request.params.sessionId, { differenceYen, limit: Number(request.query.limit ?? 20), from: request.query.from, to: request.query.to, actorId: request.query.actorId, terminalId: request.query.terminalId, type: request.query.type });
+      options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_search', 'cash_session', ?, ?, ?)").run(request.params.sessionId, JSON.stringify(request.query), new Date().toISOString());
       return { sessionId: request.params.sessionId, differenceYen, candidates };
     } catch (error) { return reply.code(400).send({ error: "journal_search_failed", message: error instanceof Error ? error.message : "journal_search_failed" }); }
   });
