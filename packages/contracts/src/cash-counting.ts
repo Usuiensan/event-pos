@@ -2,7 +2,7 @@ export const cashDenominations = [1, 5, 10, 50, 100, 500, 1000, 2000, 5000, 1000
 export type CashDenomination = typeof cashDenominations[number];
 export type CashCount = { denomination: CashDenomination; quantity: number };
 export type CashCheckKind = "opening" | "interim" | "closing";
-export type CashCheck = { sessionId: string; kind: CashCheckKind; counted: CashCount[]; theoreticalYen: number; carryoverYen?: number; countedYen: number; differenceYen: number; createdAt: string };
+export type CashCheck = { sessionId: string; kind: CashCheckKind; counted: CashCount[]; theoreticalYen: number; carryoverYen?: number; countedYen: number; differenceYen: number; actorId?: string; terminalId?: string; createdAt: string };
 
 export function calculateCashActual(counted: CashCount[]): number {
   const seen = new Set<number>();

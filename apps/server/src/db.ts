@@ -30,18 +30,23 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
            CREATE TABLE IF NOT EXISTS cash_checks (
              id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, kind TEXT NOT NULL,
              counted_json TEXT NOT NULL, theoretical_yen INTEGER NOT NULL, carryover_yen INTEGER NOT NULL,
-             counted_yen INTEGER NOT NULL, difference_yen INTEGER NOT NULL, created_at TEXT NOT NULL,
+             counted_yen INTEGER NOT NULL, difference_yen INTEGER NOT NULL, actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );
            CREATE TABLE IF NOT EXISTS cash_movements (
              id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, type TEXT NOT NULL,
              amount_yen INTEGER NOT NULL, transaction_id TEXT, reason TEXT NOT NULL, idempotency_key TEXT,
-             created_at TEXT NOT NULL,
+             actor_id TEXT, terminal_id TEXT, created_at TEXT NOT NULL,
              FOREIGN KEY(session_id) REFERENCES cash_sessions(session_id)
            );`);
   const movementColumns = db.prepare("PRAGMA table_info(cash_movements)").all() as Array<{ name: string }>;
   if (!movementColumns.some((column) => column.name === "idempotency_key")) db.exec("ALTER TABLE cash_movements ADD COLUMN idempotency_key TEXT");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_cash_movements_idempotency ON cash_movements(idempotency_key) WHERE idempotency_key IS NOT NULL;");
+  const checkColumns = db.prepare("PRAGMA table_info(cash_checks)").all() as Array<{ name: string }>;
+  if (!checkColumns.some((column) => column.name === "actor_id")) db.exec("ALTER TABLE cash_checks ADD COLUMN actor_id TEXT");
+  if (!checkColumns.some((column) => column.name === "terminal_id")) db.exec("ALTER TABLE cash_checks ADD COLUMN terminal_id TEXT");
+  if (!movementColumns.some((column) => column.name === "actor_id")) db.exec("ALTER TABLE cash_movements ADD COLUMN actor_id TEXT");
+  if (!movementColumns.some((column) => column.name === "terminal_id")) db.exec("ALTER TABLE cash_movements ADD COLUMN terminal_id TEXT");
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
   if (!existing) {
     db.exec("BEGIN;");
@@ -90,7 +95,7 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
   db.exec("BEGIN;");
   try {
-    db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.createdAt);
+    db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt);
     if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
     if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'cash_check', ?, ?, ?)").run(session.event_id, check.kind, check.sessionId, JSON.stringify(check), check.createdAt);
@@ -99,7 +104,7 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
   return check;
 }
 
-export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; createdAt: string };
+export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string; createdAt: string };
 
 export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashMovement {
   if (!Number.isSafeInteger(movement.amountYen) || movement.amountYen <= 0 || !movement.reason.trim()) throw new Error("現金移動が不正です");
@@ -117,7 +122,7 @@ export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashM
   }
   db.exec("BEGIN;");
   try {
-    db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(movement.sessionId, movement.type, movement.amountYen, movement.transactionId ?? null, movement.reason, movement.idempotencyKey ?? null, movement.createdAt);
+    db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(movement.sessionId, movement.type, movement.amountYen, movement.transactionId ?? null, movement.reason, movement.idempotencyKey ?? null, movement.actorId ?? null, movement.terminalId ?? null, movement.createdAt);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, 'cash_movement', 'cash_movement', ?, ?, ?)").run(session.event_id, movement.sessionId, JSON.stringify(movement), movement.createdAt);
     db.exec("COMMIT;");
   } catch (error) { db.exec("ROLLBACK;"); throw error; }

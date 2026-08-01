@@ -25,7 +25,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });
     try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate); return reply.code(201).send({ sessionId: request.body.sessionId, state: "open" }); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
   });
-  app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
+  app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
     try {
       if (!request.body?.idempotencyKey) return reply.code(400).send({ error: "idempotency_key_required" });
       const movement = { ...request.body, sessionId: request.params.sessionId, createdAt: new Date().toISOString() };
@@ -35,10 +35,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(message.includes("idempotency key") ? 409 : 400).send({ error: "invalid_cash_movement", message });
     }
   });
-  app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; carryoverYen?: number } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
+  app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; carryoverYen?: number; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
     if (!["opening", "interim", "closing"].includes(request.params.kind)) return reply.code(400).send({ error: "invalid_cash_check_kind" });
     try {
-      const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: getTheoreticalCash(options.database, request.params.sessionId), ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }) };
+      const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: getTheoreticalCash(options.database, request.params.sessionId), ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }), ...(request.body.actorId ? { actorId: request.body.actorId } : {}), ...(request.body.terminalId ? { terminalId: request.body.terminalId } : {}) };
       const check = createCashCheck(input);
       return reply.code(201).send(saveCashCheck(options.database, check));
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
