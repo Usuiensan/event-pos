@@ -5,6 +5,7 @@ const baseUrl = process.env.VOICEVOX_URL ?? "http://localhost:50021";
 const speaker = Number(process.env.VOICEVOX_SPEAKER ?? 114);
 const outDir = path.resolve("apps/register-web/public/audio/speaker", String(speaker));
 const parts = {
+  "えん": "yen",
   "じゅう": "ju", "ひゃく": "hyaku", "せん": "sen", "まん": "man",
   "いち": "ichi", "に": "ni", "さん": "san", "よん": "yon", "ご": "go", "ろく": "roku", "なな": "nana", "はち": "hachi", "きゅう": "kyu",
   "にじゅう": "nijuu", "さんじゅう": "sanjuu", "よんじゅう": "yonjuu", "ごじゅう": "gojuu", "ろくじゅう": "rokujuu", "ななじゅう": "nanajuu", "はちじゅう": "hachijuu", "きゅうじゅう": "kyuujuu",
