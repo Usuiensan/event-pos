@@ -17,5 +17,6 @@ export function createCashCheck(input: Omit<CashCheck, "countedYen" | "differenc
   const countedYen = calculateCashActual(input.counted);
   const carryoverYen = input.carryoverYen ?? 0;
   if (!Number.isSafeInteger(carryoverYen) || carryoverYen < 0) throw new Error("翌日残し額が不正です");
+  if (input.kind === "closing" && carryoverYen > countedYen) throw new Error("翌日残し額が実査額を超えています");
   return { ...input, carryoverYen, countedYen, differenceYen: countedYen - input.theoreticalYen, createdAt: input.createdAt ?? new Date().toISOString() };
 }

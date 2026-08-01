@@ -17,6 +17,17 @@ describe("server foundation", () => {
     const interim = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/interim", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }] } });
     expect(interim.statusCode).toBe(201); expect(interim.json()).toMatchObject({ theoreticalYen: 1500, countedYen: 1500, differenceYen: 0 });
   });
+  it("rejects duplicate closing and idempotency payload changes", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1", payload: { sessionId: "s1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(201);
+    const movement = { type: "sale", amountYen: 100, reason: "sale", idempotencyKey: "same" };
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: movement })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: { ...movement, amountYen: 200 } })).statusCode).toBe(409);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000 } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: { ...movement, idempotencyKey: "after-close" } })).statusCode).toBe(400);
+  });
   it("persists and restores an event catalog through the API", async () => {
     const databasePath = "./.catalog-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });

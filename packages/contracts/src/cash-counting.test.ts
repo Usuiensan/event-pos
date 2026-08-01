@@ -10,4 +10,7 @@ describe("cash counting", () => {
     expect(() => createCashCheck({ sessionId: "s1", kind: "closing", theoreticalYen: 0, counted: [{ denomination: 100, quantity: 1 }, { denomination: 100, quantity: 1 }] })).toThrow();
     expect(() => createCashCheck({ sessionId: "s1", kind: "closing", theoreticalYen: 0, counted: [{ denomination: 100, quantity: -1 }] })).toThrow();
   });
+  it("rejects carryover larger than closing actual", () => {
+    expect(() => createCashCheck({ sessionId: "s1", kind: "closing", theoreticalYen: 1000, carryoverYen: 1001, counted: [{ denomination: 1000, quantity: 1 }] })).toThrow();
+  });
 });
