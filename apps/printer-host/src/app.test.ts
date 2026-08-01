@@ -19,7 +19,7 @@ describe("printer host", () => {
     expect(new TextDecoder().decode(transport.sent[0])).toContain("hello");
     const sent = transport.sent[0];
     expect(sent).toBeDefined();
-    expect(Array.from(sent!.slice(-6))).toEqual([0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00]);
+    expect(Array.from(sent!.slice(-9))).toEqual([0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00]);
   });
 
   it("marks an unavailable printer as unknown", async () => {

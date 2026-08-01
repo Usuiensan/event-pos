@@ -22,6 +22,7 @@
 | `10_adr-linux-production-host-2026-08-02.md` | Windows本番方針を置き換えるLinux本番ホストADR |
 | `11_adr-print-host-process-boundary-2026-08-02.md` | POS本体とプリンターホストの責務・通信境界ADR |
 | `12_adr-disaster-print-integration-2026-08-02.md` | kishou_server/Discord防災通知とPOS printer-host共用印刷ADR |
+| `13_windows-surface-temporary-deployment-2026-08-02.md` | Surface上のDocker POSとWindows printer-hostの一時運用構成 |
 
 ## 固定した技術方針
 
