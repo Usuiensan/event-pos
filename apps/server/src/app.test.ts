@@ -65,6 +65,17 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-1", amountYen: 300, idempotencyKey: "tx-key" } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-2", amountYen: 400, idempotencyKey: "tx-key" } })).statusCode).toBe(409);
   });
+  it("records returns as negative cash movement with manager authorization", async () => {
+    const app = buildApp({ database: openDatabase(), requireCashAuth: true }); apps.push(app);
+    const headers = { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" };
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions", headers, payload: { sessionId: "return-1", eventId: "e1", businessDate: "2026-08-02" } });
+    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/checks/opening", headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/transactions/return", headers, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(403);
+    const managerHeaders = { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" };
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/transactions/return", headers: managerHeaders, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(201);
+    const check = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/checks/interim", headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
+    expect(check.json()).toMatchObject({ theoreticalYen: 900 });
+  });
   it("persists and restores an event catalog through the API", async () => {
     const databasePath = "./.catalog-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });

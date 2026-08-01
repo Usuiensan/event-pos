@@ -136,7 +136,7 @@ export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_i
 
 export type SaleTransaction = { transactionId: string; sessionId: string; amountYen: number; idempotencyKey: string; reason: string; actorId?: string; terminalId?: string };
 
-export function saveSaleTransaction(db: PosDatabase, sale: SaleTransaction): { transactionId: string; sessionId: string; amountYen: number; createdAt: string } {
+function saveCashTransaction(db: PosDatabase, sale: SaleTransaction, movementType: "sale" | "return"): { transactionId: string; sessionId: string; amountYen: number; createdAt: string } {
   if (!sale.transactionId || !sale.idempotencyKey || !Number.isSafeInteger(sale.amountYen) || sale.amountYen <= 0) throw new Error("取引が不正です");
   const session = db.prepare("SELECT event_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(sale.sessionId) as { event_id: string; state: string; opening_yen: number | null } | undefined;
   if (!session) throw new Error("cash session not found");
@@ -151,12 +151,15 @@ export function saveSaleTransaction(db: PosDatabase, sale: SaleTransaction): { t
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO transactions (transaction_id, session_id, total_yen, idempotency_key, created_at) VALUES (?, ?, ?, ?, ?)").run(sale.transactionId, sale.sessionId, sale.amountYen, sale.idempotencyKey, createdAt);
-    db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, actor_id, terminal_id, created_at) VALUES (?, 'sale', ?, ?, ?, ?, ?, ?, ?)").run(sale.sessionId, sale.amountYen, sale.transactionId, sale.reason, `tx:${sale.idempotencyKey}`, sale.actorId ?? null, sale.terminalId ?? null, createdAt);
-    db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, 'sale', 'transaction', ?, ?, ?)").run(session.event_id, sale.transactionId, JSON.stringify({ sessionId: sale.sessionId, amountYen: sale.amountYen, actorId: sale.actorId, terminalId: sale.terminalId }), createdAt);
+    db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(sale.sessionId, movementType, sale.amountYen, sale.transactionId, sale.reason, `tx:${sale.idempotencyKey}`, sale.actorId ?? null, sale.terminalId ?? null, createdAt);
+    db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'transaction', ?, ?, ?)").run(session.event_id, movementType, sale.transactionId, JSON.stringify({ sessionId: sale.sessionId, amountYen: sale.amountYen, actorId: sale.actorId, terminalId: sale.terminalId }), createdAt);
     db.exec("COMMIT;");
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
   return { transactionId: sale.transactionId, sessionId: sale.sessionId, amountYen: sale.amountYen, createdAt };
 }
+
+export const saveSaleTransaction = (db: PosDatabase, sale: SaleTransaction) => saveCashTransaction(db, sale, "sale");
+export const saveReturnTransaction = (db: PosDatabase, sale: SaleTransaction) => saveCashTransaction(db, sale, "return");
 
 export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashMovement {
   if (!Number.isSafeInteger(movement.amountYen) || movement.amountYen <= 0 || !movement.reason.trim()) throw new Error("現金移動が不正です");
