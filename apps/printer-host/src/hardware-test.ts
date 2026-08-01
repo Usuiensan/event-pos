@@ -20,11 +20,16 @@ if (!devicePath) {
   const statusBefore = await transport.getStatus();
   let result: "completed" | "unknown" | "failed" = "unknown";
   let errorMessage: string | undefined;
+  let statusAfter = statusBefore;
   try { await transport.send(bytes); result = "completed"; }
   catch (error) { result = "unknown"; errorMessage = error instanceof Error ? error.message : String(error); }
-  finally { await transport.close(); }
+  finally {
+    try { statusAfter = await transport.getStatus(); }
+    catch { statusAfter = "unknown"; }
+    await transport.close();
+  }
   await mkdir(evidenceDir, { recursive: true });
-  const evidence = { jobId: job.jobId, devicePath, statusBefore, result, bytesLength: bytes.byteLength,
+  const evidence = { jobId: job.jobId, devicePath, statusBefore, statusAfter, result, bytesLength: bytes.byteLength,
     bytesSha256: createHash("sha256").update(bytes).digest("hex"), executedAt: new Date().toISOString(), ...(errorMessage ? { errorMessage } : {}) };
   await writeFile(`${evidenceDir}/${job.jobId}.json`, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
   console.log(JSON.stringify(evidence));

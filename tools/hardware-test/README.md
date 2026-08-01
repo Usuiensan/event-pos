@@ -42,7 +42,7 @@ PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/$(date +%Y%m%d-%H%M%S) \
 pnpm --filter @event-pos/printer-host hardware-test
 ```
 
-JSONの`result`、`statusBefore`、`bytesSha256`、`bytesLength`を保存し、紙面の文字・フィード・カットを目視して同じ試験番号へ記録する。送信成功だけでは紙面完了の証拠としない。
+JSONの`result`、`statusBefore`、`statusAfter`、`bytesSha256`、`bytesLength`を保存し、紙面の文字・フィード・カットを目視して同じ試験番号へ記録する。送信成功だけでは紙面完了の証拠としない。status取得に失敗した場合の`statusAfter`は`unknown`として保存する。
 
 ### B. 切断・再接続
 
