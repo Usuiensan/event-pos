@@ -1,2 +1,4 @@
 export { calculateDammCheckDigit, createPublicReference, formatPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
 export type { PublicReferenceParts } from "./public-reference.js";
+export { isPrintJobState, printJobStates } from "./print-job.js";
+export type { PrintJob, PrintJobRequest, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
