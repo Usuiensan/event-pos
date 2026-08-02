@@ -148,6 +148,16 @@ function Launcher() {
 }
 
 function Root() {
+  useEffect(() => {
+    const playTapFeedback = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0 || !(event.target instanceof Element)) return;
+      const control = event.target.closest<HTMLElement>('button, input:not([type="hidden"]), select, [role="button"]');
+      if (!control || control.matches(":disabled, [aria-disabled=\"true\"]")) return;
+      playOperationSound("tap");
+    };
+    document.addEventListener("pointerdown", playTapFeedback, { capture: true });
+    return () => document.removeEventListener("pointerdown", playTapFeedback, { capture: true });
+  }, []);
   const params = new URLSearchParams(window.location.search);
   const role = params.get("role");
   const registerNumber = Number(params.get("register"));

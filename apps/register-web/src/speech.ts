@@ -1,5 +1,5 @@
 export type SpeechPlayer = { speak(text: string): void; setSpeaker(speakerId: number): void; speakerId: number };
-export type OperationSound = "register" | "cancel" | "complete" | "error";
+export type OperationSound = "tap" | "register" | "cancel" | "complete" | "error";
 
 const prepared: Record<string, string> = {
   "円": "/audio/yen.wav", "えん": "/audio/yen.wav", "じゅう": "/audio/ju.wav", "ひゃく": "/audio/hyaku.wav", "せん": "/audio/sen.wav", "まん": "/audio/man.wav",
@@ -72,13 +72,14 @@ export function playOperationSound(kind: OperationSound): void {
     oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmContext = context; return;
   }
   const context = new AudioContext();
-  const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : 1100, 0]];
+  const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : kind === "tap" ? 820 : 1100, 0]];
   const start = context.currentTime;
   for (const [frequency, offset] of tones) {
     const oscillator = context.createOscillator(); const gain = context.createGain();
     oscillator.frequency.value = frequency; oscillator.type = "sine";
-    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(.42, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + .09);
-    oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + .07);
+    const duration = kind === "tap" ? .045 : .07;
+    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(kind === "tap" ? .3 : .42, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration + .02);
+    oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + duration);
   }
   window.setTimeout(() => void context.close(), 250);
 }
