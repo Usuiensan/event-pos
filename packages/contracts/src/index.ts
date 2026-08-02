@@ -7,5 +7,7 @@ export { exportEventCatalog, importEventCatalog, taxCategories, taxCategoryLabel
 export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry, StaffMember, StaffPermission, TaxCategory } from "./catalog.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
+export { calculateSale, SaleCalculationError } from "./checkout.js";
+export type { CalculatedDiscount, CalculatedSaleLine, DiscountAllocation, ManualDiscountInput, SaleCalculation, SaleCalculationLineInput, TaxSummary } from "./checkout.js";
 export { calculateCashActual, cashDenominations, createCashCheck } from "./cash-counting.js";
 export type { CashCheck, CashCheckKind, CashCount, CashDenomination } from "./cash-counting.js";
