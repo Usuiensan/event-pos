@@ -24,3 +24,11 @@ Goal 7の正式adapter・POS queue/status API/UI統合はこの表の対象外�
 | 紙面5種 | 開局・初回だけ取得したが、営業日不具合と再印刷前の安全停止によりrun不合格 | 未実施（対象機へ到達不能） | Windowsは正しい営業日で5種を再実施。jobId/hash/acceptedBytes/hostログと紙面判定をOS別に保存する |
 
 詳細は[Goal 7.1 status](goal7.1-status.md)を参照する。
+
+### 2026-08-03 継続監査追記
+
+Goal 7.1の自動経路は、全workspaceの`pnpm check`、built/deploy PrinterHost smoke、POS→HttpPrinterHostClient→PrinterHost→TransportのFIFO・同一jobId・結果不明テストまで合格している。これは送信経路の自動証拠であり、実機紙面受入の代替ではない。
+
+Windowsの`20260803-070121-goal7.1-pos-feed8` artifactには、開局・初回・再印刷・中間計・精算のjobId、payload hash、acceptedBytes、spoolerJobIdが保存されている。一方、中間計・精算の紙面写真IDが実体写真ではないため、Windowsの5種紙面受入は証拠不足のまま保留する。Linux x86_64の正式Host/systemd/POS経由runは未取得である。
+
+したがって、Goal 7.1は自動試験・定義・運用文書を決定可能とするが、Windows/Linux双方の実機紙面・常駐起動・USB復旧を含む最終受入は未完了とする。紙切れ、カバー開、ドロアー物理開放は`unknown`/未実施として維持する。
