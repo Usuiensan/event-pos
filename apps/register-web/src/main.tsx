@@ -167,7 +167,12 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       void checkoutApi.announceSpeech(registerId, text).then((result) => { if (result.targetRole === "staff") speech.speak(text); }).catch(() => { if (!customerDisplayAvailable) speech.speak(text); });
     },
   }), [speech, registerId, customerDisplayAvailable]);
-  const clearFinishedTransaction = () => { if (!checkoutLocked) return; setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null); void openDraft().catch((error) => showSystemError(errorMessage(error), error)); };
+  const startNextTransaction = async (): Promise<boolean> => {
+    if (!checkoutLocked && draftRef.current?.state !== "completed") return true;
+    setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null);
+    try { await openDraft(); return true; } catch (error) { showSystemError(errorMessage(error), error); return false; }
+  };
+  const clearFinishedTransaction = () => { void startNextTransaction(); };
   const submitReprint = () => {
     if (!currentTransactionId || !printJob) return showOperationError("再印刷元の取引と印刷jobを取得できません。");
     if (!reprintReason.trim()) return showOperationError("再印刷理由を入力してください。");
@@ -280,11 +285,12 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       const target = event.target;
       const isFormInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
       if (showSignIn || selectedLine !== null || isFormInput) return;
-      if (checkoutLocked && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt" && event.key !== "Meta") { event.preventDefault(); return; }
+      if (checkoutLocked && !/^[0-9]$/.test(event.key) && event.key !== "Enter" && event.key !== "Escape" && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt" && event.key !== "Meta") { event.preventDefault(); return; }
       if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; }
       if (event.key === "Escape") { setInputBuffer(""); return; }
       if (event.key === "Enter" && inputBuffer) {
         event.preventDefault();
+        if (checkoutLocked) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showOperationError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "商品コードを入力してください。"); return; }
         if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showOperationError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; }
         finishPayment("現金");
         return;
@@ -305,8 +311,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   useEffect(() => { let stopped = false; const poll = () => { void fetch("/api/v1/emergency-alerts/latest", { cache: "no-store" }).then(async (response) => response.ok ? await response.json() as { alert: EmergencyAlert | null } : null).then((result) => { const alert = result?.alert; if (stopped || !alert || alert.id === lastEmergencyAlertIdRef.current) return; lastEmergencyAlertIdRef.current = alert.id; setEmergencyAlert(alert); speakEmergencyAlertReceived(routedSpeech); }).catch(() => { /* 次回のポーリングで復旧する */ }); }; poll(); const timer = window.setInterval(poll, 1000); return () => { stopped = true; window.clearInterval(timer); }; }, [routedSpeech]);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
   const highlightLine = (productCode: string, state: "active" | "cancelled" = "active") => { const highlightKey = `${state}:${productCode}`; triggerHighlight(highlightKey); localStorage.setItem(storageKey("line-highlight"), JSON.stringify({ highlightKey, productCode, at: Date.now() })); };
-  const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false) => {
-    if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。商品登録はできません。");
+  const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false, startedNextTransaction = false) => {
+    if ((checkoutLocked || draftRef.current?.state === "completed") && !startedNextTransaction) { void startNextTransaction().then((ready) => { if (ready) addProduct(product, quantity, announce, ageCheckBypass, true); }); return; }
     if (product.saleState !== "on_sale") return showOperationError("この商品は販売停止中のため登録できません。");
     const requiredAge = ageRequirement(product);
     if (!ageCheckBypass && requiredAge && (!ageVerified || ageVerifiedMinimum < requiredAge)) {
@@ -316,11 +322,11 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     }
     void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
   };
-  const addQuick = (quick: QuickEntry) => {
-    if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。商品登録はできません。");
+  const addQuick = (quick: QuickEntry, startedNextTransaction = false) => {
+    if ((checkoutLocked || draftRef.current?.state === "completed") && !startedNextTransaction) { void startNextTransaction().then((ready) => { if (ready) addQuick(quick, true); }); return; }
     const components = quick.productCode ? [{ productCode: quick.productCode, quantity: quick.quantity ?? 1 }] : (quick.components ?? []);
     const restricted = components.map((component) => catalog.products.find((item) => item.productCode === component.productCode)).find((product) => product && isAgeRestricted(product) && (!ageVerified || ageVerifiedMinimum < (ageRequirement(product) ?? 20)));
-    if (restricted) { addProduct(restricted, components.find((component) => component.productCode === restricted.productCode)?.quantity ?? 1, false); return; }
+    if (restricted) { addProduct(restricted, components.find((component) => component.productCode === restricted.productCode)?.quantity ?? 1, false, false, startedNextTransaction); return; }
     const addedTotal = components.reduce((sum, component) => sum + (catalog.products.find((product) => product.productCode === component.productCode)?.priceInclTax ?? 0) * component.quantity, 0);
     const operation = quick.components ? (draft: CheckoutDraft) => checkoutApi.addBundle(draft.draftId, draft.version, quick.id) : (draft: CheckoutDraft) => checkoutApi.addLine(draft.draftId, draft.version, quick.productCode!, quick.quantity ?? 1);
     void runDraftMutation(operation).then((next) => { if (next && addedTotal > 0) { playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(addedTotal)); } });
