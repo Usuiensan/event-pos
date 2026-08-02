@@ -115,8 +115,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const cash = draft.payments.find((payment) => payment.kind === "cash");
     const payment = draft.payments[0];
     setReceived(cash?.tenderedYen ?? 0); setCompletedPaymentLabel(payment ? ({ cash: "現金", credit: "クレジット", accounts_receivable: "売掛", no_charge: "無配" } as const)[payment.kind] : "現金");
-    setPaymentFinished(draft.state === "completed"); setShowPayment(draft.state === "payment" && draft.payments.length === 0);
-    if (draft.state === "completed") { setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
+    setPaymentFinished(draft.state === "completed");
+    if (draft.state === "payment" && draft.payments.length === 0) setShowPayment(true);
+    if (draft.state === "completed") { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
     const verified = draft.ageVerifications.filter((item) => item.result === "passed" && (item.method === "appearance" || item.method === "id_visual")).reduce<0 | 18 | 20>((maximum, item) => Math.max(maximum, item.minimumAge) as 0 | 18 | 20, 0);
     setAgeVerified(verified > 0); setAgeVerifiedMinimum(verified);
   };
