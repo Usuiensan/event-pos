@@ -20,6 +20,7 @@ const yenParts: Record<string, string> = {
 };
 const audioRevision = "voice-parts-v6-tight-crisp";
 const preloaded = new Map<string, HTMLAudioElement>();
+let alarmContext: AudioContext | null = null;
 
 function preloadSpeaker(speakerId: number): void {
   if (typeof Audio === "undefined") return;
@@ -64,17 +65,24 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
 }
 export function playOperationSound(kind: OperationSound): void {
   if (typeof AudioContext === "undefined") return;
+  if (kind === "error") {
+    stopOperationSound();
+    const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain();
+    oscillator.type = "square"; oscillator.frequency.value = 1450; gain.gain.value = .72;
+    oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmContext = context; return;
+  }
   const context = new AudioContext();
-  const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : kind === "error" ? [[220, 0], [180, .08]] : [[kind === "cancel" ? 330 : 1100, 0]];
+  const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : 1100, 0]];
   const start = context.currentTime;
   for (const [frequency, offset] of tones) {
     const oscillator = context.createOscillator(); const gain = context.createGain();
     oscillator.frequency.value = frequency; oscillator.type = "sine";
-    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(.11, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + .065);
+    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(.42, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + .09);
     oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + .07);
   }
   window.setTimeout(() => void context.close(), 250);
 }
+export function stopOperationSound(): void { if (!alarmContext) return; const context = alarmContext; alarmContext = null; void context.close(); }
 function fallback(text: string): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
