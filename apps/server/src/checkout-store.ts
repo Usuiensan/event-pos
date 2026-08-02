@@ -55,7 +55,7 @@ export class CheckoutError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown> = {}) { super(message); }
 }
 
-function uuidV7(): string {
+export function uuidV7(): string {
   const bytes = randomBytes(16);
   let timestamp = BigInt(Date.now());
   for (let index = 5; index >= 0; index -= 1) { bytes[index] = Number(timestamp & 0xffn); timestamp >>= 8n; }
@@ -123,10 +123,10 @@ export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
   };
 }
 
-function publicProjection(draft: SaleDraftDto): Record<string, unknown> {
+function publicProjection(draft: SaleDraftDto, projectionVersion: number): Record<string, unknown> {
   const cashPayment = draft.payments.find((payment) => payment.kind === "cash");
   return {
-    registerId: draft.registerId, version: draft.version, state: draft.state,
+    registerId: draft.registerId, draftId: draft.draftId, version: projectionVersion, draftVersion: draft.version, state: draft.state,
     lines: draft.lines.filter((line) => line.status === "active").map((line) => ({ lineId: line.lineId, productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, taxCategory: line.taxCategory, netYen: draft.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? 0 })),
     discounts: draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })),
     totals: { subtotalYen: draft.calculation.subtotalYen, discountYen: draft.calculation.discountTotalYen, taxYen: draft.calculation.taxTotalYen, totalYen: draft.calculation.totalYen },
@@ -137,9 +137,11 @@ function publicProjection(draft: SaleDraftDto): Record<string, unknown> {
 
 function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
   const draft = getSaleDraft(db, draftId);
+  const current = db.prepare("SELECT version FROM customer_display_states WHERE register_id=?").get(draft.registerId) as { version: number } | undefined;
+  const projectionVersion = (current?.version ?? 0) + 1;
   db.prepare(`INSERT INTO customer_display_states (register_id, version, public_projection_json, updated_at) VALUES (?, ?, ?, ?)
     ON CONFLICT(register_id) DO UPDATE SET version=excluded.version, public_projection_json=excluded.public_projection_json, updated_at=excluded.updated_at`)
-    .run(draft.registerId, draft.version, JSON.stringify(publicProjection(draft)), draft.updatedAt);
+    .run(draft.registerId, projectionVersion, JSON.stringify(publicProjection(draft, projectionVersion)), draft.updatedAt);
   return draft;
 }
 
@@ -419,4 +421,8 @@ export function getTransactionSnapshot(db: PosDatabase, transactionId: string): 
 export function getCustomerDisplayProjection(db: PosDatabase, registerId: string): Record<string, unknown> | undefined {
   const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=?").get(registerId) as { public_projection_json: string } | undefined;
   return row ? JSON.parse(row.public_projection_json) as Record<string, unknown> : undefined;
+}
+
+export function getCustomerDisplayVersion(db: PosDatabase, registerId: string): number | undefined {
+  return (db.prepare("SELECT version FROM customer_display_states WHERE register_id=?").get(registerId) as { version: number } | undefined)?.version;
 }

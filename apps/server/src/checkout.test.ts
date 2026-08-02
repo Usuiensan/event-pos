@@ -229,6 +229,28 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT state,error_message FROM print_jobs WHERE job_id=?").get(response.json().printJobId)).toMatchObject({ state: "failed", error_message: "printer offline" });
   });
 
+  it("会計済みdraftの取消・数量・売価・値引き・支払・登録中止をAPIでも拒否する", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app, "register-locked"); draft = await addLine(app, draft); draft = await addPayment(app, draft, "credit", 110);
+    const finalized = await finalize(app, draft, "locked-key");
+    expect(finalized.statusCode).toBe(201);
+    const completed = (await app.inject({ method: "GET", url: `/api/v1/sale-drafts/${draft.draftId}` })).json();
+    expect(completed.state).toBe("completed");
+    const lineId = completed.lines[0].lineId;
+    const attempts = await Promise.all([
+      app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) } }),
+      app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) }, payload: { quantity: 2 } }),
+      app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) }, payload: { manualDiscount: { kind: "rate", value: 10 } } }),
+      app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(completed.version) }, payload: { kind: "cash", amountYen: 110, tenderedYen: 110 } }),
+      app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}`, headers: { "if-match": String(completed.version) } }),
+    ]);
+    for (const attempt of attempts) { expect(attempt.statusCode).toBe(409); expect(attempt.json().error.code).toBe("DRAFT_NOT_EDITABLE"); }
+    const retry = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "locked-key" }, payload: { version: draft.version } });
+    expect(retry.json().transactionId).toBe(finalized.json().transactionId);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='receipt'").get()).toMatchObject({ count: 1 });
+  });
+
   it("restores the completed transaction and public projection after a database reopen", async () => {
     const path = "./.checkout-reopen-test.sqlite";
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });

@@ -12,6 +12,7 @@ import {
   createSaleDraft,
   finalizeSale,
   getCustomerDisplayProjection,
+  getCustomerDisplayVersion,
   getRegisterSaleDraft,
   getSaleDraft,
   getTransactionSnapshot,
@@ -20,9 +21,10 @@ import {
   type FailureInjector,
   type PaymentKind,
 } from "./checkout-store.js";
+import type { RealtimeHub } from "./realtime.js";
 
 type PrinterHost = { accept(job: NonNullable<ReturnType<typeof getPrintJob>>): Promise<void> };
-export type CheckoutRouteOptions = { database: PosDatabase; printerHost?: PrinterHost; checkoutFailureInjector?: FailureInjector };
+export type CheckoutRouteOptions = { database: PosDatabase; printerHost?: PrinterHost; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub };
 
 function headerValue(value: string | string[] | undefined): string | undefined { return Array.isArray(value) ? value[0] : value; }
 function ifMatch(headers: Record<string, string | string[] | undefined>): number {
@@ -48,6 +50,17 @@ function hasOnlyKeys(value: unknown, allowed: readonly string[]): boolean {
   return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).every((key) => allowed.includes(key));
 }
 
+function notifyDraft(options: CheckoutRouteOptions, draft: ReturnType<typeof getSaleDraft>): void {
+  options.realtimeHub?.notify({ type: "sale-draft.changed", registerId: draft.registerId, version: draft.version });
+  const projectionVersion = getCustomerDisplayVersion(options.database, draft.registerId);
+  if (projectionVersion !== undefined) options.realtimeHub?.notify({ type: "customer-display.changed", registerId: draft.registerId, version: projectionVersion });
+}
+
+function draftReply(reply: FastifyReply, draft: ReturnType<typeof getSaleDraft>): ReturnType<typeof getSaleDraft> {
+  reply.header("etag", `"draft:${draft.draftId}:${draft.version}"`).header("cache-control", "no-store");
+  return draft;
+}
+
 export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRouteOptions): void {
   app.get<{ Querystring: { eventId?: string; code?: string } }>("/api/v1/products", async (request, reply) => {
     if (!request.query.eventId || !request.query.code) return sendError(reply, new CheckoutError(400, "PRODUCT_QUERY_REQUIRED", "eventIdとcodeが必要です"));
@@ -57,56 +70,56 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
 
   app.get<{ Params: { registerId: string } }>("/api/v1/registers/:registerId/sale-draft", async (request, reply) => {
     const draft = getRegisterSaleDraft(options.database, request.params.registerId);
-    return draft ?? sendError(reply, new CheckoutError(404, "DRAFT_NOT_FOUND", "販売ドラフトが見つかりません"));
+    return draft ? draftReply(reply, draft) : sendError(reply, new CheckoutError(404, "DRAFT_NOT_FOUND", "販売ドラフトが見つかりません"));
   });
 
   app.post<{ Params: { registerId: string }; Body: { eventId: string; staffId: string; terminalId?: string; businessDate: string; sessionNo?: number } }>("/api/v1/registers/:registerId/sale-drafts", async (request, reply) => {
-    try { return reply.code(201).send(createSaleDraft(options.database, { ...request.body, registerId: request.params.registerId, terminalId: request.body.terminalId ?? request.params.registerId })); }
+    try { const draft = createSaleDraft(options.database, { ...request.body, registerId: request.params.registerId, terminalId: request.body.terminalId ?? request.params.registerId }); notifyDraft(options, draft); reply.header("etag", `"draft:${draft.draftId}:${draft.version}"`); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error); }
   });
 
   app.get<{ Params: { draftId: string } }>("/api/v1/sale-drafts/:draftId", async (request, reply) => {
-    try { return getSaleDraft(options.database, request.params.draftId); } catch (error) { return sendError(reply, error); }
+    try { return draftReply(reply, getSaleDraft(options.database, request.params.draftId)); } catch (error) { return sendError(reply, error); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { productCode: string; quantity?: number; source?: "manual" | "scan" } }>("/api/v1/sale-drafts/:draftId/lines", async (request, reply) => {
-    try { return reply.code(201).send(addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body)); }
+    try { const draft = addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { bundleId: string } }>("/api/v1/sale-drafts/:draftId/bundles", async (request, reply) => {
-    try { return reply.code(201).send(addDraftBundle(options.database, request.params.draftId, ifMatch(request.headers), request.body.bundleId)); }
+    try { const draft = addDraftBundle(options.database, request.params.draftId, ifMatch(request.headers), request.body.bundleId); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.patch<{ Params: { draftId: string; lineId: string }; Body: { quantity?: number; manualDiscount?: ManualDiscountInput | null } }>("/api/v1/sale-drafts/:draftId/lines/:lineId", async (request, reply) => {
-    try { return updateDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers), request.body); }
+    try { const draft = updateDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string; lineId: string } }>("/api/v1/sale-drafts/:draftId/lines/:lineId", async (request, reply) => {
-    try { return cancelDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers)); }
+    try { const draft = cancelDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { kind: PaymentKind; amountYen?: number; tenderedYen?: number; referenceNote?: string } }>("/api/v1/sale-drafts/:draftId/payments", async (request, reply) => {
-    try { return reply.code(201).send(addDraftPayment(options.database, request.params.draftId, ifMatch(request.headers), request.body)); }
+    try { const draft = addDraftPayment(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string; paymentId: string } }>("/api/v1/sale-drafts/:draftId/payments/:paymentId", async (request, reply) => {
-    try { return removeDraftPayment(options.database, request.params.draftId, request.params.paymentId, ifMatch(request.headers)); }
+    try { const draft = removeDraftPayment(options.database, request.params.draftId, request.params.paymentId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { minimumAge: 18 | 20; method: "appearance" | "id_visual" | "self_declaration"; result: "passed" | "failed"; confirmerId?: string; terminalId: string } }>("/api/v1/sale-drafts/:draftId/age-verifications", async (request, reply) => {
     if (!hasOnlyKeys(request.body, ["minimumAge", "method", "result", "confirmerId", "terminalId"])) return sendError(reply, new CheckoutError(400, "INVALID_AGE_VERIFICATION", "年齢確認には個人情報や未定義項目を送信できません"));
-    try { return reply.code(201).send(addAgeVerification(options.database, request.params.draftId, ifMatch(request.headers), request.body)); }
+    try { const draft = addAgeVerification(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string } }>("/api/v1/sale-drafts/:draftId", async (request, reply) => {
-    try { return cancelSaleDraft(options.database, request.params.draftId, ifMatch(request.headers)); }
+    try { const draft = cancelSaleDraft(options.database, request.params.draftId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
@@ -114,16 +127,27 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
     const key = headerValue(request.headers["idempotency-key"]);
     try {
       const result = finalizeSale(options.database, request.params.draftId, request.body?.version, key ?? "", options.checkoutFailureInjector);
+      const completedDraft = getSaleDraft(options.database, request.params.draftId);
+      notifyDraft(options, completedDraft);
+      options.realtimeHub?.notify({ type: "transaction.finalized", registerId: completedDraft.registerId, transactionId: result.transactionId });
       const job = getPrintJob(options.database, result.printJobId);
       if (job && options.printerHost) void options.printerHost.accept(job).catch((error) => { updatePrintJob(options.database, job.jobId, { state: "failed", errorMessage: error instanceof Error ? error.message : "プリンターホストへの送信に失敗しました" }); });
       return reply.code(201).send(result);
     } catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
-  app.get<{ Params: { transactionId: string } }>("/api/v1/transactions/:transactionId", async (request, reply) => getTransactionSnapshot(options.database, request.params.transactionId) ?? sendError(reply, new CheckoutError(404, "TRANSACTION_NOT_FOUND", "取引が見つかりません")));
+  app.get<{ Params: { transactionId: string } }>("/api/v1/transactions/:transactionId", async (request, reply) => {
+    const transaction = getTransactionSnapshot(options.database, request.params.transactionId);
+    if (!transaction) return sendError(reply, new CheckoutError(404, "TRANSACTION_NOT_FOUND", "取引が見つかりません"));
+    reply.header("etag", `"transaction:${request.params.transactionId}"`).header("cache-control", "no-store");
+    return transaction;
+  });
 
   app.get<{ Params: { terminalId: string }; Querystring: { registerId?: string } }>("/api/v1/customer-displays/:terminalId", async (request, reply) => {
     const registerId = request.query.registerId ?? request.params.terminalId;
-    return getCustomerDisplayProjection(options.database, registerId) ?? sendError(reply, new CheckoutError(404, "CUSTOMER_DISPLAY_STATE_NOT_FOUND", "顧客画面の状態が見つかりません"));
+    const projection = getCustomerDisplayProjection(options.database, registerId);
+    if (!projection) return sendError(reply, new CheckoutError(404, "CUSTOMER_DISPLAY_STATE_NOT_FOUND", "顧客画面の状態が見つかりません"));
+    reply.header("etag", `"customer-display:${registerId}:${String(projection.version)}"`).header("cache-control", "no-store");
+    return projection;
   });
 }
