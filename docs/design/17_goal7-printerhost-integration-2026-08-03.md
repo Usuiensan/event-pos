@@ -22,6 +22,12 @@ Windows x64は専用service accountでPrinterHostを無人起動し、`PRINTER_B
 
 drawerはADR-P003がAcceptedになるまでPrinterHost API・template・実機のいずれからも駆動しない。
 
+## BC-415M-B(6C) のP003実装候補（2026-08-03）
+
+ビジコムBC-415M-B(6C)は6ピンモジュラー式で、TMシリーズのDKコネクター経由で制御する。TM-T70IIの既定2番pinに対し、EPSONの`ESC p 0 2 20`例（ON 4 ms、OFF 40 ms）だけを許可する。任意のpin/pulseは受け付けない。責任者の「替」操作と現金会計時の操作は同じFIFO queueにdrawer operationとして入り、現金会計ではdrawerがreceiptより先行する。再印刷はdrawer operationを生成しない。
+
+Windows RAW spoolerで`acceptedBytes=5`を取得しただけでは物理開放を証明しない。担当者による一回の物理開放、連続駆動制限、Linuxでも同じ実証を保存するまでADR-P003はPendingのままとする。
+
 ## 実機証跡の扱い
 
 既存のWindows x64/Linux x86_64 probeと紙面証跡は`docs/printer-baseline/acceptance-status.md`およびOS別manifestを正本とする。Goal 7のPOS queue/API/UIを介した4レジFIFO、同一jobId、USB切断、Host/OS再起動、再印刷は未取得であり、実機成功とは主張しない。各runではjob/attempt ID、IR/bytes hash、Host結果、POS attempt、raw/normalized status、service log、紙面判定を同ディレクトリへ追加する。

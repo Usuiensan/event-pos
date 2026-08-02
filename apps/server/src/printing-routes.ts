@@ -6,6 +6,7 @@ import { uuidV7 } from "./checkout-store.js";
 import { getPrintJob, type PosDatabase } from "./db.js";
 import type { PersistentPrintQueue } from "./print-queue.js";
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
+import { createPrintJob } from "./db.js";
 
 type PhysicalOutcome = "printed" | "not_printed" | "indeterminate";
 type ReprintBody = { sourcePrintJobId: string; reason: string; physicalOutcome: PhysicalOutcome; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } };
@@ -42,6 +43,17 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
 }
 
 export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation> }): void {
+  app.post("/api/v1/device-jobs/drawer", async (request, reply) => {
+    const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
+    if (!actorId || role !== "manager") return error(reply, role ? 403 : 401, "DRAWER_MANAGER_REQUIRED", "責任者権限が必要です");
+    const now = new Date().toISOString(); const jobId = uuidV7();
+    try {
+      const job = createPrintJob(options.database, { jobId, transactionId: `drawer-manual:${jobId}`, printerId: "receipt-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 4, offMs: 40, reason: "manager_manual" }, createdAt: now, source: "event-pos", rendererVersion: "event-pos-drawer-v1", bytesSha256: "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", expectedBytesLength: 5 });
+      options.database.prepare("UPDATE printer_operations SET kind='drawer' WHERE payload_ref=?").run(jobId);
+      options.database.prepare("INSERT INTO audit_log (action,entity_type,entity_id,detail_json,created_at) VALUES ('drawer_open_request','printer_operation',?,?,?)").run(job.operationId ?? jobId, JSON.stringify({ actorId, pin: 2, onMs: 4, offMs: 40 }), now);
+      options.queue?.trigger(); return reply.code(201).send(job);
+    } catch (err) { return error(reply, 409, "DRAWER_CREATE_FAILED", err instanceof Error ? err.message : "ドロアー操作を登録できません"); }
+  });
   app.get("/api/v1/receipt-templates", async () => ({ templates: listReceiptTemplates(options.database) }));
   app.post<{ Body: { templateKey: string; sourceText: string; assets?: Parameters<typeof createReceiptTemplateDraft>[1]["assets"] } }>("/api/v1/receipt-templates", async (request, reply) => {
     try { return reply.code(201).send(createReceiptTemplateDraft(options.database, { templateKey: request.body.templateKey, sourceText: request.body.sourceText, ...(request.body.assets ? { assets: request.body.assets } : {}) })); } catch (err) { return error(reply, 400, "TEMPLATE_DRAFT_INVALID", err instanceof Error ? err.message : "template draftが不正です"); }

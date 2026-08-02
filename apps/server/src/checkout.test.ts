@@ -71,7 +71,8 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='sale_finalize'").get()).toMatchObject({ count: 1 });
-    expect(db.prepare("SELECT COUNT(*) AS count FROM printer_operations").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "drawer", sequence: 1 }, { kind: "print", sequence: 2 }]);
+    expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }) });
     const transaction = await app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` });
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
   });
@@ -326,7 +327,7 @@ describe("durable checkout API", () => {
       let draft = await startDraft(app, `load-register-${index}`); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
       expect((await finalize(app, draft, `load-${index}`)).statusCode).toBe(201);
     }
-    for (const table of ["transactions", "transaction_lines", "payments", "inventory_movements", "idempotency_records", "print_jobs", "printer_operations"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}${table === "print_jobs" ? " WHERE document_type='receipt'" : ""}`).get()).toMatchObject({ count: 60 });
+    for (const table of ["transactions", "transaction_lines", "payments", "inventory_movements", "idempotency_records", "print_jobs", "printer_operations"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}${table === "print_jobs" ? " WHERE document_type='receipt'" : table === "printer_operations" ? "" : ""}`).get()).toMatchObject({ count: table === "printer_operations" ? 120 : 60 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 60 });
   });
 });

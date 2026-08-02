@@ -241,15 +241,15 @@ export function createPrintJob(db: PosDatabase, request: PrintJobRequest): Print
   const operationId = `operation:${request.jobId}`;
   db.exec("BEGIN IMMEDIATE");
   try {
-    db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,payload_json,created_at,state,updated_at,source,source_event_id,renderer_version,bytes_sha256,canonical_ir,ir_sha256,expected_bytes_length,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,delivery_certainty)
-      VALUES (?,?,?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')`).run(
-      request.jobId, operationId, request.transactionId, request.printerId, request.documentType, JSON.stringify(request.payload), request.createdAt, now, request.source ?? null, request.sourceEventId ?? null,
+    db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,source_event_id,renderer_version,bytes_sha256,canonical_ir,ir_sha256,expected_bytes_length,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,delivery_certainty)
+      VALUES (?,?,?,?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')`).run(
+      request.jobId, operationId, request.transactionId, request.printerId, request.documentType, request.kind ?? "original", JSON.stringify(request.payload), request.createdAt, now, request.source ?? null, request.sourceEventId ?? null,
       request.rendererVersion ?? null, request.bytesSha256 ?? null, request.canonicalIr ?? null, request.irSha256 ?? null, request.expectedBytesLength ?? null, request.templateKey ?? null, request.templateVersion ?? null,
       request.templateSourceSha256 ?? null, JSON.stringify(request.assets?.map(({ rasterBase64: _raster, ...asset }) => asset) ?? []), request.fontId ?? null, request.fontVersion ?? null, request.fontSha256 ?? null,
       request.finishingPolicyId ?? null, request.finishingPolicyVersion ?? null,
     );
     const sequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
-    db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, request.jobId, now, now, now);
+    db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,?,'receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, request.kind === "drawer" ? "drawer" : "print", request.jobId, now, now, now);
     db.exec("COMMIT");
   } catch (error) { db.exec("ROLLBACK"); throw error; }
   const job = getPrintJob(db, request.jobId);
