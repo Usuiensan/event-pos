@@ -41,6 +41,16 @@ const job: PrintJob = {
 };
 
 describe("printer host", () => {
+  it("reachable実測済みなら未対応sensorをunknownのままRAW送信できる", async () => {
+    const transport = new FakeTransport();
+    transport.getStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "RAWでは未取得" }, coverOpen: { support: "unknown", reason: "RAWでは未取得" }, paper: { support: "unknown", reason: "RAWでは未取得" }, error: { support: "unknown", reason: "RAWでは未取得" }, raw: null });
+    const app = buildPrinterHost({ transport });
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "reachable-only" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ completionEvidence: "transport_accepted" });
+    await app.close();
+  });
+
   it("canonical IRを決定的に変換し、同じjobIdを1回だけ送信する", async () => {
     const transport = new FakeTransport();
     const app = buildPrinterHost({ transport }); apps.push(app);

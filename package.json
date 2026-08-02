@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.9.0",
   "engines": { "node": ">=24.0.0" },
   "scripts": {
-    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm build && pnpm typecheck && pnpm test && pnpm --filter @event-pos/printer-host smoke:built",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r build"

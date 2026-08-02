@@ -2,7 +2,20 @@
   "name": "@event-pos/printer-host",
   "private": true,
   "type": "module",
-  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run", "build": "tsc -p tsconfig.build.json", "dev": "tsx src/index.ts", "hardware-test": "tsx src/hardware-test.ts" },
+  "exports": {
+    ".": { "types": "./src/index.ts", "development": "./src/index.ts", "default": "./dist/index.js" },
+    "./app": { "types": "./src/app.ts", "development": "./src/app.ts", "default": "./dist/app.js" },
+    "./transport": { "types": "./src/transport.ts", "development": "./src/transport.ts", "default": "./dist/transport.js" }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "smoke:built": "node scripts/smoke-built.mjs",
+    "dev": "tsx --conditions=development src/index.ts",
+    "hardware-test": "tsx --conditions=development src/hardware-test.ts"
+  },
   "dependencies": { "@event-pos/contracts": "workspace:*", "@event-pos/escpos": "workspace:*", "@event-pos/receipt-ir": "workspace:*", "fastify": "^5.6.1" },
   "devDependencies": { "@types/node": "^24.3.0", "tsx": "^4.20.3", "typescript": "^5.9.2", "vitest": "^3.2.4" }
 }
