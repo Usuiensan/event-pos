@@ -4,7 +4,7 @@ export { isPrintJobState, printJobStates } from "./print-job.js";
 export type { PrintJob, PrintJobRequest, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
 export { formatJapaneseYenSpeech, readJapaneseYen } from "./japanese-money.js";
 export { exportEventCatalog, importEventCatalog, validateEventCatalog } from "./catalog.js";
-export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry } from "./catalog.js";
+export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry, StaffMember } from "./catalog.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
 export { calculateCashActual, cashDenominations, createCashCheck } from "./cash-counting.js";

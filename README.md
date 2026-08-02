@@ -46,6 +46,24 @@ pnpm --filter @event-pos/register-web dev
 
 `pnpm check`は全workspaceの型チェック、テスト、buildを実行する。React画面の実テストはUI実装タスクで追加する。
 
+## 商品JSONの責任者設定
+
+商品JSONには責任者番号とレジ表示名の対応を`staffMembers`で設定できる。責任者番号は先頭ゼロを含む3桁文字列で、イベント内で重複できない。表示名にはペンネームやハンドルネームを使用できる。
+
+```json
+{
+  "eventId": "demo-event",
+  "staffMembers": [
+    { "responsibleNumber": "001", "displayName": "テスト管理者" },
+    { "responsibleNumber": "002", "displayName": "売り子A" }
+  ],
+  "products": [],
+  "quickEntries": []
+}
+```
+
+店員側画面は、`staffMembers`に存在しない番号、空欄、3桁でない番号でのサインオンを拒否する。
+
 ## 次の作業
 
 1. 既存Debian環境のプリンター出力、ESC/POS bytes、USB・systemd・udev設定を保存する。
