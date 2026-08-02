@@ -138,6 +138,12 @@ export function playOperationSound(kind: OperationSound, volume = 100): void {
     oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + duration);
   }
 }
+export function previewSystemErrorSound(volume = 100, durationMs = 1_500): void {
+  playOperationSound("system-error", volume);
+  const previewAlarm = alarmOscillator;
+  if (!previewAlarm) return;
+  window.setTimeout(() => { if (alarmOscillator === previewAlarm) stopOperationSound(); }, durationMs);
+}
 export function stopOperationSound(): void { if (!alarmOscillator) return; const oscillator = alarmOscillator; alarmOscillator = null; try { oscillator.stop(); } catch { /* already stopped */ } oscillator.disconnect(); }
 function fallback(text: string, volume: number): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; utterance.volume = Math.max(0, Math.min(100, volume)) / 100; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
