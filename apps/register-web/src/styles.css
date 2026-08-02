@@ -19,8 +19,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .panel-switch { position: fixed; right: 1rem; bottom: 1rem; z-index: 5; background: #dc2626; color: white; border-radius: .2rem; min-width: 9rem; font-weight: 700; }
 .pos-screen.register-shell { box-sizing: border-box; width: 100vw; height: 100vh; height: 100svh; max-width: none; min-height: 0; margin: 0; padding: 18px; overflow: hidden; grid-template-rows: 72px 54px minmax(0, 1fr) auto; }
 .pos-screen.register-shell header { height: 72px; overflow: hidden; } .pos-screen.register-shell h2 { font-size: 24px; } .pos-screen.register-shell button, .pos-screen.register-shell select, .pos-screen.register-shell input { font-family: inherit; }
-.register-header { display: grid; grid-template-columns: 15rem minmax(0, 1fr) 15rem; align-items: center; gap: 1rem; padding: .55rem .8rem; box-sizing: border-box; border: 1px solid #94a3b8; background: #f8fafc; }
-.register-header time { font-size: 16px; font-variant-numeric: tabular-nums; }
+.register-header { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; align-items: center; gap: 1rem; padding: .55rem .8rem; box-sizing: border-box; border: 1px solid #94a3b8; background: #f8fafc; }
 .operation-guide { font-size: 16px; font-weight: 400; line-height: 1.45; }
 .signed-in-user { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; font-size: 16px; font-weight: 400; }
 .pos-screen.register-shell .product-grid { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 108px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; } .pos-screen.register-shell .product-grid button { min-width: 0; font-size: 18px; } .pos-screen.register-shell .product-grid span { font-size: 22px; } .pos-screen.register-shell .detail-panel { min-height: 0; height: 100%; } .pos-screen.register-shell .cart { min-height: 130px; }
