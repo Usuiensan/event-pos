@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-02T18:31:44.456Z",
+  "environment": {
+    "platform": "linux",
+    "kernel": "7.0.14-4-pve",
+    "architecture": "x64",
+    "osRelease": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nDEBIAN_VERSION_FULL=13.5\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n"
+  },
+  "fixture": {
+    "source": "/tmp/event-pos-goal6-20260803/fixture.bin",
+    "escposSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "bytesLength": 313
+  },
+  "adapter": {
+    "name": "Linux RAW /dev/usb/lp*",
+    "devicePath": "/dev/usb/lp0",
+    "timeoutMs": 1000,
+    "mutex": "existing bot service stopped; no device holders before run",
+    "writeSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d"
+  },
+  "statusBefore": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "statusAfter": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "normalizedStatus": {
+    "before": "ready",
+    "after": "ready",
+    "basis": "DLE EOT raw responses matched the documented healthy-state bits: 16/12/12/12"
+  },
+  "writes": [
+    {
+      "offset": 0,
+      "bytesWritten": 313,
+      "at": "2026-08-02T18:31:44.289Z"
+    }
+  ],
+  "result": "completed",
+  "physicalPaperEvidenceId": null,
+  "delivery": {
+    "transportAccepted": true,
+    "physicalPaperCompleted": null,
+    "automaticRetry": false,
+    "note": "送信可能性がある失敗は自動再送しない"
+  }
+}

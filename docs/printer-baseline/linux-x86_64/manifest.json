@@ -1,8 +1,15 @@
 {
   "schemaVersion": 1,
-  "evidenceState": "template-not-measured",
+  "evidenceState": "partially-measured",
   "platform": "Linux x86_64",
   "fixture": { "manifest": "../fixture-manifest.json", "sameBytesRequired": true },
   "required": ["os/kernel/architecture", "device/udev/user/group", "write offsets/acceptedBytes/errno", "DLE EOT request/raw response", "normalized status", "mutex/timeout", "paper evidence ID"],
-  "results": []
+  "results": [
+    {
+      "id": "L64-01",
+      "directory": "20260803-0030",
+      "result": "313 bytes accepted; DLE EOT 16/12/12/12 before and after; bot service restored active/running; physical paper not yet recorded",
+      "status": "ready at normal condition; fault states unknown"
+    }
+  ]
 }

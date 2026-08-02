@@ -48,6 +48,8 @@ JSONの`result`、`statusBefore`、`statusAfter`、`bytesSha256`、`bytesLength`
 
 既存Debianではこのscriptが既定で`discord-printer-bot` serviceを停止し、`fuser`でdevice保持processがないことを確認する。`--take-device`なしには送信しない。終了時はtrapで元serviceを開始し、status/journal、稼働commit、service定義を同じ証跡dirへ保存する。DLE EOT `10 04 01`〜`10 04 04`の要求bytesと1-byte raw responseもrun JSONへ保存するが、未検証の応答は常に`unknown`である。
 
+`event-pos`をまだDebianへ配布していない段階では、同じ`fixture.bin`と同梱の`linux-remote-probe.mjs`を一時dirへcopyして実行できる。これは既存botのrawprint（再送設定を持つ）を使わず、partial writeとDLE EOT応答を記録して自動再送しない。
+
 ### Windows x64 RAW spooler
 
 PowerShellでdry-run後、明示的に`-Run`を付ける。リポジトリ同梱のWinspool `WritePrinter` scriptを使うため、`discord-printer-bot`への実行時依存はない。

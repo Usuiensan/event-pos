@@ -1,0 +1,200 @@
+Aug 02 09:31:33 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 09:31:33 services npm[7205]: Finished message print 1533270996197310659; pending=0
+Aug 02 09:34:47 services npm[7205]: Ignored message 1533271815319847137 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 09:52:15 services npm[7205]: Ignored message 1533276209809588244 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 10:01:51 services npm[7205]: Queued message print 1533278627012022324 from 情報bot#3544; pending=1
+Aug 02 10:01:51 services npm[7205]: Starting message print 1533278627012022324; pending=1
+Aug 02 10:01:52 services npm[7205]: Printed message 1533278627012022324 from 情報bot#3544
+Aug 02 10:01:52 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 10:01:52 services npm[7205]: Finished message print 1533278627012022324; pending=0
+Aug 02 10:46:49 services npm[7205]: Queued message print 1533289941549715466 from 情報bot#3544; pending=1
+Aug 02 10:46:49 services npm[7205]: Starting message print 1533289941549715466; pending=1
+Aug 02 10:46:50 services npm[7205]: Printed message 1533289941549715466 from 情報bot#3544
+Aug 02 10:46:50 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 10:46:50 services npm[7205]: Finished message print 1533289941549715466; pending=0
+Aug 02 11:22:46 services npm[7205]: Ignored message 1533298989737316364 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 11:27:28 services npm[7205]: Ignored message 1533300173177094336 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 11:31:38 services npm[7205]: Ignored message 1533301221660819606 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 12:06:41 services npm[7205]: Ignored message 1533310040755277904 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 12:32:44 services npm[7205]: Ignored message 1533316598608167012 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 12:33:23 services npm[7205]: Ignored message 1533316760902566118 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 12:36:07 services npm[7205]: Ignored message 1533317449846624526 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 12:36:08 services npm[7205]: Ignored message 1533317451553574972 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 13:06:03 services npm[7205]: Ignored message 1533324981994389634 from channel 1533310040755277904; watching 1513044471275589752, 1529832431765426197
+Aug 02 13:09:47 services npm[7205]: Ignored message 1533325922026000547 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 13:12:49 services npm[7205]: Queued message print 1533326685083144295 from 情報bot#3544; pending=1
+Aug 02 13:12:49 services npm[7205]: Starting message print 1533326685083144295; pending=1
+Aug 02 13:12:50 services npm[7205]: Printed message 1533326685083144295 from 情報bot#3544
+Aug 02 13:12:50 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 13:12:50 services npm[7205]: Finished message print 1533326685083144295; pending=0
+Aug 02 15:01:35 services npm[7205]: Queued message print 1533354054959497247 from 情報bot#3544; pending=1
+Aug 02 15:01:35 services npm[7205]: Starting message print 1533354054959497247; pending=1
+Aug 02 15:01:35 services npm[7205]: Printed message 1533354054959497247 from 情報bot#3544
+Aug 02 15:01:35 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 15:01:35 services npm[7205]: Finished message print 1533354054959497247; pending=0
+Aug 02 15:15:27 services npm[7205]: Queued message print 1533357544494338189 from 情報bot#3544; pending=1
+Aug 02 15:15:27 services npm[7205]: Starting message print 1533357544494338189; pending=1
+Aug 02 15:15:27 services npm[7205]: Printed message 1533357544494338189 from 情報bot#3544
+Aug 02 15:15:27 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 15:15:27 services npm[7205]: Finished message print 1533357544494338189; pending=0
+Aug 02 15:47:07 services npm[7205]: Ignored message 1533365514674507786 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 15:47:19 services npm[7205]: Ignored message 1533365563626225664 from channel 1507570429026631773; watching 1513044471275589752, 1529832431765426197
+Aug 02 17:43:27 services npm[7205]: Ignored message 1533394789678973009 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 19:05:26 services npm[7205]: Ignored message 1533415424102764615 from channel 1507625625928728646; watching 1513044471275589752, 1529832431765426197
+Aug 02 20:36:44 services npm[7205]: Ignored message 1533438400466653328 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 02 22:00:21 services npm[7205]: Queued message print 1533459441309978644 from 情報bot#3544; pending=1
+Aug 02 22:00:21 services npm[7205]: Starting message print 1533459441309978644; pending=1
+Aug 02 22:00:22 services npm[7205]: Printed message 1533459441309978644 from 情報bot#3544
+Aug 02 22:00:22 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 02 22:00:22 services npm[7205]: Finished message print 1533459441309978644; pending=0
+Aug 03 00:41:16 services npm[7205]: Ignored message 1533499938955071660 from channel 1507625625928728646; watching 1513044471275589752, 1529832431765426197
+Aug 03 00:42:40 services npm[7205]: Ignored message 1533500291759214792 from channel 1507625625928728646; watching 1513044471275589752, 1529832431765426197
+Aug 03 00:56:14 services npm[7205]: Ignored message 1533503706211946586 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 03 00:56:35 services npm[7205]: Ignored message 1533503791507181620 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 03 00:56:58 services npm[7205]: Ignored message 1533503889175744522 from channel 1507235721897971793; watching 1513044471275589752, 1529832431765426197
+Aug 03 01:00:21 services npm[7205]: Queued message print 1533504739495383113 from 情報bot#3544; pending=1
+Aug 03 01:00:21 services npm[7205]: Starting message print 1533504739495383113; pending=1
+Aug 03 01:00:22 services npm[7205]: Printed message 1533504739495383113 from 情報bot#3544
+Aug 03 01:00:22 services npm[7205]: Printer monitor paused for 5000ms after print completion
+Aug 03 01:00:22 services npm[7205]: Finished message print 1533504739495383113; pending=0
+Aug 03 03:15:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:15:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:15:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:15:56 services npm[7205]: Ignored own bot message 1533538861530087504 from TM-T70II#1255
+Aug 03 03:16:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:16:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:17:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:18:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:19:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:20:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:21:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:22:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:36 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:41 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:46 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:51 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:23:56 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:01 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:06 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:11 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:16 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:21 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:26 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:31 services npm[7205]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:24:36 services npm[7205]: Ignored own bot message 1533541044636094635 from TM-T70II#1255
+Aug 03 03:30:48 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:30:48 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:30:48 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:30:48 services systemd[1]: discord-printer-bot.service: Consumed 2min 20.407s CPU time, 625.8M memory peak.
+Aug 03 03:30:49 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:30:49 services npm[11926]: > discord-printer-bot@0.1.0 start
+Aug 03 03:30:49 services npm[11926]: > node src/index.js
+Aug 03 03:30:51 services npm[11949]: Logged in as TM-T70II#1255
+Aug 03 03:30:51 services npm[11949]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:30:51 services npm[11949]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:30:51 services npm[11949]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:30:51 services npm[11949]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:30:51 services npm[11949]: OPOS status: disabled
+Aug 03 03:30:51 services npm[11949]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:31:17 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:31:17 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:31:17 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:17 services systemd[1]: discord-printer-bot.service: Consumed 1.023s CPU time, 93.9M memory peak.
+Aug 03 03:31:17 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:18 services npm[12868]: > discord-printer-bot@0.1.0 start
+Aug 03 03:31:18 services npm[12868]: > node src/index.js
+Aug 03 03:31:19 services npm[12891]: Logged in as TM-T70II#1255
+Aug 03 03:31:19 services npm[12891]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:31:19 services npm[12891]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:31:19 services npm[12891]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:31:19 services npm[12891]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:31:19 services npm[12891]: OPOS status: disabled
+Aug 03 03:31:19 services npm[12891]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:31:43 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:31:43 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:31:43 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:43 services systemd[1]: discord-printer-bot.service: Consumed 1.005s CPU time, 91.1M memory peak.
+Aug 03 03:31:44 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
