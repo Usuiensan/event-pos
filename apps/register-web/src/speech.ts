@@ -9,7 +9,9 @@ const prepared: Record<string, string> = {
   "にせん": "/audio/nisen.wav", "さんぜん": "/audio/sanzen.wav", "よんせん": "/audio/yonsen.wav", "ごせん": "/audio/gosen.wav", "ろくせん": "/audio/rokusen.wav", "ななせん": "/audio/nanasen.wav", "はっせん": "/audio/hassen.wav", "きゅうせん": "/audio/kyuusen.wav",
   "にひゃく": "/audio/nihyaku.wav", "さんびゃく": "/audio/sanbyaku.wav", "よんひゃく": "/audio/yonhyaku.wav", "ごひゃく": "/audio/gohyaku.wav", "ろっぴゃく": "/audio/roppyaku.wav", "ななひゃく": "/audio/nanahyaku.wav", "はっぴゃく": "/audio/happyaku.wav", "きゅうひゃく": "/audio/kyuuhyaku.wav",
   "レシートをお受け取りください": "/audio/receipt.wav",
-  "お釣りを必ずお確かめください": "/audio/change.wav",
+  "お釣りを、必ずお確かめください。レシートをお受け取りください": "/audio/change-receipt.wav",
+  "年齢確認が必要です": "/audio/age-required.wav",
+  "身分証明書の提示をお願いする場合がございます": "/audio/id-request.wav",
   "合計金額は": "/audio/subtotal-prefix.wav", "です": "/audio/desu.wav",
 };
 const yenParts: Record<string, string> = {
@@ -18,7 +20,7 @@ const yenParts: Record<string, string> = {
   "ひゃくえん": "hyaku-en.wav", "にひゃくえん": "nihyaku-en.wav", "さんびゃくえん": "sanbyaku-en.wav", "よんひゃくえん": "yonhyaku-en.wav", "ごひゃくえん": "gohyaku-en.wav", "ろっぴゃくえん": "roppyaku-en.wav", "ななひゃくえん": "nanahyaku-en.wav", "はっぴゃくえん": "happyaku-en.wav", "きゅうひゃくえん": "kyuuhyaku-en.wav",
   "せんえん": "sen-en.wav", "にせんえん": "nisen-en.wav", "さんぜんえん": "sanzen-en.wav", "よんせんえん": "yonsen-en.wav", "ごせんえん": "gosen-en.wav", "ろくせんえん": "rokusen-en.wav", "ななせんえん": "nanasen-en.wav", "はっせんえん": "hassen-en.wav", "きゅうせんえん": "kyuusen-en.wav",
 };
-const audioRevision = "voice-parts-v7-change-warning";
+const audioRevision = "voice-parts-v8-normal-guidance";
 const preloaded = new Map<string, HTMLAudioElement>();
 let alarmContext: AudioContext | null = null;
 
@@ -88,4 +90,6 @@ function fallback(text: string): void { if (typeof window === "undefined" || !("
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
 export function speakReceiptReady(player: SpeechPlayer): void { player.speak("レシートをお受け取りください"); }
-export function speakChangeReady(player: SpeechPlayer): void { player.speak("お釣りを必ずお確かめください レシートをお受け取りください"); }
+export function speakChangeReady(player: SpeechPlayer): void { player.speak("お釣りを、必ずお確かめください。レシートをお受け取りください"); }
+export function speakAgeCheckRequired(player: SpeechPlayer): void { player.speak("年齢確認が必要です"); }
+export function speakIdentityMayBeRequested(player: SpeechPlayer): void { player.speak("身分証明書の提示をお願いする場合がございます"); }

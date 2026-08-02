@@ -19,7 +19,9 @@ const parts = {
   "合計金額は": "subtotal-prefix",
   "です": "desu",
   "レシートをお受け取りください": "receipt",
-  "お釣りを必ずお確かめください": "change",
+  "お釣りを、必ずお確かめください。レシートをお受け取りください": "change-receipt",
+  "年齢確認が必要です": "age-required",
+  "身分証明書の提示をお願いする場合がございます": "id-request",
   "じゅう": "ju", "ひゃく": "hyaku", "せん": "sen", "まん": "man",
   "いち": "ichi", "に": "ni", "さん": "san", "よん": "yon", "ご": "go", "ろく": "roku", "なな": "nana", "はち": "hachi", "きゅう": "kyu",
   "にじゅう": "nijuu", "さんじゅう": "sanjuu", "よんじゅう": "yonjuu", "ごじゅう": "gojuu", "ろくじゅう": "rokujuu", "ななじゅう": "nanajuu", "はちじゅう": "hachijuu", "きゅうじゅう": "kyuujuu",
@@ -73,8 +75,9 @@ for (const speaker of speakers) {
   await fs.mkdir(yenDir, { recursive: true });
   for (const [text, file] of Object.entries(parts)) {
     if (requestedParts.size > 0 && !requestedParts.has(file)) continue;
-    const fast = !["subtotal-prefix", "receipt", "change"].includes(file);
-    await writeMp3(path.join(outDir, `${file}.mp3`), await synthesize(text, speaker, fast));
+    const normal = ["change-receipt", "age-required", "id-request"].includes(file);
+    const fast = !["subtotal-prefix", "receipt", "change-receipt", "age-required", "id-request"].includes(file);
+    await writeMp3(path.join(outDir, `${file}.mp3`), await synthesize(text, speaker, fast, normal ? 1 : undefined));
     console.log(`[${speaker}] ${text} -> ${file}.mp3`);
   }
   for (const [text, file] of Object.entries(yenParts)) {
