@@ -20,6 +20,7 @@ Discord botが稼働するDebian環境を初期基準として、Windows/Linux�
 - [共通probe手順](../../tools/hardware-test/README.md)
 - [OS別能力表](capability-matrix.md)
 - [PR-01/03/06/07/10のOS別進捗](acceptance-status.md)
+- [Goal 7.1 PrinterHost本番統合状況](goal7.1-status.md)
 - [紙面証跡対応表](paper-evidence-map.md)
 - `windows/`、`linux-x86_64/`、`linux-arm64/` のmanifestへ実測JSON、raw status、ログ、写真IDを追記する。
 
