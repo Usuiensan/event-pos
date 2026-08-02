@@ -67,7 +67,7 @@ describe("receipt template and reprint routes", () => {
     expect(row).toMatchObject({ kind: "original", state: "pending", delivery_certainty: "not_sent", template_key: "sale-receipt", template_version: 2, font_version: 1, finishing_policy_version: 2 });
     for (const key of ["template_source_sha256", "renderer_version", "font_id", "font_sha256", "finishing_policy_id", "canonical_ir", "ir_sha256", "bytes_sha256"]) expect(String(row[key])).not.toHaveLength(0);
     expect(Number(row.expected_bytes_length)).toBe((row.escpos_bytes as Uint8Array).length);
-    expect(String(row.canonical_ir)).toContain('!row {"left":"日本語新刊 x1","right":"¥110"}');
+    expect(String(row.canonical_ir)).toContain('!row {"left":"日本語新刊","right":"¥110"}');
     expect(String(row.canonical_ir)).toContain("!feed 8");
   });
 
