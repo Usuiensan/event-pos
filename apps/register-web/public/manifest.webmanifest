@@ -1,0 +1,15 @@
+{
+  "name": "event-pos 即売会レジ",
+  "short_name": "event-pos",
+  "description": "同人誌即売会向けPOSレジ",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#eef2f7",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    { "src": "/icons/event-pos-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/event-pos-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
