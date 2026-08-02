@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const args = new Map();
 for (let index = 2; index < process.argv.length; index += 1) {
   const key = process.argv[index];
-  if (key === "--run") { args.set(key, true); continue; }
+  if (key === "--run" || key === "--resume") { args.set(key, true); continue; }
   const value = process.argv[index + 1];
   if (!key?.startsWith("--") || !value || value.startsWith("--")) throw new Error(`引数が不正です: ${key ?? ""}`);
   args.set(key, value); index += 1;
@@ -19,17 +19,12 @@ if (!operatorId) throw new Error("紙面を確認する操作者を --operator <
 const managerId = String(args.get("--manager") ?? operatorId).trim();
 const posUrl = String(args.get("--pos-url") ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDirectory = resolve(String(args.get("--output") ?? `./docs/printer-baseline/manual-goal7-${new Date().toISOString().replace(/[:.]/g, "-")}`));
-const runId = randomUUID();
-const suffix = runId.slice(0, 8);
-const eventId = `goal7-${suffix}`;
-const sessionId = `goal7-cash-${suffix}`;
-const registerId = `goal7-register-${suffix}`;
-const localNow = new Date();
-const businessDate = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, "0")}-${String(localNow.getDate()).padStart(2, "0")}`;
-const startedAt = new Date().toISOString();
-const records = [];
-const jobs = [];
-const reviews = [];
+const resume = args.has("--resume");
+let runId = randomUUID();
+let startedAt = new Date().toISOString();
+let records = [];
+let jobs = [];
+let reviews = [];
 let statusBefore = null;
 let statusAfter = null;
 let result = "in_progress";
@@ -37,6 +32,32 @@ let errorMessage = null;
 let completedAt = null;
 
 await mkdir(outputDirectory, { recursive: true });
+if (resume) {
+  const [savedEvidence, savedReview] = await Promise.all([
+    readFile(resolve(outputDirectory, "pos-printerhost-evidence.json"), "utf8").then(JSON.parse),
+    readFile(resolve(outputDirectory, "operator-paper-review.json"), "utf8").then(JSON.parse),
+  ]);
+  const resumableError = "再印刷riskが明示承認されなかったため、安全に停止しました";
+  const kinds = savedEvidence.jobs?.map((job) => job.kind).join(",");
+  if (savedEvidence.result !== "failed" || savedEvidence.error !== resumableError || kinds !== "opening,original") {
+    throw new Error("--resume は再印刷承認前に安全停止した opening,original のrunだけに使用できます");
+  }
+  if (savedReview.runId !== savedEvidence.runId || savedReview.jobs?.map((job) => job.kind).join(",") !== "opening,original") {
+    throw new Error("--resume のtransport証跡と紙面証跡が一致しません");
+  }
+  runId = savedEvidence.runId;
+  startedAt = savedEvidence.startedAt;
+  records = savedEvidence.requests;
+  jobs = savedEvidence.jobs;
+  reviews = savedReview.jobs;
+  statusBefore = savedEvidence.statusBefore;
+}
+const suffix = runId.slice(0, 8);
+const eventId = `goal7-${suffix}`;
+const sessionId = `goal7-cash-${suffix}`;
+const registerId = `goal7-register-${suffix}`;
+const localNow = new Date();
+const businessDate = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, "0")}-${String(localNow.getDate()).padStart(2, "0")}`;
 const reader = createInterface({ input: process.stdin, output: process.stdout });
 
 async function persist() {
@@ -163,25 +184,7 @@ async function sendAndReview(kind, jobId) {
   return reviewPaper(kind, captured);
 }
 
-try {
-  await persist();
-  const info = await request("GET", "/api/v1/info");
-  if (info.drawerEnabled !== false) throw new Error("ドロアー未受入のためDRAWER_ENABLED=falseが必要です。送信を開始しません");
-  statusBefore = await request("GET", "/api/v1/printer/status");
-  if (statusBefore.observation?.reachable?.support !== "supported" || statusBefore.observation.reachable.value !== true) throw new Error("PrinterHostが実機到達可能と確認できません。送信を開始しません");
-  await persist();
-
-  await request("POST", "/api/v1/cash-sessions", { sessionId, eventId, businessDate, cashboxId: "goal7-box" });
-  const opening = await request("POST", `/api/v1/cash-sessions/${sessionId}/checks/opening`, { counted: [{ denomination: 1000, quantity: 1 }], actorId: operatorId, terminalId: registerId });
-  await sendAndReview("opening", opening.printJobId);
-
-  await request("PUT", `/api/v1/events/${eventId}/catalog`, { eventId, customerWelcome: { circleName: "Goal 7.1 実機受入" }, products: [{ productCode: "00000001", name: "実機確認新刊", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], autoDiscountRules: [] });
-  let draft = await request("POST", `/api/v1/registers/${registerId}/sale-drafts`, { eventId, staffId: "staff-001", terminalId: registerId, businessDate, sessionNo: 1 });
-  draft = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/lines`, { productCode: "00000001", quantity: 1 }, { "if-match": String(draft.version) });
-  draft = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/payments`, { kind: "cash", amountYen: 500, tenderedYen: 1000 }, { "if-match": String(draft.version) });
-  const sale = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/finalize`, { version: draft.version }, { "idempotency-key": `goal7-${runId}` });
-  const originalReview = await sendAndReview("original", sale.printJobId);
-
+async function finishAfterOriginal(transactionId, originalJobId, originalReview) {
   const reprintNeedsRiskApproval = originalReview.paperOutcome !== "not_printed";
   if (reprintNeedsRiskApproval) {
     const confirmation = (await reader.question(`初回紙面は${originalReview.paperOutcome}です。重複印刷riskを受容して再印刷する場合だけ REPRINT と入力してください: `)).trim();
@@ -189,19 +192,50 @@ try {
   }
   const approvedAt = new Date().toISOString();
   const reprintBody = {
-    sourcePrintJobId: sale.printJobId,
+    sourcePrintJobId: originalJobId,
     reason: "Goal 7.1実機受入",
     physicalOutcome: originalReview.paperOutcome,
     riskAccepted: reprintNeedsRiskApproval,
     ...(reprintNeedsRiskApproval ? { approval: { approverId: managerId, approvedAt } } : {}),
   };
-  const reprint = await request("POST", `/api/v1/transactions/${sale.transactionId}/reprints`, reprintBody, { "x-pos-role": "manager", "x-pos-actor-id": managerId });
+  const reprint = await request("POST", `/api/v1/transactions/${transactionId}/reprints`, reprintBody, { "x-pos-role": "manager", "x-pos-actor-id": managerId });
   await sendAndReview("reprint", reprint.jobId);
 
   const interim = await request("POST", `/api/v1/cash-sessions/${sessionId}/checks/interim`, { counted: [{ denomination: 1000, quantity: 1 }], actorId: operatorId, terminalId: registerId });
   await sendAndReview("interim", interim.printJobId);
   const closing = await request("POST", `/api/v1/cash-sessions/${sessionId}/checks/closing`, { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000, actorId: managerId, terminalId: registerId });
   await sendAndReview("closing", closing.printJobId);
+}
+
+try {
+  result = "in_progress";
+  errorMessage = null;
+  completedAt = null;
+  await persist();
+  const info = await request("GET", "/api/v1/info");
+  if (info.drawerEnabled !== false) throw new Error("ドロアー未受入のためDRAWER_ENABLED=falseが必要です。送信を開始しません");
+  const currentStatus = await request("GET", "/api/v1/printer/status");
+  if (currentStatus.observation?.reachable?.support !== "supported" || currentStatus.observation.reachable.value !== true) throw new Error("PrinterHostが実機到達可能と確認できません。送信を開始しません");
+  statusBefore ??= currentStatus;
+  await persist();
+
+  if (resume) {
+    const originalJob = jobs.find((job) => job.kind === "original");
+    const originalReview = reviews.find((review) => review.kind === "original");
+    await finishAfterOriginal(originalJob.job.transactionId, originalJob.jobId, originalReview);
+  } else {
+    await request("POST", "/api/v1/cash-sessions", { sessionId, eventId, businessDate, cashboxId: "goal7-box" });
+    const opening = await request("POST", `/api/v1/cash-sessions/${sessionId}/checks/opening`, { counted: [{ denomination: 1000, quantity: 1 }], actorId: operatorId, terminalId: registerId });
+    await sendAndReview("opening", opening.printJobId);
+
+    await request("PUT", `/api/v1/events/${eventId}/catalog`, { eventId, customerWelcome: { circleName: "Goal 7.1 実機受入" }, products: [{ productCode: "00000001", name: "実機確認新刊", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], autoDiscountRules: [] });
+    let draft = await request("POST", `/api/v1/registers/${registerId}/sale-drafts`, { eventId, staffId: "staff-001", terminalId: registerId, businessDate, sessionNo: 1 });
+    draft = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/lines`, { productCode: "00000001", quantity: 1 }, { "if-match": String(draft.version) });
+    draft = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/payments`, { kind: "cash", amountYen: 500, tenderedYen: 1000 }, { "if-match": String(draft.version) });
+    const sale = await request("POST", `/api/v1/sale-drafts/${draft.draftId}/finalize`, { version: draft.version }, { "idempotency-key": `goal7-${runId}` });
+    const originalReview = await sendAndReview("original", sale.printJobId);
+    await finishAfterOriginal(sale.transactionId, sale.printJobId, originalReview);
+  }
 
   statusAfter = await request("GET", "/api/v1/printer/status");
   result = "completed";
