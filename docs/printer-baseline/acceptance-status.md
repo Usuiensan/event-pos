@@ -5,7 +5,7 @@
 | 要件 | Windows x64 | Linux x86_64 | Linux ARM64 | 現在の根拠と残件 |
 | --- | --- | --- | --- | --- |
 | PR-01 同一内容をTM-T70IIへ印刷 | A,H,R: fixture v2をUSB再接続後にも紙面・実読取り済み（W-04） | A,H,R: 同一fixture v2で紙面・実読取り済み | A: fixture生成済み / H,R: 未実施 | ARM64の同一fixture hash紙面が必要 |
-| PR-03 紙切れ/cover/USB切断 | A,H: Windowsから外した状態のqueue raw `4096`、再接続後のUSB PnP `OK`/queue raw `0`、cover open・paper out時も同じraw `0`を取得。cover/paperを区別できず全て`unknown`として保存 | A,H: cover/paper-outは`unknown`、near-endはn=4=`1e`、USB切断は`ENODEV`、再接続後/OS再起動後ready復帰を実測 / R: UI未実施 | A: unknownを保持 / H,R: 未実施 | Windowsの意図的USB切断/復帰、ARM64のraw status・UIを実測 |
+| PR-03 紙切れ/cover/USB切断 | A,H: USB切断でphysical PnP消失/queue raw `4096`、再接続後はPnP `OK`/queue raw `0`を取得。cover open・paper out時もraw `0`で、cover/paperは`unknown`を維持 | A,H: cover/paper-outは`unknown`、near-endはn=4=`1e`、USB切断は`ENODEV`、再接続後/OS再起動後ready復帰を実測 / R: UI未実施 | A: unknownを保持 / H,R: 未実施 | Windows USB再接続後の再印刷/host再起動、ARM64のraw status・UIを実測 |
 | PR-06 cut/drawer | A: partial bytes固定 / H,R: cut未実施、drawer Pending | A: partial bytes固定 / H,R: cut未実施、drawer Pending | A: partial bytes固定 / H,R: cut未実施、drawer Pending | P003の機種/pin/pulse未提供 |
 | PR-07 rendererから実機印刷 | A,H,R: canonical IR/bytes→Winspool→紙面・実読取り済み | A,H,R: 同一bytesを`/dev/usb/lp0`へ送信、bot停止/復帰、紙面・実読取り済み | A: canonical IR/bytes fixture済み / H,R: 未実施 | ARM64の既存基準・紙面を記録 |
 | PR-10 同一取引+版の再現 | A,H,R: fixture v2固定hashの紙面・実読取り済み。ただし同一jobId/4レジFIFO未実施 | A,H,R: Windowsと同一hashの紙面・実読取り済み | A: deterministic fixture test済み / H,R: 未実施 | same `.bin`、同一jobId、4レジFIFO、ARM64紙面比較が必要 |

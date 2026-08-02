@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "mode": "status-only",
+  "scenario": "usb-disconnected",
+  "executedAt": "2026-08-03T04:18:10.5980300+09:00",
+  "environment": {
+    "architecture": "AMD64",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "platform": "Windows"
+  },
+  "adapter": {
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON",
+      "DriverPath": null
+    },
+    "name": "Windows print queue observation only",
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 4096,
+      "WorkOffline": null,
+      "Shared": false,
+      "Published": false
+    }
+  },
+  "statusRequests": [
+    {
+      "normalized": "unknown",
+      "mechanism": "Get-Printer coarse queue observation",
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 4096,
+        "WorkOffline": null,
+        "Shared": false,
+        "Published": false
+      },
+      "reason": "queue state alone is not device-ready proof"
+    }
+  ],
+  "pnpDevices": [
+    {
+      "Status": "OK",
+      "Class": "PrintQueue",
+      "FriendlyName": "EPSON TM-T70II Receipt",
+      "InstanceId": "SWD\\PRINTENUM\\{496E064F-B777-41FC-B81E-FC8FD6353FE3}",
+      "Problem": 0,
+      "ConfigManagerErrorCode": 0
+    }
+  ],
+  "opos": {
+    "openOrClaimAttempted": false,
+    "logicalDeviceRegistryKeys": [],
+    "t70iiServiceComponentInstalled": true,
+    "installed": true,
+    "reason": "inventory only; no configured logical device is guessed or opened",
+    "logicalDeviceConfigured": false
+  },
+  "delivery": {
+    "physicalPaperCompleted": null,
+    "transportAccepted": null,
+    "automaticRetry": false
+  }
+}
