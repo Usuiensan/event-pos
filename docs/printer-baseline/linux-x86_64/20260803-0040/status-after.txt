@@ -1,0 +1,12 @@
+* discord-printer-bot.service - Discord Printer Bot
+     Loaded: loaded (/etc/systemd/system/discord-printer-bot.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-08-03 03:35:52 JST; 9ms ago
+ Invocation: 9965411c8da9426da1dcc8f2d073612f
+   Main PID: 14854 ((npm))
+      Tasks: 1 (limit: 16932)
+     Memory: 1.7M (peak: 1.7M)
+        CPU: 5ms
+     CGroup: /system.slice/discord-printer-bot.service
+             `-14854 "(npm)"
+
+Aug 03 03:35:52 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.

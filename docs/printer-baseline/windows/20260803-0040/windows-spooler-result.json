@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-03T03:35:26.8575621+09:00",
+  "environment": {
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "platform": "Windows",
+    "architecture": "AMD64"
+  },
+  "fixture": {
+    "adapterSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "canonicalIrSha256": "84293a557bb652d6ec573cbd1b15e76b832f4e6841dee86479fabee830cdb0f3",
+    "escposSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "fixtureId": "tm-t70ii-parity-v1",
+    "bytesLength": 316,
+    "compiler": "event-pos-escpos-v1",
+    "fixtureVersion": 2,
+    "writeSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695"
+  },
+  "adapter": {
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 4096,
+      "WorkOffline": null
+    },
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON"
+    },
+    "timeoutMs": null,
+    "name": "Winspool RAW WritePrinter",
+    "spoolerJobId": 5,
+    "mutex": "hardware probe process only; PrinterHost mutex is not exercised"
+  },
+  "writes": [
+    {
+      "bytesWritten": 316,
+      "errno": null,
+      "offset": 0
+    }
+  ],
+  "statusBefore": "unknown",
+  "statusAfter": "unknown",
+  "statusRequests": [
+    {
+      "reason": "queue state alone is not device-ready proof",
+      "normalized": "unknown",
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 4096,
+        "WorkOffline": null
+      },
+      "mechanism": "Get-Printer coarse queue observation"
+    }
+  ],
+  "delivery": {
+    "transportAccepted": true,
+    "physicalPaperCompleted": true,
+    "automaticRetry": false
+  },
+  "physicalPaperEvidenceId": "W-03-operator-report",
+  "paperReview": {
+    "evidenceType": "operator-report",
+    "visualResult": { "ascii": "pass", "cp932Japanese": "pass", "yen": "pass", "row32Columns": "pass", "fixedImage": "pass", "qr": "pass", "code128": "pass", "barcodeHri": "pass", "feedAndPartialCut": "pass" },
+    "note": "v1でCode128 HRIがcutにより見切れたため、v2は3行feedを2回送信。Windows実機で識別文字まで読めることを操作者確認"
+  }
+}

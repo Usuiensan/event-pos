@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-02T18:35:52.389Z",
+  "environment": {
+    "platform": "linux",
+    "kernel": "7.0.14-4-pve",
+    "architecture": "x64",
+    "osRelease": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nDEBIAN_VERSION_FULL=13.5\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n"
+  },
+  "fixture": {
+    "source": "/tmp/event-pos-goal6-20260803-v2/fixture.bin",
+    "escposSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "bytesLength": 316
+  },
+  "adapter": {
+    "name": "Linux RAW /dev/usb/lp*",
+    "devicePath": "/dev/usb/lp0",
+    "timeoutMs": 1000,
+    "mutex": "existing bot service stopped; no device holders before run",
+    "writeSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695"
+  },
+  "statusBefore": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "statusAfter": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "normalizedStatus": {
+    "before": "ready",
+    "after": "ready"
+  },
+  "writes": [
+    {
+      "offset": 0,
+      "bytesWritten": 316,
+      "at": "2026-08-02T18:35:52.225Z"
+    }
+  ],
+  "result": "completed",
+  "physicalPaperEvidenceId": "L64-02-operator-report",
+  "paperReview": {
+    "evidenceType": "operator-report",
+    "visualResult": { "ascii": "pass", "cp932Japanese": "pass", "yen": "pass", "row32Columns": "pass", "fixedImage": "pass", "qr": "pass", "code128": "pass", "barcodeHri": "pass", "feedAndPartialCut": "pass" },
+    "note": "v1でCode128 HRIがcutにより見切れたため、v2は3行feedを2回送信。Debian x86_64実機で識別文字まで読めることを操作者確認"
+  },
+  "delivery": {
+    "transportAccepted": true,
+    "physicalPaperCompleted": true,
+    "automaticRetry": false,
+    "note": "送信可能性がある失敗は自動再送しない"
+  }
+}

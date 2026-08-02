@@ -2,7 +2,7 @@ import { bytesSha256, receiptDocumentToEscPos, type EscPosRasterAsset } from "@e
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 
 export const HARDWARE_FIXTURE_ID = "tm-t70ii-parity-v1";
-export const HARDWARE_FIXTURE_VERSION = 1;
+export const HARDWARE_FIXTURE_VERSION = 2;
 
 const raster = Uint8Array.from([
   0x81, 0x42, 0x24, 0x18, 0x18, 0x24, 0x42, 0x81,
@@ -33,7 +33,9 @@ export function buildHardwareFixture(): HardwareFixture {
       { kind: "text", value: "YEN: \u00a5100" }, { kind: "row", left: "12345678901234567890", right: "12345678901" },
       { kind: "rule", style: "single" }, { kind: "image", assetId: asset.assetId, widthDots: asset.widthDots },
       { kind: "qr", data: "https://event-pos.invalid/probe/PS111234", moduleSize: 4, errorCorrection: "M" },
-      { kind: "barcode", value: "{BPS111234", width: 3, height: 96, hri: "below" }, { kind: "feed", lines: 3 }, { kind: "cut", mode: "partial" },
+      { kind: "barcode", value: "{BPS111234", width: 3, height: 96, hri: "below" },
+      // Keep the required three-line feed and add a second three-line safety tail for HRI below the barcode.
+      { kind: "feed", lines: 3 }, { kind: "feed", lines: 3 }, { kind: "cut", mode: "partial" },
     ],
   };
   const canonicalIr = canonicalizeReceiptDocument(document);

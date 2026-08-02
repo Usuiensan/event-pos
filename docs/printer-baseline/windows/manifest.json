@@ -16,6 +16,12 @@
       "directory": "20260803-0001",
       "result": "transport accepted: 313 bytes; paper photo confirms visual layout and partial cut; operator confirmed QR/Code128 scan",
       "status": "unknown"
+    },
+    {
+      "id": "W-03",
+      "directory": "20260803-0040",
+      "result": "fixture v2 accepted 316 bytes; operator confirmed readable barcode HRI and all required paper elements",
+      "status": "normal paper acceptance passed; fault states unknown"
     }
   ]
 }

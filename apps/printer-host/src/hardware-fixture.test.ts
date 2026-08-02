@@ -8,6 +8,7 @@ describe("TM-T70II parity hardware fixture", () => {
     expect(first.bytesSha256).toBe(second.bytesSha256);
     expect(first.canonicalIr).toContain("!barcode");
     expect(first.canonicalIr).toContain("!feed 3");
+    expect((first.canonicalIr.match(/!feed 3/g) ?? [])).toHaveLength(2);
     expect(first.canonicalIr).toContain('!cut "partial"');
     expect(first.canonicalIr).not.toMatch(/^!(drawer|buzzer|nv|setting)\b/m);
     expect(first.canonicalIr).not.toContain('!cut "full"');

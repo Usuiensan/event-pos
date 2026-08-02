@@ -10,6 +10,12 @@
       "directory": "20260803-0030",
       "result": "313 bytes accepted; DLE EOT 16/12/12/12 before and after; bot service restored active/running; physical paper not yet recorded",
       "status": "ready at normal condition; fault states unknown"
+    },
+    {
+      "id": "L64-02",
+      "directory": "20260803-0040",
+      "result": "fixture v2 accepted 316 bytes; DLE EOT normal response; operator confirmed readable barcode HRI and all required paper elements",
+      "status": "normal paper acceptance passed; fault states unknown"
     }
   ]
 }

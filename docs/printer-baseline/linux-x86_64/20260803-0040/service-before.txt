@@ -1,0 +1,19 @@
+# /etc/systemd/system/discord-printer-bot.service
+[Unit]
+Description=Discord Printer Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=printerbot
+Group=printerbot
+SupplementaryGroups=lp
+WorkingDirectory=/opt/discord-printer-bot
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

@@ -15,7 +15,7 @@ TM-T70IIへ固定fixtureを送信し、送信方式、状態取得、障害復�
 
 ## 共通fixtureとdry-run
 
-fixtureは本番document typeにも任意raw payloadにも依存しない純粋なcanonical IR builderである。ASCII、CP932日本語、U+00A5、32桁row、固定画像、QR、Code 128、3行feed、partial cutだけを含む。full cut、drawer、buzzer、NV書込み、設定変更は含めない。
+fixtureは本番document typeにも任意raw payloadにも依存しない純粋なcanonical IR builderである。ASCII、CP932日本語、U+00A5、32桁row、固定画像、QR、Code 128、3行feed、partial cutだけを含む。バーコードHRIの切断防止のため、v2は3行feedを2回（合計6行）送る。full cut、drawer、buzzer、NV書込み、設定変更は含めない。
 
 ```sh
 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/dry-run \
