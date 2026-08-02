@@ -165,7 +165,7 @@
 
 ## 8. 2026-08-02 会計確定実装の受入証跡
 
-対象commitは `46bcaf3`、`96aa216`、`1bcbaaa`、`feb9b2e`、`9f98af9`、`d96360c`。Goal 2〜4のうち、税区分、会計ドラフト、会計確定、顧客表示投影、R18保存境界を実装した。自動試験の正本は `packages/contracts/src/checkout.test.ts`、`packages/contracts/src/auto-discount.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/checkout-api.test.ts` である。
+対象commitは `92f3bc0`、`5f36707`、`aefa758`、`104fa41`、`470863d`、`64ae53e`。Goal 2〜4のうち、税区分、会計ドラフト、会計確定、顧客表示投影、R18保存境界を実装した。自動試験の正本は `packages/contracts/src/checkout.test.ts`、`packages/contracts/src/auto-discount.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/checkout-api.test.ts` である。
 
 | 受入項目 | 実装・自動試験証拠 | 判定 |
 | --- | --- | --- |
