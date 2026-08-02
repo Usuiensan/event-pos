@@ -2,22 +2,10 @@ import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
 import { createSpeechPlayer, playOperationSound, speakChangeReady, speakProductPrice, speakReceiptReady, speakSubtotal, stopOperationSound, type SpeechPlayer } from "./speech.js";
+import { demoCatalog } from "./demo-catalog.js";
 import "./styles.css";
 
-const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
-  { productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO001", tabId: "books", displayColor: "#dbeafe" },
-  { productCode: "A002", name: "既刊", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO002" },
-  { productCode: "A003", name: "チューハイ 氷結 レモン", priceInclTax: 79, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO003" },
-  { productCode: "A004", name: "トリス レモンハイ", priceInclTax: 108, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO004" },
-  { productCode: "A005", name: "獺祭 純米大吟醸", priceInclTax: 1298, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO005" },
-  { productCode: "A006", name: "いろはす 2L", priceInclTax: 98, taxRate: 8, saleState: "on_sale", internalToken: "P1DEMO006" },
-  { productCode: "A007", name: "国鉄杯Ⅲ", priceInclTax: 1000, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO007" },
-  { productCode: "A008", name: "新刊ポストカード", priceInclTax: 300, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO008" },
-  { productCode: "A009", name: "R18新刊", priceInclTax: 800, taxRate: 10, saleState: "on_sale", internalToken: "P1DEMO009", ageCheck: "18", tabId: "adult", displayColor: "#fbcfe8" },
-], quickEntries: [
-  { id: "set-1", label: "新刊2冊セット", components: [{ productCode: "A001", quantity: 2 }] },
-  { id: "r18-1", label: "R18新刊", components: [{ productCode: "A009", quantity: 1 }] },
-], staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者" }], productTabs: [{ id: "books", label: "新刊・既刊", color: "#dbeafe" }, { id: "adult", label: "成人向け", color: "#fbcfe8" }], autoDiscountRules: [{ id: "new-book-pair", label: "新刊2冊まとめ値引き", requiredProducts: [{ productCode: "A001", quantity: 2 }], discountYen: 100, priority: 10 }] };
+const initialCatalog: EventCatalog = demoCatalog;
 
 type RegisterRole = "staff" | "customer";
 
