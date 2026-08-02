@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "mode": "EPSON OPOS for .NET CheckHealthTest",
+  "executedAt": "2026-08-03T04:21:00+09:00",
+  "environment": {
+    "platform": "Windows",
+    "architecture": "AMD64",
+    "os": "Microsoft Windows 11 Pro 10.0.26200"
+  },
+  "opos": {
+    "logicalDeviceName": "M-T70II",
+    "deviceClass": "PosPrinter",
+    "serviceObject": "TM-T70II",
+    "setupPosObservation": "SetupPOS for OPOS.NET displayed PosPrinter / TM-T70II / logical device M-T70II.",
+    "checkHealthApplication": "C:\\Program Files\\epson\\OPOS for .NET\\CheckHealthTest.exe",
+    "openAndClaim": "reached POSPrinter Service test dialog",
+    "claimTimeoutMs": null,
+    "claimTimeoutObserved": false,
+    "rawStatus": null,
+    "rawStatusObserved": false
+  },
+  "diagnosticPrint": {
+    "requestedBy": "CheckHealth Test Print button",
+    "resultDialog": "Complete",
+    "physicalPaperCompleted": true,
+    "operatorReport": "印刷できています"
+  },
+  "delivery": {
+    "transportAccepted": null,
+    "automaticRetry": false,
+    "note": "OPOS CheckHealth diagnostic print is not the fixed ESC/POS fixture and does not prove fixed-byte transport acceptance."
+  }
+}

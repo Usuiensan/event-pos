@@ -26,6 +26,8 @@ LXC OS再起動後も`/dev/usb/lp0`、DLE EOT正常値、bot service `active/run
 
 Windows x64ではprinterをDebianへ接続した状態でstatus-only probeを実行した。EPSON TM-T70II Receipt5 queueのraw `PrinterStatus` は`4096`だったが、queueの値だけではdevice-level errorを区別できないためnormalized statusは`unknown`とした。EPSON OPOS for .NETとTM-T70II service componentは導入済みだが、OPOS logical deviceの登録は検出されず、Open/Claimを推測実行していない。raw JSONは`docs/printer-baseline/windows/20260803-printer-connected-to-linux/`に保存する。
 
+後続の管理者権限SetupPOS確認では、OPOS logical device `M-T70II`（`PosPrinter` / `TM-T70II`）が登録済みと判明した。EPSON CheckHealthTestでこのdeviceを選択するとPOSPrinter Service dialogへ到達し、operatorが`Print`を実行した結果は`Complete`、実機紙面も正常だった。Open/Claimと診断印刷は実測できたが、同ツールはraw statusとClaim timeoutを出力しないため、cover/paper/errorやtimeout能力は未取得のままとする。JSONは`docs/printer-baseline/windows/20260803-opos-checkhealth/`に保存した。
+
 同じWindows x64へUSBを再接続した直後、EPSON USB ControllerのPnP statusは`OK`、queue raw `PrinterStatus` は`0`だった。これも紙/cover/errorを区別するdevice-level statusではないため`unknown`のままとし、`docs/printer-baseline/windows/20260803-reconnected/`へ保存した。
 
 カバー開状態でも同じWindows x64のUSB PnP statusは`OK`、queue raw `PrinterStatus` は`0`で通常時と差がなかった。Winspool queue/PnP observation単独ではcoverを検出できないため、cover capabilityは`unknown`を維持する。raw JSONは`docs/printer-baseline/windows/20260803-cover-open/`に保存した。
