@@ -103,5 +103,6 @@ export const checkoutApi = {
   acknowledgeAudioAnnouncement: (terminalId: string, sequence: number) => request<void>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/audio-announcements/${sequence}/ack`, { method: "POST" }),
   createAgeConfirmationRequest: (registerId: string, draftId: string, minimumAge: 18 | 20) => request<NonNullable<CustomerDisplayStatus["ageConfirmation"]>>(`/api/v1/registers/${encodeURIComponent(registerId)}/age-confirmation-requests`, { method: "POST", body: body({ draftId, minimumAge }) }),
   cancelAgeConfirmationRequest: (registerId: string, requestId: string) => request<void>(`/api/v1/registers/${encodeURIComponent(registerId)}/age-confirmation-requests/${encodeURIComponent(requestId)}`, { method: "DELETE" }),
+  saveErrorReport: (errorId: string, content: string) => request<void>("/api/v1/error-reports", { method: "POST", body: body({ errorId, content }) }),
   acknowledgeAgeConfirmation: (terminalId: string, registerId: string, requestId: string) => request<NonNullable<CustomerDisplayStatus["ageConfirmation"]>>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/age-confirmations`, { method: "POST", body: body({ registerId, requestId, response: "yes" }) }),
 };

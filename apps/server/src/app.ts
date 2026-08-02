@@ -1,5 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import websocket from "@fastify/websocket";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
 import { registerCheckoutRoutes } from "./checkout-routes.js";
@@ -9,7 +11,7 @@ import { PersistentPrintQueue, type PrinterHost } from "./print-queue.js";
 import { registerPrintingRoutes } from "./printing-routes.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -50,6 +52,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
   app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
+  app.post<{ Body: { errorId?: string; content?: string } }>("/api/v1/error-reports", async (request, reply) => {
+    const errorId = request.body?.errorId;
+    const content = request.body?.content;
+    if (!errorId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[47][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(errorId) || !content || content.length > 64_000) return reply.code(400).send({ error: "invalid_error_report" });
+    const directory = resolve(options.errorReportDirectory ?? "./data/error-reports");
+    await mkdir(directory, { recursive: true });
+    try { await writeFile(join(directory, `${errorId}.txt`), content, { encoding: "utf8", flag: "wx" }); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+    return reply.code(201).send({ errorId });
+  });
   app.post<{ Body: { sessionId: string; eventId: string; businessDate: string; cashboxId?: string } }>("/api/v1/cash-sessions", async (request, reply) => {
     const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });

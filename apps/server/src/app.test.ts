@@ -4,12 +4,25 @@ import { createPrintJob, openDatabase } from "./db.js";
 import { bytesSha256 } from "@event-pos/escpos";
 import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
-import { rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const apps: ReturnType<typeof buildApp>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 
 describe("server foundation", () => {
+  it("システムエラーレポートをError IDごとのtxtへ保存する", async () => {
+    const reportDirectory = mkdtempSync(join(tmpdir(), "event-pos-error-report-"));
+    try {
+      const app = buildApp({ database: openDatabase(), errorReportDirectory: reportDirectory }); apps.push(app);
+      const errorId = "019fc3fb-f939-7e30-8175-635f2866b280";
+      const response = await app.inject({ method: "POST", url: "/api/v1/error-reports", payload: { errorId, content: "Error ID\n019fc3fb-f939-7e30-8175-635f2866b280\n\nStack Trace\ntest" } });
+      expect(response.statusCode).toBe(201);
+      expect(readFileSync(join(reportDirectory, `${errorId}.txt`), "utf8")).toContain("Stack Trace\ntest");
+    } finally { rmSync(reportDirectory, { recursive: true, force: true }); }
+  });
+
   it("calculates cash check theoretical amount from the server ledger", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02", cashboxId: "box-1" } })).json()).toMatchObject({ cashboxId: "box-1", state: "open" });

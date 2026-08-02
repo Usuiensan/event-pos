@@ -11,9 +11,11 @@ describe("エラー表示", () => {
   });
 
   it("システムエラーでは警報を止められる", () => {
-    const html = renderToStaticMarkup(<ErrorDialog error={{ kind: "system", message: "通信に失敗しました" }} onConfirm={vi.fn()} onStop={vi.fn()} />);
+    const html = renderToStaticMarkup(<ErrorDialog error={{ kind: "system", message: "通信に失敗しました", errorId: "019fc3fb-f939-7e30-8175-635f2866b280", reportContent: "report" }} onConfirm={vi.fn()} onStop={vi.fn()} onCreateReport={vi.fn()} />);
     expect(html).toContain("システムエラー");
     expect(html).toContain("音停止");
     expect(html).toContain("stop-alarm");
+    expect(html).toContain("エラー報告メールを作成");
+    expect(html).toContain("019fc3fb-f939-7e30-8175-635f2866b280");
   });
 });

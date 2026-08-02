@@ -11,6 +11,7 @@ import { connectRealtime } from "./realtime-client.js";
 import { ageSkipRemainingSeconds, canSkipCustomerAgeConfirmation } from "./age-skip.js";
 import { shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 import { ErrorDialog, type PosError } from "./error-dialog.js";
+import { createErrorReportMailto, createSystemErrorReport, toPosSystemError } from "./error-report.js";
 import { formatPrintStatus } from "./print-status.js";
 import "./styles.css";
 
@@ -86,7 +87,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const ageRequirement = (product: ProductDefinition): 18 | 20 | null => product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : product.ageCheck === "none" ? null : /R18|18禁|成人向け/.test(product.name) ? 18 : /チューハイ|レモンハイ|獺祭|酒|ビール/.test(product.name) ? 20 : null;
   const isAgeRestricted = (product: ProductDefinition) => ageRequirement(product) !== null;
   const showOperationError = (message: string) => { if (role === "staff") playOperationSound("error", audioSettings.errorVolume); setErrorModal({ kind: "operation", message }); };
-  const showSystemError = (message: string) => { if (role === "staff") playOperationSound("system-error", audioSettings.systemErrorVolume); setErrorModal({ kind: "system", message }); };
+  const showSystemError = (message: string, error?: unknown) => { if (role === "staff") playOperationSound("system-error", audioSettings.systemErrorVolume); const report = createSystemErrorReport(message, error); setErrorModal(toPosSystemError(report, message)); void checkoutApi.saveErrorReport(report.errorId, report.content).catch(() => undefined); };
   const today = new Date();
   const twentiethBirthday = new Date(today.getFullYear() - (ageProduct ? ageRequirement(ageProduct) ?? 20 : 20), today.getMonth(), today.getDate());
   const formatDateWareki = (date: Date) => { const year = date.getFullYear(); if (year >= 2019) return `令和${year - 2018}年${date.getMonth() + 1}月${date.getDate()}日`; if (year >= 1989) return `平成${year - 1988}年${date.getMonth() + 1}月${date.getDate()}日`; return `${year}年${date.getMonth() + 1}月${date.getDate()}日`; };
@@ -145,7 +146,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     if (draftRef.current?.state === "completed") { showOperationError("この取引は会計済みです。対象の操作はできません。"); return Promise.resolve(null); }
     const run = draftMutationQueueRef.current.then(async () => { const current = await openDraft(); const next = await operation(current); applyDraft(next); return next; });
     draftMutationQueueRef.current = run.catch(() => undefined);
-    return run.catch((error) => { showSystemError(errorMessage(error)); return null; });
+    return run.catch((error) => { showSystemError(errorMessage(error), error); return null; });
   };
   const activeCart = cart.filter((line) => !line.cancelled);
   const checkoutLocked = serverDraft?.state === "completed";
@@ -166,7 +167,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       void checkoutApi.announceSpeech(registerId, text).then((result) => { if (result.targetRole === "staff") speech.speak(text); }).catch(() => { if (!customerDisplayAvailable) speech.speak(text); });
     },
   }), [speech, registerId, customerDisplayAvailable]);
-  const clearFinishedTransaction = () => { if (!checkoutLocked) return; setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null); void openDraft().catch((error) => showSystemError(errorMessage(error))); };
+  const clearFinishedTransaction = () => { if (!checkoutLocked) return; setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null); void openDraft().catch((error) => showSystemError(errorMessage(error), error)); };
   const submitReprint = () => {
     if (!currentTransactionId || !printJob) return showOperationError("再印刷元の取引と印刷jobを取得できません。");
     if (!reprintReason.trim()) return showOperationError("再印刷理由を入力してください。");
@@ -174,7 +175,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     if (risky && (!reprintRiskAccepted || !reprintManagerApproved)) return showOperationError("二重印刷リスク承認と責任者承認が必要です。");
     void checkoutApi.createReprint(currentTransactionId, signedInResponsibleNumber, { sourcePrintJobId: printJob.jobId, reason: reprintReason.trim(), physicalOutcome: reprintOutcome, riskAccepted: reprintRiskAccepted, ...(reprintManagerApproved ? { approval: { approverId: signedInResponsibleNumber, approvedAt: new Date().toISOString() } } : {}) })
       .then((job) => { setPrintJob(job); setShowReprint(false); setReprintReason(""); setReprintRiskAccepted(false); setReprintManagerApproved(false); })
-      .catch((error) => showSystemError(errorMessage(error)));
+      .catch((error) => showSystemError(errorMessage(error), error));
   };
   const finishPayment = async (method: "現金" | "クレジット" | "売掛" | "無配", tenderedAmount?: number) => {
     if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。支払操作はできません。");
@@ -194,7 +195,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       const completed = await checkoutApi.getDraft(draft.draftId); applyDraft(completed);
       setReceived(amount); setCompletedPaymentLabel(method); setPaymentFinished(true); setShowPayment(false); setInputBuffer(""); playOperationSound("complete", audioSettings.tapVolume); localStorage.removeItem(keyName);
       if (method === "現金" && amount > total) speakChangeReady(routedSpeech); else speakReceiptReady(routedSpeech);
-    } catch (error) { showSystemError(errorMessage(error)); }
+    } catch (error) { showSystemError(errorMessage(error), error); }
     finally { paymentSubmittingRef.current = false; }
   };
   useEffect(() => { speech.setSpeaker(audioSettings.speakerId); speech.setVolume(audioSettings.speechVolume); storeAudioSettings(registerNumber, audioSettings); }, [audioSettings, registerNumber, speech]);
@@ -310,7 +311,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const requiredAge = ageRequirement(product);
     if (!ageCheckBypass && requiredAge && (!ageVerified || ageVerifiedMinimum < requiredAge)) {
       setAgeProduct(product); setAgeFlowState("customer_pending"); setAgeConfirmationRequest(null);
-      void openDraft().then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge)).then((request) => { setAgeConfirmationRequest(request); speakAgeCheckRequired(routedSpeech); }).catch((error) => { setAgeProduct(null); setAgeFlowState("idle"); showSystemError(errorMessage(error)); });
+      void openDraft().then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge)).then((request) => { setAgeConfirmationRequest(request); speakAgeCheckRequired(routedSpeech); }).catch((error) => { setAgeProduct(null); setAgeFlowState("idle"); showSystemError(errorMessage(error), error); });
       return;
     }
     void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
@@ -325,8 +326,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     void runDraftMutation(operation).then((next) => { if (next && addedTotal > 0) { playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(addedTotal)); } });
   };
   const setQuantity = (lineIndex: number) => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。数量は変更できません。"); const line = cart[lineIndex]; if (!line?.lineId) return; const value = window.prompt("数量を入力", String(line.quantity)); const quantity = Number(value); if (Number.isSafeInteger(quantity) && quantity > 0) void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, line.lineId!, draft.version, { quantity })).then((next) => { if (next) highlightLine(line.product.productCode, line.cancelled ? "cancelled" : "active"); }); };
-  const signIn = () => { const normalized = normalizeResponsibleNumber(responsibleNumber); if (!normalized) return showOperationError("責任者番号を入力してください。"); const member = catalog.staffMembers?.find((candidate) => candidate.responsibleNumber === normalized); if (!member) return showOperationError("登録されていない責任者番号です。商品JSONのstaffMembersを確認してください。"); setResponsibleNumber(normalized); setSignedInResponsibleNumber(member.responsibleNumber); setSignedInUser(member.displayName); setShowSignIn(false); if (!draftRef.current) void openDraft(member.responsibleNumber).catch((error) => showSystemError(errorMessage(error))); };
-  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { applyDraft(next); setLastAdded(null); setReceived(0); setPaymentFinished(false); setAgeVerified(false); setAgeProduct(null); setAgeFlowState("idle"); setAgeConfirmationRequest(null); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); }).catch((error) => showSystemError(errorMessage(error))); };
+  const signIn = () => { const normalized = normalizeResponsibleNumber(responsibleNumber); if (!normalized) return showOperationError("責任者番号を入力してください。"); const member = catalog.staffMembers?.find((candidate) => candidate.responsibleNumber === normalized); if (!member) return showOperationError("登録されていない責任者番号です。商品JSONのstaffMembersを確認してください。"); setResponsibleNumber(normalized); setSignedInResponsibleNumber(member.responsibleNumber); setSignedInUser(member.displayName); setShowSignIn(false); if (!draftRef.current) void openDraft(member.responsibleNumber).catch((error) => showSystemError(errorMessage(error), error)); };
+  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { applyDraft(next); setLastAdded(null); setReceived(0); setPaymentFinished(false); setAgeVerified(false); setAgeProduct(null); setAgeFlowState("idle"); setAgeConfirmationRequest(null); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); }).catch((error) => showSystemError(errorMessage(error), error)); };
   const selectedLineItem = selectedLine !== null ? cart[selectedLine] : undefined;
   const priceChangePreview = (() => { if (!selectedLineItem || !discountMode || !discountInput) return null; const value = Number(discountInput); if (!Number.isSafeInteger(value) || value < 0) return null; return discountMode === "percent" ? (value <= 100 ? Math.floor(selectedLineItem.product.priceInclTax * (100 - value) / 100) : null) : (value <= selectedLineItem.product.priceInclTax ? selectedLineItem.product.priceInclTax - value : null); })();
   const closePriceChange = () => { setShowPriceChange(false); setDiscountMode(null); setDiscountInput(""); };
@@ -343,7 +344,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
         if (valueHasChanged) return { ...current, version: Math.max(current.version, saved.version) };
         return saved.version >= current.version ? saved : current;
       });
-    }).catch((error) => showSystemError(errorMessage(error)));
+    }).catch((error) => showSystemError(errorMessage(error), error));
   };
   const importJson = (text: string) => { try { const next = importEventCatalog(text); void saveCatalog(next).catch((error) => showSystemError(error instanceof Error ? error.message : "カタログ保存に失敗しました")); } catch (error) { showOperationError(error instanceof Error ? error.message : "JSONが不正です"); } };
   const customerCheckoutStatus = paymentFinished ? (completedPaymentLabel === "現金" ? `お預り ${received.toLocaleString()}円　お釣り ${Math.max(0, received - total).toLocaleString()}円` : `支払方法 ${completedPaymentLabel}　会計済み`) : showPayment ? (inputBuffer ? `お預り入力 ${Number(inputBuffer).toLocaleString()}円` : "お支払いをお願いします") : null;
@@ -365,7 +366,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     {selectedLineItem && selectedLine !== null && showPriceChange && <div className="modal-backdrop price-change-layer"><section className="price-change-modal"><header><span>{selectedLineItem.product.name}</span><strong>現在単価 {selectedLineItem.product.priceInclTax.toLocaleString()}円</strong></header>{discountMode === null ? <div className="discount-mode-selector"><p>値引き方法を選択してください</p><button onClick={() => { setDiscountMode("percent"); setDiscountInput(""); }}>％引き</button><button onClick={() => { setDiscountMode("amount"); setDiscountInput(""); }}>金額値引き</button><button className="price-change-back" onClick={closePriceChange}>戻る</button></div> : <div className="discount-entry"><div className="discount-display"><span>{discountMode === "percent" ? "値引率" : "値引額"}</span><strong>{discountInput ? Number(discountInput).toLocaleString() : "0"}{discountMode === "percent" ? "％" : "円"}</strong><small>変更後単価　{priceChangePreview === null ? "—" : `${priceChangePreview.toLocaleString()}円`}</small></div><div className="discount-keypad">{["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "00"].map((key) => <button key={key} onClick={() => setDiscountInput((current) => `${current}${key}`.replace(/^0+(?=\d)/, "").slice(0, 7))}>{key}</button>)}<button className="discount-clear" onClick={() => setDiscountInput("")}>C</button><button className="discount-back" onClick={() => { setDiscountMode(null); setDiscountInput(""); }}>戻る</button><button className="discount-apply" disabled={priceChangePreview === null} onClick={applySelectedDiscount}>確定</button></div></div>}</section></div>}
     {showSignIn && <div className="modal-backdrop"><form className="modal sign-in" onSubmit={(event) => { event.preventDefault(); signIn(); }}><h2>■■ サインオン（責任者入力） ■■</h2><p>責任者番号を入力後、【サインオン】をタッチまたは Enter</p><input aria-label="責任者番号" inputMode="numeric" maxLength={3} placeholder="責任者番号" value={responsibleNumber} onChange={(event) => setResponsibleNumber(event.target.value.replace(/\D/g, "").slice(0, 3))} /><button type="submit">サインオン</button></form></div>}
     {ageProduct && <div className="modal-backdrop"><div className="modal age-modal"><h2>🔞 年齢確認</h2><p>{ageProduct.name}<br />身分証を目視し、{ageRequirement(ageProduct)}歳以上であることを確認してください。</p><div className="age-cutoff">今日{ageRequirement(ageProduct)}歳になる生年月日<br /><strong>西暦 {formatDateJa(twentiethBirthday)}</strong><br /><strong>和暦 {formatDateWareki(twentiethBirthday)}</strong><br /><small>この日以前の生年月日なら{ageRequirement(ageProduct)}歳以上です</small></div>{ageFlowState === "staff_pending" && <><button onPointerUp={confirmAge}>確認できた</button><button onPointerUp={() => { if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }}>確認できない</button></>}{ageFlowState === "customer_pending" && <><p className="age-skip-status">{ageCustomerSkipAvailable ? (customerDisplayAvailable ? "客側確認をスキップできます" : "顧客画面が未接続のため、すぐにスキップできます") : `客側スキップまで 残り${ageCountdownSeconds}秒`}</p><button className="customer-age-skip" disabled={!ageCustomerSkipAvailable} onPointerUp={() => { if (ageCustomerSkipAvailable) confirmAge(); }}>客側スキップ</button></>}</div></div>}
-    {errorModal && <ErrorDialog error={errorModal} onConfirm={() => { stopOperationSound(); setErrorModal(null); }} onStop={stopOperationSound} />}
+    {errorModal && <ErrorDialog error={errorModal} onConfirm={() => { stopOperationSound(); setErrorModal(null); }} onStop={stopOperationSound} onCreateReport={(error) => { const mailto = createErrorReportMailto(error); if (mailto) window.location.href = mailto; }} />}
     {cancelConfirm && <div className="modal-backdrop error-layer"><div className="error-modal cancel-confirm"><h2>登録中止</h2><p>本当に登録を中止しますか？</p><button onClick={() => { cancelRegistration(); setCancelConfirm(false); }}>中止する</button><button onClick={() => setCancelConfirm(false)}>戻る</button></div></div>}
     {emergencyModal}
   </main>;
