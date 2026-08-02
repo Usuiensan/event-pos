@@ -23,8 +23,8 @@ const catalog = {
   autoDiscountRules: [{ id: "pair", label: "2個で20円引き", requiredProducts: [{ productCode: "00000001", quantity: 2 }], discountYen: 20, priority: 10 }],
 };
 
-function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Parameters<NonNullable<Parameters<typeof buildApp>[0]["checkoutFailureInjector"]>>[0]) => void): { app: FastifyInstance; db: PosDatabase } {
-  const app = buildApp({ database, ...(checkoutFailureInjector ? { checkoutFailureInjector } : {}) });
+function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Parameters<NonNullable<Parameters<typeof buildApp>[0]["checkoutFailureInjector"]>>[0]) => void, drawerEnabled = false): { app: FastifyInstance; db: PosDatabase } {
+  const app = buildApp({ database, drawerEnabled, ...(checkoutFailureInjector ? { checkoutFailureInjector } : {}) });
   apps.push(app);
   return { app, db: database };
 }
@@ -58,7 +58,7 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
 
 describe("durable checkout API", () => {
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
-    const { app, db } = makeApp(); await installCatalog(app);
+    const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
     const response = await finalize(app, draft, "cash-exact");
     expect(response.statusCode).toBe(201);
@@ -71,9 +71,18 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='sale_finalize'").get()).toMatchObject({ count: 1 });
-    expect(db.prepare("SELECT COUNT(*) AS count FROM printer_operations").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "drawer", sequence: 1 }, { kind: "print", sequence: 2 }]);
+    expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }) });
     const transaction = await app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` });
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
+  });
+
+  it("drawer未受入時は現金会計でもpulse jobを作らない", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
+    expect((await finalize(app, draft, "drawer-disabled")).statusCode).toBe(201);
+    expect(db.prepare("SELECT kind FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "print" }]);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
   });
 
   it("stores cash change and rejects insufficient tender or change of 10,000 yen and above", async () => {
@@ -327,6 +336,7 @@ describe("durable checkout API", () => {
       expect((await finalize(app, draft, `load-${index}`)).statusCode).toBe(201);
     }
     for (const table of ["transactions", "transaction_lines", "payments", "inventory_movements", "idempotency_records", "print_jobs", "printer_operations"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}${table === "print_jobs" ? " WHERE document_type='receipt'" : ""}`).get()).toMatchObject({ count: 60 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toMatchObject({ count: 0 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 60 });
   });
 });

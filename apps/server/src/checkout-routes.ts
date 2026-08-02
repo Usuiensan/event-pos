@@ -24,7 +24,7 @@ import {
 import type { RealtimeHub } from "./realtime.js";
 
 type PrintQueue = { trigger(): void };
-export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub };
+export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean };
 
 function headerValue(value: string | string[] | undefined): string | undefined { return Array.isArray(value) ? value[0] : value; }
 function ifMatch(headers: Record<string, string | string[] | undefined>): number {
@@ -125,7 +125,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   app.post<{ Params: { draftId: string }; Body: { version: number } }>("/api/v1/sale-drafts/:draftId/finalize", async (request, reply) => {
     const key = headerValue(request.headers["idempotency-key"]);
     try {
-      const result = finalizeSale(options.database, request.params.draftId, request.body?.version, key ?? "", options.checkoutFailureInjector);
+      const result = finalizeSale(options.database, request.params.draftId, request.body?.version, key ?? "", options.checkoutFailureInjector, options.drawerEnabled ?? false);
       const completedDraft = getSaleDraft(options.database, request.params.draftId);
       notifyDraft(options, completedDraft);
       options.realtimeHub?.notify({ type: "transaction.finalized", registerId: completedDraft.registerId, transactionId: result.transactionId });

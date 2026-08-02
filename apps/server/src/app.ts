@@ -11,7 +11,7 @@ import { PersistentPrintQueue, type PrinterHost } from "./print-queue.js";
 import { registerPrintingRoutes } from "./printing-routes.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -51,7 +51,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(503).send({ status: "not_ready", database: "error" });
     }
   });
-  app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
+  app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1, drawerEnabled: options.drawerEnabled ?? false }));
   app.post<{ Body: { errorId?: string; content?: string } }>("/api/v1/error-reports", async (request, reply) => {
     const errorId = request.body?.errorId;
     const content = request.body?.content;
@@ -103,7 +103,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     try {
       const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: getTheoreticalCash(options.database, request.params.sessionId), ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }), ...(auth.actorId ? { actorId: auth.actorId } : request.body.actorId ? { actorId: request.body.actorId } : {}), ...(request.body.terminalId ? { terminalId: request.body.terminalId } : {}) };
       const check = createCashCheck(input);
-      return reply.code(201).send(saveCashCheck(options.database, check));
+      const saved = saveCashCheck(options.database, check); printQueue?.trigger();
+      return reply.code(201).send(saved);
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
   });
   app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string; from?: string; to?: string; occurredAt?: string; actorId?: string; terminalId?: string; type?: "sale" | "return" | "pay_in" | "pay_out" } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
@@ -153,9 +154,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const job = updatePrintJob(options.database, request.params.jobId, request.body);
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
-  registerCheckoutRoutes(app, { database: options.database, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), realtimeHub });
+  registerCheckoutRoutes(app, { database: options.database, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
-  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}) });
+  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
   return app;
 }

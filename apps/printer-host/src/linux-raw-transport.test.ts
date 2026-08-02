@@ -22,4 +22,11 @@ describe("LinuxRawTransport", () => {
     const transport = new LinuxRawTransport("unused", async () => { throw new Error("probe failed"); });
     expect(await transport.getStatus()).toMatchObject({ reachable: { support: "unknown" }, online: { support: "unknown" } });
   });
+
+  it("uses the same fixed BC-415M drawer pulse bytes as Windows", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "event-pos-printer-")); dirs.push(dir);
+    const device = join(dir, "lp-drawer"); const transport = new LinuxRawTransport(device, async () => "ready");
+    await transport.send(Uint8Array.from([0x1b, 0x70, 0x00, 0x02, 0x14])); await transport.close();
+    expect(Array.from(await readFile(device))).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
+  });
 });

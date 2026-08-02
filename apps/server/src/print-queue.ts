@@ -139,7 +139,9 @@ export class PersistentPrintQueue {
   private finishFailure(operation: Record<string, unknown>, job: PrintJob, attemptNo: number, failure: PrinterDispatchFailure): QueueRunResult {
     const now = this.clock(); const endedAt = now.toISOString(); const maxAttempts = Number(operation.max_attempts ?? 4);
     const safeRetry = failure.retryable && failure.notSentProven && failure.acceptedBytes === 0 && !failure.deviceFault && attemptNo < maxAttempts;
-    const deviceBlock = failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0 && attemptNo < maxAttempts;
+    // A physical fault is not a transient retry budget.  Keep the FIFO head
+    // blocked until an observation or an accountable manager resumes it.
+    const deviceBlock = failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0;
     const backoff = [2, 5, 15][attemptNo - 1] ?? 15; const availableAt = new Date(now.getTime() + backoff * 1000).toISOString();
     transaction(this.db, () => {
       updateAttempt(this.db, job.jobId, attemptNo, { endedAt, acceptedBytes: failure.acceptedBytes, result: deviceBlock ? "device_fault" : safeRetry ? "retry_wait" : failure.notSentProven ? "failed" : "unknown", errorCode: failure.code, errorMessage: failure.message, transportEvidence: failure.transportEvidence, statusObservation: failure.statusObservation });

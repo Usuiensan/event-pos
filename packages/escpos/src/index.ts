@@ -5,7 +5,7 @@ import { parseCanonicalReceiptIr, validateDocument, type ReceiptDocument } from 
 const ESC = 0x1b; const GS = 0x1d; const FS = 0x1c; const LF = 0x0a;
 export const ESCPOS_RENDERER_VERSION = "event-pos-escpos-v1";
 export const BUILTIN_FONT = { id: "tm-t70ii-cp932", version: 1, sha256: "builtin-tm-t70ii-cp932-v1" } as const;
-export const DEFAULT_FINISHING_POLICY = { id: "receipt-partial-cut", version: 1 } as const;
+export const DEFAULT_FINISHING_POLICY = { id: "receipt-partial-cut", version: 2 } as const;
 
 export type EscPosRasterAsset = { assetId: string; version: number; sha256: string; widthDots: number; heightDots: number; rasterBase64: string };
 

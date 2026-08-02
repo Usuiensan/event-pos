@@ -1,6 +1,6 @@
 # 音声パーツのテキスト台帳
 
-このディレクトリのWAVは、VOICEVOXへ次のテキストを渡して生成する。金額の音便は数値変換側（`packages/contracts/src/japanese-money.ts`）と一致させる。
+このディレクトリのMP3は、VOICEVOXへ次のテキストを渡して生成する。金額の音便は数値変換側（`packages/contracts/src/japanese-money.ts`）と一致させる。
 
 | 分類 | VOICEVOXへ渡すテキスト |
 | --- | --- |
@@ -17,6 +17,6 @@
 
 `yen/<speakerId>/`には、`にせんえん`や`よんじゅうえん`のように「円」まで含めたパーツを置く。音声プレイヤーは金額の最後の単位と`えん`を結合して、このパーツを優先再生する。VOICEVOXの「あんこもん（つよつよ）」はspeaker ID `114`。
 
-配信用音声は64kbps・モノラルMP3とし、選択中の話者分をブラウザ起動時に先読みする。`scripts/generate-voicevox-parts.mjs`はVOICEVOXからWAVを受け取った後、`ffmpeg`でMP3へ変換する。アクセントや速度を調整した場合は同じテキスト・話者IDのMP3を再生成する。
+配信用音声は64kbps・モノラルMP3とし、選択中の話者分をブラウザ起動時に先読みする。`scripts/generate-voicevox-parts.mjs`はVOICEVOXからWAVを受け取った後、`ffmpeg`でMP3へ変換する。話者`1,2,3,8,114`の全セリフはVOICEVOXの通常速度に対して`1.25`倍へ統一する。アクセントや速度を調整した場合は同じテキスト・話者IDのMP3を再生成する。
 
 一部だけ再生成するときは、例えば`VOICEVOX_PARTS=change`を指定する。

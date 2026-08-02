@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
+import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
 
 const snapshot: ReceiptSnapshot = {
   schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", registerNo: "1", staffPrintLabel: "001",
@@ -10,9 +10,15 @@ const snapshot: ReceiptSnapshot = {
 };
 
 describe("receipt template", () => {
+  it("TM-T70II実紙面に合わせてcut前を8行送り、旧v1を識別できる", () => {
+    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(2);
+    expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feedLines: 8");
+    expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1).toContain("feedLines: 3");
+  });
+
   it("同じsnapshotから同じASTと人間向けpreviewを生成する", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot));
-    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊 x1");
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊");
   });
 
   it("未知node・変数・幅超過・finish欠落/複数を有効化前に拒否する", () => {

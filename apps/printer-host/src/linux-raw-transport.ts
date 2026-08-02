@@ -4,9 +4,14 @@ import { statusObservation, TransportSendError, type PrinterStatus, type Printer
 /** Linux RAW USB transport skeleton. Device/status behavior remains hardware-gated. */
 export class LinuxRawTransport implements PrinterTransport {
   private handle: FileHandle | undefined;
-  constructor(private readonly devicePath: string, private readonly statusProbe: () => Promise<PrinterStatus> = async () => "unknown", private readonly onWrite?: (offset: number, bytesWritten: number, error?: string) => void) {}
+  constructor(private readonly devicePath: string, private readonly statusProbe: () => Promise<PrinterStatus | { status: PrinterStatus; raw: unknown }> = async () => "unknown", private readonly onWrite?: (offset: number, bytesWritten: number, error?: string) => void) {}
   async getStatus() {
-    try { return statusObservation(await this.statusProbe(), { adapter: "linux-raw", devicePath: this.devicePath }); } catch { return statusObservation("unknown", { adapter: "linux-raw", devicePath: this.devicePath }); }
+    try {
+      const observation = await this.statusProbe();
+      const status = typeof observation === "string" ? observation : observation.status;
+      const raw = typeof observation === "string" ? observation : observation.raw;
+      return statusObservation(status, { adapter: "linux-raw", devicePath: this.devicePath, statusProbe: raw });
+    } catch (error) { return statusObservation("unknown", { adapter: "linux-raw", devicePath: this.devicePath, error: error instanceof Error ? error.message : String(error) }); }
   }
   async send(bytes: Uint8Array): Promise<SendReceipt> {
     this.handle ??= await open(this.devicePath, "w");

@@ -50,4 +50,6 @@ USB再接続後にEPSON USB ControllerのPnP `OK`/queue raw `PrinterStatus=0`へ
 - Debian x86_64実機: bot service停止とdevice保持process不在の記録、DLE EOT raw応答、udev/systemd復旧。
 - 両OS: 4レジFIFO、同一jobId、host/OS再起動、全紙面写真またはscan。
 
+2026-08-03 Goal 7.1で、4件同時FIFO、同一jobId、POS再起動、結果不明隔離は自動試験を追加した。初回・再印刷・開局・中間計・精算の5jobも実HTTP PrinterHost経路でhash/acceptedBytes一致を確認した。ただし実transportと紙面を使っていないため、上記の実機証拠を置換しない。Windows preflightはphysical USB controller不在・queue raw `4096`で`reachable=false`、Linux対象機は作業端末から到達不能だった。
+
 P003はdrawer型番・pin・pulseが未提供のため`Pending decision`を維持する。P006は両OSのBOMと運用証跡、P009は防災経路の別ADRが揃うまで`Accepted`にしない。
