@@ -16,7 +16,7 @@
 5. 出力先から次を実行する。repository checkoutからの保守起動にも同じlauncherを使用できる。
 
 ```powershell
-.\start-printer-host.ps1
+pwsh -NoProfile -File .\start-printer-host.ps1
 ```
 
 別terminalで`Invoke-RestMethod http://127.0.0.1:4318/health/live`と`Invoke-RestMethod http://127.0.0.1:4318/api/v1/printer/status`を確認する。statusが`unknown`またはofflineなら印刷を開始しない。

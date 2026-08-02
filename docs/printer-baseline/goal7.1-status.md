@@ -24,7 +24,13 @@ Linux x86_64の既存証跡機は、この作業端末のSSH/DNS設定から`ser
 
 ## 必須実機run
 
-POS serverとPrinterHostを起動し、statusと`DRAWER_ENABLED=false`を確認後、次のrunnerを使える。これは実機へ5枚送るため`--run`を必須とする。
+POS serverとPrinterHostを起動し、statusと`DRAWER_ENABLED=false`を確認後、次のrunnerを使える。Windowsの実機受入用POS serverはPowerShell 7から次のように起動し、DBをrun directoryへ分離する。このlauncherはドロアーを常に無効化する。
+
+```powershell
+pwsh -NoProfile -File tools/hardware-test/start-goal7-pos-server.ps1 -DatabasePath docs/printer-baseline/windows/<run-id>/event-pos.sqlite
+```
+
+別のPowerShell 7 terminalでrunnerを実行する。これは実機へ5枚送るため`--run`を必須とする。
 
 ```powershell
 node tools/hardware-test/run-goal7-pos-acceptance.mjs --run --operator <操作者ID> --manager <責任者ID> --pos-url http://127.0.0.1:3000 --output docs/printer-baseline/windows/<run-id>

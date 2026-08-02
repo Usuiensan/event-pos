@@ -1,10 +1,14 @@
 [CmdletBinding()]
 param(
-  [string]$EnvironmentFile = (Join-Path $PSScriptRoot 'printer-host.env'),
+  [string]$EnvironmentFile,
   [string]$NodeExe
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($EnvironmentFile)) {
+  $EnvironmentFile = Join-Path $PSScriptRoot 'printer-host.env'
+}
 
 if (Test-Path -LiteralPath $EnvironmentFile) {
   foreach ($line in Get-Content -LiteralPath $EnvironmentFile) {
