@@ -5,6 +5,7 @@ import { arch, platform, release } from "node:os";
 import { join } from "node:path";
 import { buildHardwareFixture } from "./hardware-fixture.js";
 import { LinuxRawTransport } from "./linux-raw-transport.js";
+import { probeLinuxDleEot } from "./linux-status-probe.js";
 
 const execFileAsync = promisify(execFile);
 const run = process.argv.includes("--run");
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
   }
   const writes: WriteTrace[] = [];
   const transport = new LinuxRawTransport(devicePath, async () => "unknown", (offset, bytesWritten, error) => writes.push({ offset, bytesWritten, ...(error ? { errno: error } : {}), at: new Date().toISOString() }));
-  const statusRequests = [{ requestHex: "", mechanism: "not_attempted", reason: "Linux RAW default status probe is unknown; no response is normalized as ready" }];
+  const statusRequests = await probeLinuxDleEot(devicePath, Number(process.env.PRINTER_STATUS_TIMEOUT_MS ?? 1000));
   const statusBefore = await transport.getStatus();
   let result: "completed" | "unknown" = "unknown"; let errorMessage: string | undefined;
   try { const receipt = await transport.send(fixture.bytes); result = receipt.acceptedBytes === fixture.bytes.length ? "completed" : "unknown"; }

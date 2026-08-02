@@ -41,12 +41,12 @@ systemctl status event-pos-printer-host --no-pager || true
 ```sh
 PRINTER_DEVICE=/dev/event-pos-tmt70ii \
 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/linux-x86_64-$(date +%Y%m%d-%H%M%S) \
-sh tools/hardware-test/run-linux.sh
+sh tools/hardware-test/run-linux.sh --take-device
 ```
 
 JSONの`result`、`statusBefore`、`statusAfter`、`bytesSha256`、`bytesLength`を保存し、紙面の文字・フィード・カットを目視して同じ試験番号へ記録する。送信成功だけでは紙面完了の証拠としない。status取得に失敗した場合の`statusAfter`は`unknown`として保存する。
 
-既存Debianでは先にDiscord bot serviceを停止し、`lsof /dev/event-pos-tmt70ii`等でdevice保持processがないことを記録する。終了後は元serviceを戻し、`systemctl status`と`journalctl -u <service>`を保存する。
+既存Debianではこのscriptが既定で`discord-printer-bot` serviceを停止し、`fuser`でdevice保持processがないことを確認する。`--take-device`なしには送信しない。終了時はtrapで元serviceを開始し、status/journal、稼働commit、service定義を同じ証跡dirへ保存する。DLE EOT `10 04 01`〜`10 04 04`の要求bytesと1-byte raw responseもrun JSONへ保存するが、未検証の応答は常に`unknown`である。
 
 ### Windows x64 RAW spooler
 
