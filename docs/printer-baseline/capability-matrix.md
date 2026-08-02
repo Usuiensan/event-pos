@@ -7,7 +7,7 @@
 | Windows x64 | Winspool RAW `WritePrinter` | unknown | unknown | unknown | unknown | unknown | unknown | spooler job 3が313 bytesを受理、device-level status/紙面は未確認 |
 | Windows x64 | EPSON driver/API | unknown | unknown | unknown | unknown | unknown | unknown | 未測定 |
 | Windows x64 | OPOS | unknown | unknown | unknown | unknown | unknown | unknown | 未測定 |
-| Linux x86_64 | `/dev/usb/lp*` | supported | supported（正常時） | unknown（開時はDLE EOT応答不能） | unknown（紙切れ時はDLE EOT応答不能） | unknown | unknown | 正常DLE EOT `16/12/12/12`、切断時`ENODEV`、再接続後ready復帰 |
+| Linux x86_64 | `/dev/usb/lp*` | supported | supported（正常時） | unknown（開時はDLE EOT応答不能） | unknown（紙切れ時はDLE EOT応答不能、near-endは`1e`で観測） | unknown | unknown | 正常DLE EOT `16/12/12/12`、切断時`ENODEV`、再接続後ready復帰 |
 | Linux ARM64 | `/dev/usb/lp*` | unknown | unknown | unknown | unknown | unknown | unknown | `linux-arm64/manifest.json` を作成後に更新 |
 | Linux x86_64/ARM64 | libusb | unknown | unknown | unknown | unknown | unknown | unknown | RAW経路で不足時のみ測定 |
 

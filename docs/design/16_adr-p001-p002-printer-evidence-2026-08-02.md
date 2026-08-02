@@ -16,6 +16,8 @@ Windows候補は同梱のWinspool RAW `WritePrinter`、EPSON driver/API、OPOS�
 
 同じDebian LXCでcover open、紙切れ、USB切断・再接続を実測した。cover openと紙切れではDLE EOTがtimeout/EAGAINとなり、個別状態へ推測せず`unknown`とした。USB切断後は`/dev/usb/lp0` nodeが残ってもopenが`ENODEV`になり、再接続後はDLE EOT `16/12/12/12`と`ready`へ復帰した。各status-only probeはfixture bytesを送らず、bot停止・device holder不在・service復帰を記録している。
 
+LXC OS再起動後も`/dev/usb/lp0`、DLE EOT正常値、bot service `active/running`、同一fixture v2の316 bytes送信が復帰した。短いロール紙でnear-endも測定し、DLE EOT n=4のraw responseが通常`12`から`1e`へ変化した時点で印刷loopを停止した。これはnear-endの実測であり、紙切れ状態の個別検出を意味しない。
+
 ## ADR-P002 状態取得
 
 現時点の全方式は`unknown`である。Windows print queueの`Normal`、Linuxのwrite成功、DLE EOT応答なしを`ready`へ変換しない。各方式のreachable/online/cover/paper/recoverable/fatal errorは [能力表](../printer-baseline/capability-matrix.md) に `supported` / `unsupported` / `unknown` とraw値の両方を記録する。

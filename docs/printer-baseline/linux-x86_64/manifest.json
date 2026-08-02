@@ -40,6 +40,18 @@
       "directory": "20260803-usb-reconnected",
       "scenario": "USB reconnected",
       "result": "DLE EOT returned 16/12/12/12 and normalized ready; bot service active/running"
+    },
+    {
+      "id": "L64-S05",
+      "directory": "20260803-os-reboot",
+      "scenario": "LXC OS reboot",
+      "result": "booted at 03:48:49; /dev/usb/lp0, DLE EOT ready, and bot service active/running restored"
+    },
+    {
+      "id": "L64-S06",
+      "directory": "20260803-near-end",
+      "scenario": "roll paper near-end",
+      "result": "one fixture v2 print changed DLE EOT n=4 raw response from 12 to 1e; loop stopped immediately"
     }
   ]
 }

@@ -1,0 +1,1 @@
+crw-rw-rw- 1 root root 180, 0 Aug  3 03:48 /dev/usb/lp0

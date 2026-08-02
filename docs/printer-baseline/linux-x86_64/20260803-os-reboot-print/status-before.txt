@@ -1,0 +1,23 @@
+* discord-printer-bot.service - Discord Printer Bot
+     Loaded: loaded (/etc/systemd/system/discord-printer-bot.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-08-03 03:50:27 JST; 42s ago
+ Invocation: fc614db3ab2c42dbbe074e4ff1819ff5
+   Main PID: 2144 (npm start)
+      Tasks: 23 (limit: 16932)
+     Memory: 48.2M (peak: 89.9M)
+        CPU: 1.007s
+     CGroup: /system.slice/discord-printer-bot.service
+             |-2144 "npm start"
+             |-2164 sh -c "node src/index.js"
+             `-2166 node src/index.js
+
+Aug 03 03:50:27 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:50:27 services npm[2144]: > discord-printer-bot@0.1.0 start
+Aug 03 03:50:27 services npm[2144]: > node src/index.js
+Aug 03 03:50:29 services npm[2166]: Logged in as TM-T70II#1255
+Aug 03 03:50:29 services npm[2166]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:50:29 services npm[2166]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:50:29 services npm[2166]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:50:29 services npm[2166]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:50:29 services npm[2166]: OPOS status: disabled
+Aug 03 03:50:29 services npm[2166]: Printer monitor: enabled (5000ms, 3 consecutive failures)
