@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakReceiptReady, type SpeechPlayer } from "./speech.js";
 
 function playerWithSpeak(spy: ReturnType<typeof vi.fn>): SpeechPlayer {
-  return { speakerId: 114, setSpeaker: vi.fn(), speak: spy };
+  return { speakerId: 114, volume: 100, setSpeaker: vi.fn(), setVolume: vi.fn(), speak: spy };
 }
 
 describe("会計完了案内", () => {
