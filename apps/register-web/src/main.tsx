@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
-import { createSpeechPlayer, speakChangeReady, speakProductPrice, speakReceiptReady, speakSubtotal, type SpeechPlayer } from "./speech.js";
+import { createSpeechPlayer, playOperationSound, speakChangeReady, speakProductPrice, speakReceiptReady, speakSubtotal, type SpeechPlayer } from "./speech.js";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = { eventId: "demo-event", products: [
@@ -25,7 +25,7 @@ function App() {
   const [cart, setCart] = useState<Array<{ product: ProductDefinition; quantity: number; cancelled?: boolean }>>([]);
   const [message, setMessage] = useState("会計待ち");
   const [loading, setLoading] = useState(true);
-  const [speakerId, setSpeakerId] = useState(() => Number(localStorage.getItem("event-pos-speaker") ?? 1));
+  const [speakerId, setSpeakerId] = useState(() => Number(localStorage.getItem("event-pos-speaker") ?? 3));
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<{ name: string; quantity: number; unitPrice: number } | null>(null);
   const [panel, setPanel] = useState<"detail" | "products">("detail");
@@ -49,7 +49,7 @@ function App() {
   const [paymentFinished, setPaymentFinished] = useState(false);
   const ageRequirement = (product: ProductDefinition): 18 | 20 | null => product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : product.ageCheck === "none" ? null : /R18|18禁|成人向け/.test(product.name) ? 18 : /チューハイ|レモンハイ|獺祭|酒|ビール/.test(product.name) ? 20 : null;
   const isAgeRestricted = (product: ProductDefinition) => ageRequirement(product) !== null;
-  const showError = (message: string) => setErrorModal(message);
+  const showError = (message: string) => { playOperationSound("error"); setErrorModal(message); };
   const today = new Date();
   const twentiethBirthday = new Date(today.getFullYear() - (ageProduct ? ageRequirement(ageProduct) ?? 20 : 20), today.getMonth(), today.getDate());
   const formatDateWareki = (date: Date) => { const year = date.getFullYear(); if (year >= 2019) return `令和${year - 2018}年${date.getMonth() + 1}月${date.getDate()}日`; if (year >= 1989) return `平成${year - 1988}年${date.getMonth() + 1}月${date.getDate()}日`; return `${year}年${date.getMonth() + 1}月${date.getDate()}日`; };
@@ -69,7 +69,7 @@ function App() {
   }, [catalog.products]);
   useEffect(() => { if (role === "staff") localStorage.setItem("event-pos-cart", JSON.stringify(cart.map((line) => ({ productCode: line.product.productCode, quantity: line.quantity, cancelled: line.cancelled })))); }, [cart, role]);
   useEffect(() => { if (role !== "customer") return; const syncAge = () => { const value = localStorage.getItem("event-pos-age-check"); setCustomerAgeNotice(value?.startsWith("verified") ? "verified" : value?.startsWith("required") ? "required" : null); setCustomerAgeMinimum(value?.endsWith(":18") ? 18 : 20); }; syncAge(); window.addEventListener("storage", syncAge); return () => window.removeEventListener("storage", syncAge); }, [role]);
-  useEffect(() => { if (role !== "customer") return; const syncHighlight = (event: StorageEvent) => { if (event.key !== "event-pos-line-highlight" || !event.newValue) return; try { const value = JSON.parse(event.newValue) as { productCode?: string }; if (!value.productCode) return; setHighlighted(value.productCode); window.setTimeout(() => setHighlighted((current) => current === value.productCode ? null : current), 1500); } catch { /* ignore malformed preview state */ } }; window.addEventListener("storage", syncHighlight); return () => window.removeEventListener("storage", syncHighlight); }, [role]);
+  useEffect(() => { if (role !== "customer") return; const syncHighlight = (event: StorageEvent) => { if (event.key !== "event-pos-line-highlight" || !event.newValue) return; try { const value = JSON.parse(event.newValue) as { productCode?: string }; if (!value.productCode) return; setHighlighted(value.productCode); window.setTimeout(() => setHighlighted((current) => current === value.productCode ? null : current), 1100); } catch { /* ignore malformed preview state */ } }; window.addEventListener("storage", syncHighlight); return () => window.removeEventListener("storage", syncHighlight); }, [role]);
   useEffect(() => { if (role !== "staff" || !ageProduct || ageFlowState !== "customer_pending") return; const onCustomerAge = () => { if (localStorage.getItem("event-pos-age-response") === "yes") { localStorage.removeItem("event-pos-age-response"); setAgeFlowState("staff_pending"); } }; window.addEventListener("storage", onCustomerAge); onCustomerAge(); return () => window.removeEventListener("storage", onCustomerAge); }, [role, ageProduct, ageFlowState]);
   useEffect(() => {
     if (role !== "staff") return;
@@ -83,7 +83,7 @@ function App() {
         event.preventDefault();
         if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; }
         const amount = Number(inputBuffer);
-        if (amount >= total && amount - total < 10000) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); }
+        if (amount >= total && amount - total < 10000) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); playOperationSound("complete"); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); }
         else { setInputBuffer(""); showError(amount >= total ? "お釣りが10,000円以上になる預り金は入力できません。" : "預り金が不足しています。合計金額以上を入力してください。"); }
         return;
       }
@@ -94,13 +94,14 @@ function App() {
   }, [inputBuffer, paymentFinished, role, showSignIn, speech, total, catalog.products]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then((loaded) => { setCatalog(loaded); setLoading(false); }).catch(() => { setMessage("カタログを読み込めません。初期値を表示しています"); setLoading(false); }); }, []);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
-  const highlightLine = (productCode: string) => { setHighlighted(productCode); localStorage.setItem("event-pos-line-highlight", JSON.stringify({ productCode, at: Date.now() })); window.setTimeout(() => setHighlighted((current) => current === productCode ? null : current), 1500); };
+  const highlightLine = (productCode: string) => { setHighlighted(productCode); localStorage.setItem("event-pos-line-highlight", JSON.stringify({ productCode, at: Date.now() })); window.setTimeout(() => setHighlighted((current) => current === productCode ? null : current), 1100); };
   const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false) => {
     if (product.saleState !== "on_sale") return showError("この商品は販売停止中のため登録できません。");
     const requiredAge = ageRequirement(product);
     if (!ageCheckBypass && requiredAge && (!ageVerified || ageVerifiedMinimum < requiredAge)) { localStorage.setItem("event-pos-age-check", `required:${requiredAge}`); setAgeCustomerSkipAvailable(true); setAgeFlowState("customer_pending"); return setAgeProduct(product); }
     if (paymentFinished) { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); localStorage.removeItem("event-pos-age-check"); }
     setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax });
+    playOperationSound("register");
     setCart((current) => {
       const existing = current.findIndex((line) => !line.cancelled && line.product.productCode === product.productCode);
       if (existing < 0) return [...current, { product, quantity }];
@@ -132,7 +133,7 @@ function App() {
     <button className="panel-switch" onClick={() => setPanel((current) => current === "detail" ? "products" : "detail")}>{panel === "detail" ? "商品登録へ" : "登録明細へ"}</button>
     {inputBuffer && <div className="cash-popup"><span>お預り金額</span><strong>{Number(inputBuffer).toLocaleString()}円</strong><small>Enterで現計・レシート発行</small></div>}
     {showBusinessMenu && <div className="modal-backdrop"><div className="business-menu"><h2>業務メニュー</h2><button onClick={() => fileRef.current?.click()}>商品JSONインポート</button><button onClick={() => showError("返金は責任者権限が必要です。")}>返金</button><button onClick={() => showError("再印刷は責任者権限が必要です。")}>再印刷</button><button onClick={() => setShowBusinessMenu(false)}>閉じる</button></div></div>}
-    {selectedLineItem && <div className="modal-backdrop"><div className="line-menu"><h2>{selectedLineItem.product.name}</h2><button onClick={() => { setCart((current) => current.map((line) => line.product.productCode === selectedLine ? { ...line, cancelled: true } : line)); highlightLine(selectedLineItem.product.productCode); setSelectedLine(null); }}>取り消し</button><button onClick={() => { setQuantity(selectedLineItem.product.productCode); setSelectedLine(null); }}>数量変更</button><button onClick={changeSelectedPrice}>売価変更</button><button onClick={() => setSelectedLine(null)}>閉じる</button></div></div>}
+    {selectedLineItem && <div className="modal-backdrop"><div className="line-menu"><h2>{selectedLineItem.product.name}</h2><button onClick={() => { setCart((current) => current.map((line) => line.product.productCode === selectedLine ? { ...line, cancelled: true } : line)); playOperationSound("cancel"); highlightLine(selectedLineItem.product.productCode); setSelectedLine(null); }}>取り消し</button><button onClick={() => { setQuantity(selectedLineItem.product.productCode); setSelectedLine(null); }}>数量変更</button><button onClick={changeSelectedPrice}>売価変更</button><button onClick={() => setSelectedLine(null)}>閉じる</button></div></div>}
     {showSignIn && <div className="modal-backdrop"><div className="modal sign-in"><h2>■■ サインオン（責任者入力） ■■</h2><p>責任者番号を入力後、【サインオン】をタッチ</p><input aria-label="責任者番号" placeholder="責任者番号" /><button onPointerUp={() => setShowSignIn(false)}>サインオン</button></div></div>}
     {ageProduct && <div className="modal-backdrop"><div className="modal age-modal"><h2>🔞 年齢確認</h2><p>{ageProduct.name}<br />身分証を目視し、{ageRequirement(ageProduct)}歳以上であることを確認してください。</p><div className="age-cutoff">今日{ageRequirement(ageProduct)}歳になる生年月日<br /><strong>西暦 {formatDateJa(twentiethBirthday)}</strong><br /><strong>和暦 {formatDateWareki(twentiethBirthday)}</strong><br /><small>この日以前の生年月日なら{ageRequirement(ageProduct)}歳以上です</small></div>{ageFlowState === "staff_pending" && <><button onPointerUp={confirmAge}>確認できた</button><button onPointerUp={() => { localStorage.removeItem("event-pos-age-response"); setAgeCustomerSkipAvailable(false); setAgeFlowState("idle"); setAgeProduct(null); }}>確認できない</button></>}{ageFlowState === "customer_pending" && ageCustomerSkipAvailable && <button className="customer-age-skip" onPointerUp={confirmAge}>客側スキップ</button>}</div></div>}
     {errorModal && <div className="modal-backdrop error-layer"><div className="error-modal"><h2>操作できません</h2><p>{errorModal}</p><button autoFocus onClick={() => setErrorModal(null)}>確認</button></div></div>}
