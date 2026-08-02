@@ -1,0 +1,15 @@
+!reset
+!align "center"
+!text "EVENT-POS HARDWARE PROBE"
+!align "left"
+!text "ASCII: ABC xyz 123"
+!text "日本語: テスト 印字"
+!text "YEN: ¥100"
+!row {"left":"12345678901234567890","right":"12345678901"}
+!rule "single"
+!image {"assetId":"parity-mark","widthDots":8}
+!qr {"data":"https://event-pos.invalid/probe/PS111234","errorCorrection":"M","moduleSize":4}
+!barcode {"height":96,"hri":"below","value":"{BPS111234","width":3}
+!feed 3
+!feed 3
+!cut "partial"

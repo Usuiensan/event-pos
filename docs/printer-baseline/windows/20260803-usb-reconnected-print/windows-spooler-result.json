@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-03T04:19:13.9468773+09:00",
+  "environment": {
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "platform": "Windows",
+    "architecture": "AMD64"
+  },
+  "fixture": {
+    "fixtureVersion": 2,
+    "compiler": "event-pos-escpos-v1",
+    "escposSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "canonicalIrSha256": "84293a557bb652d6ec573cbd1b15e76b832f4e6841dee86479fabee830cdb0f3",
+    "writeSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "fixtureId": "tm-t70ii-parity-v1",
+    "bytesLength": 316,
+    "adapterSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695"
+  },
+  "adapter": {
+    "spoolerJobId": 7,
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 1024,
+      "WorkOffline": null
+    },
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON"
+    },
+    "name": "Winspool RAW WritePrinter",
+    "mutex": "hardware probe process only; PrinterHost mutex is not exercised",
+    "timeoutMs": null
+  },
+  "writes": [
+    {
+      "offset": 0,
+      "errno": null,
+      "requestedBytes": 316,
+      "bytesWritten": 316,
+      "complete": true
+    }
+  ],
+  "statusBefore": "unknown",
+  "statusAfter": "unknown",
+  "statusRequests": [
+    {
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 1024,
+        "WorkOffline": null
+      },
+      "mechanism": "Get-Printer coarse queue observation",
+      "reason": "queue state alone is not device-ready proof",
+      "normalized": "unknown"
+    }
+  ],
+  "delivery": {
+    "physicalPaperCompleted": true,
+    "transportAccepted": true,
+    "shortWriteHandling": "no automatic retry; delivery certainty remains unknown",
+    "automaticRetry": false
+  },
+  "physicalPaperEvidenceId": "W-05",
+  "paperReview": {
+    "reviewedBy": "operator",
+    "reviewedAt": "2026-08-03T04:20:00+09:00",
+    "result": "accepted",
+    "details": "After USB reconnect, the same fixture printed correctly: QR, Code 128 with HRI, feed, and partial cut were all good."
+  }
+}
