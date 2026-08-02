@@ -29,6 +29,10 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .pos-screen.register-shell .detail-view { height: 100%; }
 .product-thumbnail { width: 100%; min-height: 0; height: 56px; object-fit: contain; border-radius: .35rem; }
 .line-highlight { animation: line-soft-invert .75s ease-out; }
+.line-highlight .mini-cart-item-detail span:first-child,
+.line-highlight.detail-row > span:nth-child(4),
+.line-highlight.detail-row > span:nth-child(5) { animation: changed-number-background 3.5s ease-out; }
+@keyframes changed-number-background { 0%, 12% { background: #fde68a; box-shadow: 0 0 0 .18rem #fde68a; } 100% { background: transparent; box-shadow: 0 0 0 0 transparent; } }
 @keyframes line-soft-invert {
   0% { filter: invert(1) hue-rotate(180deg); transform: scale(1.006); }
   100% { filter: none; transform: scale(1); }
