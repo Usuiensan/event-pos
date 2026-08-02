@@ -2,7 +2,22 @@
   "name": "@event-pos/server",
   "private": true,
   "type": "module",
-  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run", "build": "tsc -p tsconfig.build.json", "dev": "tsx src/index.ts" },
-  "dependencies": { "@event-pos/contracts": "workspace:*", "fastify": "^5.6.1" },
-  "devDependencies": { "@types/node": "^24.3.0", "tsx": "^4.20.3", "typescript": "^5.9.2", "vitest": "^3.2.4" }
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@event-pos/contracts": "workspace:*",
+    "@fastify/websocket": "^11.3.0",
+    "fastify": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
 }

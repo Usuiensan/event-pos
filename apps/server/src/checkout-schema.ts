@@ -88,6 +88,35 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       public_projection_json TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS register_audio_settings (
+      register_id TEXT PRIMARY KEY,
+      tap_volume INTEGER NOT NULL DEFAULT 100 CHECK(tap_volume BETWEEN 0 AND 100),
+      error_volume INTEGER NOT NULL DEFAULT 100 CHECK(error_volume BETWEEN 0 AND 100),
+      speech_volume INTEGER NOT NULL DEFAULT 100 CHECK(speech_volume BETWEEN 0 AND 100),
+      speaker_id INTEGER NOT NULL DEFAULT 3 CHECK(speaker_id > 0),
+      version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS audio_announcements (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      announcement_id TEXT NOT NULL UNIQUE,
+      register_id TEXT NOT NULL,
+      target_role TEXT NOT NULL CHECK(target_role IN ('staff','customer')),
+      target_terminal_id TEXT,
+      text TEXT NOT NULL CHECK(length(text) BETWEEN 1 AND 200),
+      created_at TEXT NOT NULL,
+      acknowledged_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS age_confirmation_requests (
+      request_id TEXT PRIMARY KEY,
+      register_id TEXT NOT NULL,
+      draft_id TEXT NOT NULL,
+      minimum_age INTEGER NOT NULL CHECK(minimum_age IN (18,20)),
+      state TEXT NOT NULL CHECK(state IN ('requested','acknowledged','canceled')),
+      requested_at TEXT NOT NULL,
+      responded_at TEXT,
+      FOREIGN KEY(draft_id) REFERENCES sale_drafts(draft_id)
+    );
     CREATE TABLE IF NOT EXISTS public_reference_counters (
       event_id TEXT NOT NULL,
       business_date TEXT NOT NULL,
@@ -235,6 +264,6 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   addColumn(db, "transactions", "draft_version INTEGER");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_public_reference ON transactions(event_id, public_reference) WHERE public_reference IS NOT NULL;");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_print_jobs_original_receipt ON print_jobs(transaction_id) WHERE document_type = 'receipt';");
-  db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (3, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
-  db.prepare("INSERT INTO app_metadata (key, value) VALUES ('schema_version', '3') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+  db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
+  db.prepare("INSERT INTO app_metadata (key, value) VALUES ('schema_version', '4') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
 }

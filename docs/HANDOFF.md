@@ -186,3 +186,29 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 4. 本番候補Linuxの永続diskとbackup/restoreを確定し、P001/P002/P006を判断する。
 5. AC-18を含むA+R項目の視認性と、46件の総合受入を人間レビュー込みで完了する。
 
+## 12. Goal 4 音声・顧客画面・R18・会計済みlock
+
+作業branchは `codex/goal4-audio-display-lock`。関連commitは次のとおり。
+
+- `0e0d30a 顧客画面のheartbeatと通知同期を永続化する`
+- `569a788 音声同期とR18待機と会計済みロックを実装する`
+- `0a7a4f4 誤操作音とシステムエラー警報を分離する`
+- `dee0165 REST同期中も支払画面の操作状態を維持する`
+
+運用・実装上の固定値:
+
+- 顧客画面heartbeatは2秒間隔、server lastSeenの有効期限は5秒。
+- WebSocketは通知専用。切断時は250msから最大8秒まで指数backoffし、復帰時はdraft、customer projection、transaction、音声queueをRESTから再取得する。
+- WebSocketが使えない間も1秒REST pollingを継続し、ETag/versionで古い応答を破棄する。
+- 読み上げはheartbeat有効な顧客画面が最優先。serverがcustomer/staffの一方だけを選び、顧客画面がない時だけstaffへfallbackする。
+- タップ音、エラー音、読み上げ音量は各0〜100。初期値100で既存音量を維持し、register単位でserverとlocalStorageへ保存する。
+- 誤操作エラーは `apps/register-web/public/audio/operation-error.mp3` を使用する。system errorだけC5 523.25Hzの連続ブザーを鳴らす。
+- 誤操作エラーモーダルには音停止buttonをDOM生成しない。system errorは確認または音停止で連続ブザーを止める。
+- 顧客画面が有効なR18確認要求は10秒間スキップ不可で残秒表示。顧客画面なし、または5秒TTL切れでは即時スキップ可能。
+- 18歳/20歳の最終判定、容貌確認/身分証目視以外を保存しないprivacy境界は変更していない。
+- 会計済み判定はSQLiteから取得した完了draftが正本。`localStorage.paymentFinished`だけでは判定しない。
+- 会計済みでは取消、数量、売価、値引き、支払方法変更、支払再実行、登録中止をUI、handler、serverの3層で拒否する。
+- finalize失敗では完了表示にせず、成功後にRESTで完了draftを取得できた場合だけlockする。連打guard、draft version、既存`Idempotency-Key`を併用する。
+
+自動試験とDocker healthyは確認済みだが、Goal 4全体とR18を完了扱いにしない。残るHuman Reviewは、実speaker・会場騒音下の3音量と2種類のエラー音、顧客端末の実電源断/復帰、低帯域/遅延、別browser context E2E、R18対面手順、会計済み各操作の現場確認である。
+

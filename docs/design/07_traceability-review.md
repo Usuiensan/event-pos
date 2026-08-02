@@ -186,3 +186,24 @@
 2026-08-02時点で `pnpm check` は型検査、80件の自動試験、全workspace buildに成功した。通常composeの `event-pos-pos-1` は既存volumeを保持したまま `running/healthy` である。
 
 次はこの実装範囲を総合受入済みと誤認しないこと。TM-T70IIの紙面、cut、USB切断・再接続、status能力、15分継続負荷、10端末、画面視認性の人間レビューは未実施であり、Goal 6/7/9の証拠が必要である。
+
+## 9. 2026-08-02 Goal 4 音声・顧客画面同期・R18スキップ・会計済みロック
+
+対象commitは `0e0d30a`、`569a788`、`0a7a4f4`、`dee0165`。既存の会計確定API、SQLite正本、draft version、`Idempotency-Key`、顧客画面REST projection、18歳/20歳の最終確認条件を維持したまま、Goal 4の一部を実装した。在庫、複数プリンター、Windows/Linux PrinterHost、backup、XLSX/CSV export、Docker導入scriptは対象外である。
+
+| 対象 | 実装・試験証拠 | 判定 |
+| --- | --- | --- |
+| 3種類の音量 | tap/error/speechを0〜100で独立保存。server版付き設定とregister別localStorageを復元し、業務メニューから個別試聴 | A合格。実ブラウザーで17/42/73を保存し再読込後の復元を確認 |
+| エラー音区分 | 誤操作は指定WAVから変換した2.44秒MP3、system errorはC5 523.25Hz連続ブザー。誤操作DOMに音停止buttonを生成しない | A合格。実会場の聞き分けはR未実施 |
+| 読み上げ優先順位 | server lastSeenが有効なcustomerへ一度だけ割当て、未接続・期限切れ時だけstaffへ割当て。ack済みsequenceは再生しない | A合格。speaker実音量・二端末実聴はR未実施 |
+| heartbeat | customerが2秒ごとに小payloadをPOSTし、server TTL 5秒で利用可否を判定。WebSocket接続状態を利用可否の正本にしない | A合格 |
+| WebSocket/REST復元 | WebSocketはID/version通知だけ。250ms〜8秒の指数backoff、再接続時REST再取得、1秒REST polling、ETag/no-store、draft/projection version比較を実装 | A合格。network shapingを使う低帯域Human Reviewは未実施 |
+| R18スキップ | customer利用可能時は要求から10秒間disabledで残秒表示、10秒後有効。customerなし/TTL切れは即時有効 | A合格。別tab実ブラウザーで接続中10秒と、customerなしの即時有効を確認。切断再評価は単体試験済み |
+| R18保存境界 | 容貌確認・身分証目視だけを既存APIへ保存し、年齢、生年月日、身分証番号は保存しない。18歳確認で20歳商品を確定できない既存試験を維持 | A合格。対面運用のH/Rは未実施 |
+| 会計済みlock | 完了draftをREST/SQLiteから復元し、取消、数量、売価、値引き、支払変更/再実行、登録中止をUIとhandlerとserverで拒否。REST polling中も利用者が開いた支払画面を維持 | A合格。実ブラウザーで会計直後と再読込後の「次の取引」表示、登録中止disabledを確認 |
+| finalize失敗・連打/再送 | 成功後のGET draftだけで完了表示。送信中guardと既存冪等keyを維持し、同一key再送でtransaction/初回print job各1件を照合 | A合格 |
+| Docker | `docker compose up -d --build --wait`で再buildし、`event-pos-pos-1`が3000番でhealthy | 合格 |
+
+自動試験の正本は `apps/server/src/realtime.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/audio-settings.test.ts`、`apps/register-web/src/realtime-client.test.ts`、`apps/register-web/src/state-version.test.ts`、`apps/register-web/src/age-skip.test.ts`、`apps/register-web/src/error-dialog.test.tsx` である。リポジトリにPlaywright依存がないため、スタッフ画面と顧客画面はin-app browserの別tabで実動確認した。別browser contextを使う自動E2Eは未完了として残す。
+
+Goal 4全体、R18、音の聞き取り、画面視認性を自動試験だけで完了扱いにしない。実会場に近いspeakerと騒音下で3音量・誤操作MP3・C5連続ブザーを確認し、customer端末の電源断/再接続、遅延・低帯域、R18対面手順、会計済み操作のHuman Reviewを実施するまでH/Rは未完了である。

@@ -11,7 +11,7 @@ const printerHostUrl = process.env.PRINTER_HOST_URL;
 const requireCashAuth = process.env.POS_REQUIRE_CASH_AUTH === "1" || process.env.POS_REQUIRE_CASH_AUTH === "true";
 const app = buildApp({ database: openDatabase(databasePath), requireCashAuth, ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl) } : {}) });
 const registerWebDist = process.env.REGISTER_WEB_DIST ?? "/app/register-web";
-const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".wav": "audio/wav" };
+const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".wav": "audio/wav", ".mp3": "audio/mpeg" };
 const sendAsset = async (file: string, reply: { type(value: string): { send(value: Buffer): unknown }; code(value: number): { send(value: unknown): unknown } }) => {
   try { const path = join(registerWebDist, file === "index.html" ? "index.html" : file); const data = await readFile(path); return reply.type(contentTypes[path.slice(path.lastIndexOf("."))] ?? "application/octet-stream").send(data); }
   catch { return reply.code(404).send({ error: "not_found" }); }

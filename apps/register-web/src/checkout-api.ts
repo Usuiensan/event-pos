@@ -37,7 +37,9 @@ export type CheckoutDraft = {
 export type FinalizeResult = { transactionId: string; draftId: string; draftVersion: number; publicReference: string; publicReferenceDisplay: string; totalYen: number; paymentKind: string; printJobId: string; printState: "queued"; completedAt: string };
 export type CustomerProjection = {
   registerId: string;
+  draftId: string;
   version: number;
+  draftVersion: number;
   state: CheckoutDraft["state"];
   transactionId?: string;
   lines: Array<{ lineId: string; productCode: string; name: string; quantity: number; unitPriceYen: number; taxCategory: TaxCategory; netYen: number }>;
@@ -45,6 +47,17 @@ export type CustomerProjection = {
   totals: { subtotalYen: number; discountYen: number; taxYen: number; totalYen: number };
   payment: { state: "waiting" | "entered" | "completed"; kinds: PaymentKind[]; tenderedYen?: number; changeYen?: number };
 };
+export type CustomerDisplayStatus = {
+  registerId: string;
+  available: boolean;
+  terminalId?: string;
+  lastSeen?: string;
+  expiresAt?: string;
+  heartbeatTtlMs: number;
+  ageConfirmation: null | { requestId: string; registerId: string; draftId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled"; requestedAt: string; respondedAt?: string };
+};
+export type AudioSettingsDto = { tapVolume: number; errorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
+export type AudioAnnouncement = { sequence: number; announcementId: string; text: string; createdAt: string };
 
 export class CheckoutApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown>) { super(message); }
@@ -75,5 +88,16 @@ export const checkoutApi = {
   addAgeVerification: (draftId: string, version: number, input: { minimumAge: 18 | 20; method: "appearance" | "id_visual"; result: "passed"; confirmerId: string; terminalId: string }) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/age-verifications`, { method: "POST", headers: versionHeaders(version), body: body(input) }),
   cancelDraft: (draftId: string, version: number) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`, { method: "DELETE", headers: versionHeaders(version) }),
   finalize: (draftId: string, version: number, idempotencyKey: string) => request<FinalizeResult>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/finalize`, { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: body({ version }) }),
-  getCustomerProjection: (registerId: string) => request<CustomerProjection>(`/api/v1/customer-displays/${encodeURIComponent(registerId)}`),
+  getTransaction: (transactionId: string) => request<Record<string, unknown>>(`/api/v1/transactions/${encodeURIComponent(transactionId)}`),
+  getCustomerProjection: (registerId: string, terminalId = registerId) => request<CustomerProjection>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}?registerId=${encodeURIComponent(registerId)}`),
+  heartbeatCustomerDisplay: (terminalId: string, registerId: string) => request<void>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/heartbeat`, { method: "POST", body: body({ registerId }) }),
+  getCustomerDisplayStatus: (registerId: string) => request<CustomerDisplayStatus>(`/api/v1/registers/${encodeURIComponent(registerId)}/customer-display-status`),
+  getAudioSettings: (registerId: string) => request<AudioSettingsDto>(`/api/v1/registers/${encodeURIComponent(registerId)}/audio-settings`),
+  saveAudioSettings: (registerId: string, settings: Omit<AudioSettingsDto, "version" | "updatedAt">) => request<AudioSettingsDto>(`/api/v1/registers/${encodeURIComponent(registerId)}/audio-settings`, { method: "PUT", body: body(settings) }),
+  announceSpeech: (registerId: string, text: string) => request<{ sequence: number; targetRole: "staff" | "customer"; targetTerminalId?: string }>(`/api/v1/registers/${encodeURIComponent(registerId)}/audio-announcements`, { method: "POST", body: body({ text }) }),
+  getAudioAnnouncements: (terminalId: string, registerId: string, after = 0) => request<{ announcements: AudioAnnouncement[] }>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/audio-announcements?registerId=${encodeURIComponent(registerId)}&after=${after}`),
+  acknowledgeAudioAnnouncement: (terminalId: string, sequence: number) => request<void>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/audio-announcements/${sequence}/ack`, { method: "POST" }),
+  createAgeConfirmationRequest: (registerId: string, draftId: string, minimumAge: 18 | 20) => request<NonNullable<CustomerDisplayStatus["ageConfirmation"]>>(`/api/v1/registers/${encodeURIComponent(registerId)}/age-confirmation-requests`, { method: "POST", body: body({ draftId, minimumAge }) }),
+  cancelAgeConfirmationRequest: (registerId: string, requestId: string) => request<void>(`/api/v1/registers/${encodeURIComponent(registerId)}/age-confirmation-requests/${encodeURIComponent(requestId)}`, { method: "DELETE" }),
+  acknowledgeAgeConfirmation: (terminalId: string, registerId: string, requestId: string) => request<NonNullable<CustomerDisplayStatus["ageConfirmation"]>>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/age-confirmations`, { method: "POST", body: body({ registerId, requestId, response: "yes" }) }),
 };

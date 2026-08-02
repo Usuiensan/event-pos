@@ -1,5 +1,7 @@
-export type SpeechPlayer = { speak(text: string): void; setSpeaker(speakerId: number): void; speakerId: number };
-export type OperationSound = "tap" | "register" | "cancel" | "complete" | "error";
+export type SpeechPlayer = { speak(text: string): void; setSpeaker(speakerId: number): void; setVolume(volume: number): void; speakerId: number; volume: number };
+export type OperationSound = "tap" | "register" | "cancel" | "complete" | "error" | "system-error";
+export const OPERATION_ERROR_SOUND_URL = "/audio/operation-error.mp3?v=operation-error-v1";
+export const SYSTEM_ERROR_FREQUENCY_HZ = 523.25;
 
 const prepared: Record<string, string> = {
   "円": "/audio/yen.wav", "えん": "/audio/yen.wav", "じゅう": "/audio/ju.wav", "ひゃく": "/audio/hyaku.wav", "せん": "/audio/sen.wav", "まん": "/audio/man.wav",
@@ -57,10 +59,11 @@ function preloadSpeaker(speakerId: number): void {
 
 export function createSpeechPlayer(options: { speakerId?: number } = {}): SpeechPlayer {
   let speakerId = options.speakerId ?? 3;
+  let volume = 100;
   let active: AudioBufferSourceNode[] = [];
   let generation = 0;
   preloadSpeaker(speakerId);
-  return { get speakerId() { return speakerId; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 3; preloadSpeaker(speakerId); }, speak(text) {
+  return { get speakerId() { return speakerId; }, get volume() { return volume; }, setVolume(next) { volume = Number.isFinite(next) ? Math.max(0, Math.min(100, next)) : 100; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 3; preloadSpeaker(speakerId); }, speak(text) {
     generation += 1;
     const requestedGeneration = generation;
     for (const source of active) { try { source.stop(); } catch { /* already stopped */ } }
@@ -75,7 +78,7 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     for (const part of bodyParts) if (prepared[part]) {
       const genericPath = prepared[part];
       urls.push(`/audio/speaker/${speakerId}/${genericPath.split("/").at(-1)?.replace(".wav", ".mp3")}?v=${audioRevision}`);
-    } else { fallback(text); return; }
+    } else { fallback(text, volume); return; }
     if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile.replace(".wav", ".mp3")}?v=${audioRevision}`);
     if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.mp3?v=${audioRevision}`);
     const context = getAudioContext();
@@ -87,29 +90,43 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
         let startAt = context.currentTime + .01;
         const sources = buffers.map((buffer) => {
           const source = context.createBufferSource();
+          const gain = context.createGain();
           source.buffer = buffer;
-          source.connect(context.destination);
+          gain.gain.value = volume / 100;
+          source.connect(gain);
+          gain.connect(context.destination);
           source.start(startAt);
           startAt += buffer.duration;
           return source;
         });
         active = sources;
         sources.at(-1)!.onended = () => { if (generation === requestedGeneration) active = []; };
-      }).catch(() => { if (generation === requestedGeneration) fallback(text); });
+      }).catch(() => { if (generation === requestedGeneration) fallback(text, volume); });
       return;
     }
-    fallback(text);
+    fallback(text, volume);
   } };
 }
-export function playOperationSound(kind: OperationSound): void {
+export function playOperationSound(kind: OperationSound, volume = 100): void {
   const context = getAudioContext();
   if (!context) return;
+  const ratio = Math.max(0, Math.min(100, volume)) / 100;
+  if (ratio === 0) return;
   void context.resume();
-  if (kind === "error") {
+  if (kind === "system-error") {
     stopOperationSound();
     const oscillator = context.createOscillator(); const gain = context.createGain();
-    oscillator.type = "square"; oscillator.frequency.value = 880; gain.gain.value = .72;
+    oscillator.type = "square"; oscillator.frequency.value = SYSTEM_ERROR_FREQUENCY_HZ; gain.gain.value = .72 * ratio;
     oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmOscillator = oscillator; return;
+  }
+  if (kind === "error") {
+    void loadAudioBuffer(OPERATION_ERROR_SOUND_URL).then(async (buffer) => {
+      await context.resume();
+      const source = context.createBufferSource(); const gain = context.createGain();
+      source.buffer = buffer; gain.gain.value = ratio;
+      source.connect(gain).connect(context.destination); source.start();
+    }).catch(() => { /* エラー表示は音声取得失敗に依存させない */ });
+    return;
   }
   const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : kind === "tap" ? 820 : 1100, 0]];
   const start = context.currentTime;
@@ -117,12 +134,12 @@ export function playOperationSound(kind: OperationSound): void {
     const oscillator = context.createOscillator(); const gain = context.createGain();
     oscillator.frequency.value = frequency; oscillator.type = "sine";
     const duration = kind === "tap" ? .045 : .07;
-    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(kind === "tap" ? .3 : .42, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration + .02);
+    gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime((kind === "tap" ? .3 : .42) * ratio, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration + .02);
     oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + duration);
   }
 }
 export function stopOperationSound(): void { if (!alarmOscillator) return; const oscillator = alarmOscillator; alarmOscillator = null; try { oscillator.stop(); } catch { /* already stopped */ } oscillator.disconnect(); }
-function fallback(text: string): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; window.speechSynthesis.speak(utterance); }
+function fallback(text: string, volume: number): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; utterance.volume = Math.max(0, Math.min(100, volume)) / 100; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
 export function speakReceiptReady(player: SpeechPlayer): void { player.speak("レシートをお受け取りください"); }
