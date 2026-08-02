@@ -256,6 +256,14 @@ canonical export bundleは運用中でもevent、business day、日時範囲を�
 | --- | --- | --- |
 | GET | `/customer-displays/{terminalId}` | pair済みregisterの現在public projectionを再取得 |
 | POST | `/customer-displays/{terminalId}/age-confirmations` | 許可された自己申告だけを入力 |
+| POST | `/customer-displays/{terminalId}/heartbeat` | 小さいpayloadでserver側lastSeenを更新 |
+| GET | `/registers/{registerId}/customer-display-status` | heartbeat期限とR18確認要求を再取得 |
+| GET | `/customer-displays/{terminalId}?registerId={registerId}` | ETag付きpublic projectionを再取得 |
+| GET/PUT | `/registers/{registerId}/audio-settings` | タップ・エラー・読み上げ音量と話者を版付き保存・復元 |
+| POST | `/registers/{registerId}/audio-announcements` | server判定でcustomerまたはstaffの一方だけへ読み上げを割当て |
+| GET | `/customer-displays/{terminalId}/audio-announcements` | 顧客画面宛て未再生読み上げを取得 |
+| POST | `/customer-displays/{terminalId}/audio-announcements/{sequence}/ack` | 顧客画面の読み上げ受領を記録 |
+| POST/DELETE | `/registers/{registerId}/age-confirmation-requests[/{requestId}]` | R18確認要求を作成・取消 |
 
 顧客画面はWebSocketイベント本文から状態を復元せず、通知後または再接続時にGETする。商品、数量、価格、支払を変更するAPIを顧客画面scopeへ公開しない。取引内の無料配布はpublic projection上の0円行として短時間表示できるが、会計外の無料配布操作は投影せず待機表示を維持する。初期版は0円演出を省略して待機表示を継続してよい。
 
@@ -271,10 +279,14 @@ endpointは `/api/v1/events`。接続後に認証・terminal scopeを確定し�
 
 - `sale-draft.changed { registerId, version }`
 - `customer-display.changed { registerId, version }`
+- `customer-display.availability.changed { registerId }`
 - `transaction.finalized { registerId, transactionId }`
 - `print-job.changed { jobId, state }`
 - `printer-status.changed { observationId }`
 - `inventory-alert.changed { alertId }`
 - `approval.requested { challengeId }`
+- `audio-announcement.changed { registerId, sequence }`
+- `audio-settings.changed { registerId, version }`
+- `age-confirmation.changed { registerId, requestId }`
 
-イベント本文を正本にせず、受信側は対応REST APIを再取得する。再接続時のイベント再生は不要で、現在version比較により回復する。
+イベント本文を正本にせず、受信側は対応REST APIを再取得する。再接続時のイベント再生は不要で、現在version比較により回復する。顧客画面heartbeatは2秒間隔、利用可能期限はserver lastSeenから5秒とし、WebSocket接続そのものは利用可否判定に使わない。切断時は250msから最大8秒まで指数バックオフし、WebSocketが使えない間も1秒のREST pollingを継続する。
