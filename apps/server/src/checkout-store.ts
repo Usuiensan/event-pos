@@ -371,13 +371,16 @@ function validatedPayments(payments: DraftPaymentDto[], calculation: SaleCalcula
 
 function allocatePublicReference(db: PosDatabase, eventId: string, businessDate: string, sessionNo: number): { raw: string; display: string } {
   db.prepare("INSERT INTO public_reference_counters (event_id,business_date,session_no,next_sequence) VALUES (?,?,?,1) ON CONFLICT(event_id,business_date,session_no) DO NOTHING").run(eventId, businessDate, sessionNo);
-  const counter = db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?").get(eventId, businessDate, sessionNo) as { next_sequence: number };
-  if (counter.next_sequence > 999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
-  const raw = createPublicReference(sessionNo, counter.next_sequence);
-  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? LIMIT 1").get(eventId, raw);
-  if (alreadyUsed) throw new CheckoutError(409, "PUBLIC_REFERENCE_CONFLICT", "受付番号の採番状態が既存取引と重複しています。会計は確定していません。責任者に連絡してください。");
-  db.prepare("UPDATE public_reference_counters SET next_sequence=next_sequence+1 WHERE event_id=? AND business_date=? AND session_no=?").run(eventId, businessDate, sessionNo);
-  return { raw, display: formatPublicReference(raw) };
+  const counter = db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?");
+  const advance = db.prepare("UPDATE public_reference_counters SET next_sequence=next_sequence+1 WHERE event_id=? AND business_date=? AND session_no=?");
+  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? LIMIT 1");
+  while (true) {
+    const sequence = (counter.get(eventId, businessDate, sessionNo) as { next_sequence: number }).next_sequence;
+    if (sequence > 999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
+    const raw = createPublicReference(sessionNo, sequence);
+    advance.run(eventId, businessDate, sessionNo);
+    if (!alreadyUsed.get(eventId, raw)) return { raw, display: formatPublicReference(raw) };
+  }
 }
 
 export function finalizeRequestHash(draftId: string, version: number): string { return createHash("sha256").update(JSON.stringify({ draftId, version })).digest("hex"); }
