@@ -8,7 +8,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; } body { overflow:
 .pos-screen.register-shell { box-sizing: border-box; width: 1366px; height: 1024px; max-width: none; min-height: 1024px; margin: 0; padding: 18px; overflow: hidden; grid-template-rows: 58px 54px 1fr auto; }
 .pos-screen.register-shell header { height: 58px; overflow: hidden; } .pos-screen.register-shell h1 { font-size: 30px; white-space: nowrap; } .pos-screen.register-shell h2 { font-size: 24px; } .pos-screen.register-shell button, .pos-screen.register-shell select, .pos-screen.register-shell input { font-family: inherit; }
 .pos-screen.register-shell .product-grid { grid-template-columns: repeat(8, 1fr); grid-auto-rows: 108px; overflow: hidden; } .pos-screen.register-shell .product-grid button { min-width: 0; font-size: 18px; } .pos-screen.register-shell .product-grid span { font-size: 22px; } .pos-screen.register-shell .detail-panel { min-height: 0; height: 540px; } .pos-screen.register-shell .cart { min-height: 130px; }
-.line-highlight { animation: line-soft-invert .8s ease-in-out; }
+.line-highlight { animation: line-soft-invert 1.4s ease-in-out; }
 @keyframes line-soft-invert {
   0%, 100% { filter: none; transform: scale(1); }
   45% { filter: invert(.82) hue-rotate(180deg); transform: scale(1.006); }
