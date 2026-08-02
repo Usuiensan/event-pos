@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakReceiptReady, type SpeechPlayer } from "./speech.js";
+import { OPERATION_ERROR_SOUND_URL, SYSTEM_ERROR_FREQUENCY_HZ, speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakReceiptReady, type SpeechPlayer } from "./speech.js";
 
 function playerWithSpeak(spy: ReturnType<typeof vi.fn>): SpeechPlayer {
   return { speakerId: 114, volume: 100, setSpeaker: vi.fn(), setVolume: vi.fn(), speak: spy };
@@ -30,5 +30,12 @@ describe("会計完了案内", () => {
     const speak = vi.fn();
     speakEmergencyAlertReceived(playerWithSpeak(speak));
     expect(speak).toHaveBeenCalledWith("緊急情報を受信しました");
+  });
+});
+
+describe("エラー音", () => {
+  it("誤操作には指定MP3、システムエラーにはドの音を使う", () => {
+    expect(OPERATION_ERROR_SOUND_URL).toContain("operation-error.mp3");
+    expect(SYSTEM_ERROR_FREQUENCY_HZ).toBe(523.25);
   });
 });

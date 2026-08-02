@@ -1,5 +1,7 @@
 export type SpeechPlayer = { speak(text: string): void; setSpeaker(speakerId: number): void; setVolume(volume: number): void; speakerId: number; volume: number };
-export type OperationSound = "tap" | "register" | "cancel" | "complete" | "error";
+export type OperationSound = "tap" | "register" | "cancel" | "complete" | "error" | "system-error";
+export const OPERATION_ERROR_SOUND_URL = "/audio/operation-error.mp3?v=operation-error-v1";
+export const SYSTEM_ERROR_FREQUENCY_HZ = 523.25;
 
 const prepared: Record<string, string> = {
   "円": "/audio/yen.wav", "えん": "/audio/yen.wav", "じゅう": "/audio/ju.wav", "ひゃく": "/audio/hyaku.wav", "せん": "/audio/sen.wav", "まん": "/audio/man.wav",
@@ -111,11 +113,20 @@ export function playOperationSound(kind: OperationSound, volume = 100): void {
   const ratio = Math.max(0, Math.min(100, volume)) / 100;
   if (ratio === 0) return;
   void context.resume();
-  if (kind === "error") {
+  if (kind === "system-error") {
     stopOperationSound();
     const oscillator = context.createOscillator(); const gain = context.createGain();
-    oscillator.type = "square"; oscillator.frequency.value = 880; gain.gain.value = .72 * ratio;
+    oscillator.type = "square"; oscillator.frequency.value = SYSTEM_ERROR_FREQUENCY_HZ; gain.gain.value = .72 * ratio;
     oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmOscillator = oscillator; return;
+  }
+  if (kind === "error") {
+    void loadAudioBuffer(OPERATION_ERROR_SOUND_URL).then(async (buffer) => {
+      await context.resume();
+      const source = context.createBufferSource(); const gain = context.createGain();
+      source.buffer = buffer; gain.gain.value = ratio;
+      source.connect(gain).connect(context.destination); source.start();
+    }).catch(() => { /* エラー表示は音声取得失敗に依存させない */ });
+    return;
   }
   const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : kind === "tap" ? 820 : 1100, 0]];
   const start = context.currentTime;
