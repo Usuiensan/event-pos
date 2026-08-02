@@ -119,14 +119,16 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const applyDraft = (draft: CheckoutDraft) => {
     const current = draftRef.current;
     if (!shouldApplyDraft(current, draft)) return;
-    draftRef.current = draft; setServerDraft(draft); setAuthoritativeTotal(draft.calculation.totalYen); setProjectedDiscounts(draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })));
-    setCart(draft.lines.map((line) => ({ lineId: line.lineId, product: productForLine(line), quantity: line.quantity, ...(line.status === "canceled" ? { cancelled: true } : {}) })));
+    const canceled = draft.state === "canceled";
+    draftRef.current = draft; setServerDraft(draft); setAuthoritativeTotal(canceled ? 0 : draft.calculation.totalYen); setProjectedDiscounts(canceled ? [] : draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })));
+    setCart(canceled ? [] : draft.lines.map((line) => ({ lineId: line.lineId, product: productForLine(line), quantity: line.quantity, ...(line.status === "canceled" ? { cancelled: true } : {}) })));
     const cash = draft.payments.find((payment) => payment.kind === "cash");
     const payment = draft.payments[0];
     setReceived(cash?.tenderedYen ?? 0); setCompletedPaymentLabel(payment ? ({ cash: "現金", credit: "クレジット", accounts_receivable: "売掛", no_charge: "無配" } as const)[payment.kind] : "現金");
     setPaymentFinished(draft.state === "completed");
     if (draft.state === "payment" && draft.payments.length === 0) setShowPayment(true);
     if (draft.state === "completed") { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
+    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setLastAdded(null); setReceived(0); setInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
     const verified = draft.ageVerifications.filter((item) => item.result === "passed" && (item.method === "appearance" || item.method === "id_visual")).reduce<0 | 18 | 20>((maximum, item) => Math.max(maximum, item.minimumAge) as 0 | 18 | 20, 0);
     setAgeVerified(verified > 0); setAgeVerifiedMinimum(verified);
   };
