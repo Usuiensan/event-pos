@@ -70,21 +70,22 @@ export class RealtimeHub {
   }
 }
 
-export type AudioSettings = { tapVolume: number; errorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
+export type AudioSettings = { tapVolume: number; errorVolume: number; systemErrorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
 
 function audioSettings(db: PosDatabase, registerId: string): AudioSettings {
-  const row = db.prepare("SELECT tap_volume,error_volume,speech_volume,speaker_id,version,updated_at FROM register_audio_settings WHERE register_id=?").get(registerId) as Record<string, unknown> | undefined;
-  if (!row) return { tapVolume: 100, errorVolume: 100, speechVolume: 100, speakerId: 3, version: 0, updatedAt: new Date(0).toISOString() };
-  return { tapVolume: Number(row.tap_volume), errorVolume: Number(row.error_volume), speechVolume: Number(row.speech_volume), speakerId: Number(row.speaker_id), version: Number(row.version), updatedAt: String(row.updated_at) };
+  const row = db.prepare("SELECT tap_volume,error_volume,system_error_volume,speech_volume,speaker_id,version,updated_at FROM register_audio_settings WHERE register_id=?").get(registerId) as Record<string, unknown> | undefined;
+  if (!row) return { tapVolume: 100, errorVolume: 100, systemErrorVolume: 100, speechVolume: 100, speakerId: 3, version: 0, updatedAt: new Date(0).toISOString() };
+  return { tapVolume: Number(row.tap_volume), errorVolume: Number(row.error_volume), systemErrorVolume: Number(row.system_error_volume), speechVolume: Number(row.speech_volume), speakerId: Number(row.speaker_id), version: Number(row.version), updatedAt: String(row.updated_at) };
 }
 
 function saveAudioSettings(db: PosDatabase, registerId: string, input: Omit<AudioSettings, "version" | "updatedAt">): AudioSettings {
-  for (const value of [input.tapVolume, input.errorVolume, input.speechVolume]) if (!Number.isInteger(value) || value < 0 || value > 100) throw new CheckoutError(400, "INVALID_AUDIO_VOLUME", "音量は0～100の整数で指定してください");
+  const systemErrorVolume = input.systemErrorVolume ?? input.errorVolume;
+  for (const value of [input.tapVolume, input.errorVolume, systemErrorVolume, input.speechVolume]) if (!Number.isInteger(value) || value < 0 || value > 100) throw new CheckoutError(400, "INVALID_AUDIO_VOLUME", "音量は0～100の整数で指定してください");
   if (!Number.isInteger(input.speakerId) || input.speakerId < 1) throw new CheckoutError(400, "INVALID_SPEAKER", "音声話者が不正です");
   const now = new Date().toISOString();
-  db.prepare(`INSERT INTO register_audio_settings (register_id,tap_volume,error_volume,speech_volume,speaker_id,version,updated_at)
-    VALUES (?,?,?,?,?,1,?) ON CONFLICT(register_id) DO UPDATE SET tap_volume=excluded.tap_volume,error_volume=excluded.error_volume,speech_volume=excluded.speech_volume,speaker_id=excluded.speaker_id,version=register_audio_settings.version+1,updated_at=excluded.updated_at`)
-    .run(registerId, input.tapVolume, input.errorVolume, input.speechVolume, input.speakerId, now);
+  db.prepare(`INSERT INTO register_audio_settings (register_id,tap_volume,error_volume,system_error_volume,speech_volume,speaker_id,version,updated_at)
+    VALUES (?,?,?,?,?,?,1,?) ON CONFLICT(register_id) DO UPDATE SET tap_volume=excluded.tap_volume,error_volume=excluded.error_volume,system_error_volume=excluded.system_error_volume,speech_volume=excluded.speech_volume,speaker_id=excluded.speaker_id,version=register_audio_settings.version+1,updated_at=excluded.updated_at`)
+    .run(registerId, input.tapVolume, input.errorVolume, systemErrorVolume, input.speechVolume, input.speakerId, now);
   return audioSettings(db, registerId);
 }
 

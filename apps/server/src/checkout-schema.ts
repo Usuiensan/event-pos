@@ -92,6 +92,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       register_id TEXT PRIMARY KEY,
       tap_volume INTEGER NOT NULL DEFAULT 100 CHECK(tap_volume BETWEEN 0 AND 100),
       error_volume INTEGER NOT NULL DEFAULT 100 CHECK(error_volume BETWEEN 0 AND 100),
+      system_error_volume INTEGER NOT NULL DEFAULT 100 CHECK(system_error_volume BETWEEN 0 AND 100),
       speech_volume INTEGER NOT NULL DEFAULT 100 CHECK(speech_volume BETWEEN 0 AND 100),
       speaker_id INTEGER NOT NULL DEFAULT 3 CHECK(speaker_id > 0),
       version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
@@ -262,6 +263,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   addColumn(db, "transactions", "payment_kind TEXT");
   addColumn(db, "transactions", "draft_id TEXT");
   addColumn(db, "transactions", "draft_version INTEGER");
+  addColumn(db, "register_audio_settings", "system_error_volume INTEGER NOT NULL DEFAULT 100");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_public_reference ON transactions(event_id, public_reference) WHERE public_reference IS NOT NULL;");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_print_jobs_original_receipt ON print_jobs(transaction_id) WHERE document_type = 'receipt';");
   db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());

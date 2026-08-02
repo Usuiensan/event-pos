@@ -193,6 +193,20 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='receipt'").get()).toMatchObject({ count: 1 });
   });
 
+  it("既存取引と重複する受付番号は日本語の案内で拒否し、採番を進めない", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let first = await startDraft(app, "register-reference-first"); first = await addLine(app, first); first = await addPayment(app, first, "credit", 110);
+    expect((await finalize(app, first, "reference-first")).statusCode).toBe(201);
+    db.prepare("UPDATE public_reference_counters SET next_sequence=1 WHERE event_id=? AND business_date=? AND session_no=?").run(catalog.eventId, "2026-08-02", 1);
+    let duplicate = await startDraft(app, "register-reference-duplicate"); duplicate = await addLine(app, duplicate); duplicate = await addPayment(app, duplicate, "credit", 110);
+    const response = await finalize(app, duplicate, "reference-duplicate");
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error).toMatchObject({ code: "PUBLIC_REFERENCE_CONFLICT", message: "受付番号の採番状態が既存取引と重複しています。会計は確定していません。責任者に連絡してください。" });
+    expect(response.body).not.toContain("UNIQUE constraint failed");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?").get(catalog.eventId, "2026-08-02", 1)).toMatchObject({ next_sequence: 1 });
+  });
+
   it("prevents double finalization from simultaneous Enter/button requests and allocates unique references across registers", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     db.prepare("UPDATE inventory_balances SET on_hand=1 WHERE product_id=?").run(`${catalog.eventId}:00000001`);

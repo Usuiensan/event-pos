@@ -1,6 +1,7 @@
 export type AudioSettings = {
   tapVolume: number;
   errorVolume: number;
+  systemErrorVolume: number;
   speechVolume: number;
   speakerId: number;
   version: number;
@@ -10,6 +11,7 @@ export type AudioSettings = {
 export const defaultAudioSettings: AudioSettings = {
   tapVolume: 100,
   errorVolume: 100,
+  systemErrorVolume: 100,
   speechVolume: 100,
   speakerId: 3,
   version: 0,
@@ -25,6 +27,7 @@ export function normalizeAudioSettings(value: Partial<AudioSettings> | null | un
   return {
     tapVolume: volume(value?.tapVolume, defaultAudioSettings.tapVolume),
     errorVolume: volume(value?.errorVolume, defaultAudioSettings.errorVolume),
+    systemErrorVolume: volume(value?.systemErrorVolume, defaultAudioSettings.systemErrorVolume),
     speechVolume: volume(value?.speechVolume, defaultAudioSettings.speechVolume),
     speakerId: Number.isInteger(value?.speakerId) && Number(value?.speakerId) > 0 ? Number(value?.speakerId) : defaultAudioSettings.speakerId,
     version: Number.isInteger(value?.version) && Number(value?.version) >= 0 ? Number(value?.version) : 0,

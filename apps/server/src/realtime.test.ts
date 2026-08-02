@@ -43,12 +43,12 @@ describe("顧客画面realtime境界", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/registers/register-1/audio-announcements", payload: { text: "レシートをお受け取りください" } })).json()).toMatchObject({ targetRole: "staff" });
   });
 
-  it("3音量を独立保存し、年齢確認要求に個人情報を持たせない", async () => {
+  it("4音量を独立保存し、年齢確認要求に個人情報を持たせない", async () => {
     const { app, draft } = await setup();
-    expect((await app.inject({ method: "GET", url: "/api/v1/registers/register-1/audio-settings" })).json()).toMatchObject({ tapVolume: 100, errorVolume: 100, speechVolume: 100, speakerId: 3, version: 0 });
-    const saved = await app.inject({ method: "PUT", url: "/api/v1/registers/register-1/audio-settings", payload: { tapVolume: 12, errorVolume: 34, speechVolume: 56, speakerId: 114 } });
-    expect(saved.json()).toMatchObject({ tapVolume: 12, errorVolume: 34, speechVolume: 56, speakerId: 114, version: 1 });
-    expect((await app.inject({ method: "GET", url: "/api/v1/registers/register-1/audio-settings" })).json()).toMatchObject({ tapVolume: 12, errorVolume: 34, speechVolume: 56, speakerId: 114 });
+    expect((await app.inject({ method: "GET", url: "/api/v1/registers/register-1/audio-settings" })).json()).toMatchObject({ tapVolume: 100, errorVolume: 100, systemErrorVolume: 100, speechVolume: 100, speakerId: 3, version: 0 });
+    const saved = await app.inject({ method: "PUT", url: "/api/v1/registers/register-1/audio-settings", payload: { tapVolume: 12, errorVolume: 34, systemErrorVolume: 45, speechVolume: 56, speakerId: 114 } });
+    expect(saved.json()).toMatchObject({ tapVolume: 12, errorVolume: 34, systemErrorVolume: 45, speechVolume: 56, speakerId: 114, version: 1 });
+    expect((await app.inject({ method: "GET", url: "/api/v1/registers/register-1/audio-settings" })).json()).toMatchObject({ tapVolume: 12, errorVolume: 34, systemErrorVolume: 45, speechVolume: 56, speakerId: 114 });
 
     const requested = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/age-confirmation-requests", payload: { draftId: draft.draftId, minimumAge: 20 } });
     expect(requested.json()).toMatchObject({ minimumAge: 20, state: "requested" });

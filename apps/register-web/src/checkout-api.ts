@@ -58,7 +58,7 @@ export type CustomerDisplayStatus = {
   heartbeatTtlMs: number;
   ageConfirmation: null | { requestId: string; registerId: string; draftId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled"; requestedAt: string; respondedAt?: string };
 };
-export type AudioSettingsDto = { tapVolume: number; errorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
+export type AudioSettingsDto = { tapVolume: number; errorVolume: number; systemErrorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
 export type AudioAnnouncement = { sequence: number; announcementId: string; text: string; createdAt: string };
 
 export class CheckoutApiError extends Error {
