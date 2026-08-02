@@ -22,7 +22,7 @@
 
 ## runner外の送信
 
-安全停止後、同じPOS DBへregister UI由来のsaleが2件確定され、PrinterHostは次の2 jobも受理した。runnerの`jobs`/紙面レビューには含まれず、紙面結果も未確認なのでGoal 7.1の証跡へ数えない。追加生成を凍結するためPOS serverを停止した。
+安全停止後、ユーザーが同じPOS DBでregister UIの入力を試し、saleが2件確定された。PrinterHostは次の2 jobも受理した。runnerの`jobs`/紙面レビューには含まれず、紙面結果も未確認なのでGoal 7.1の証跡へ数えない。runner外送信と判明するまで追加生成を凍結するためPOS serverを停止した。
 
 | jobId | payment | payload SHA-256 | acceptedBytes | spoolerJobId |
 | --- | --- | --- | ---: | ---: |

@@ -1,8 +1,7 @@
-Join-Path : ˆø”‚ª‹ó‚Ì•¶š—ñ‚Å‚ ‚é‚½‚ßAƒpƒ‰ƒ[ƒ^[ 'Path' ‚ÉƒoƒCƒ“ƒh‚Å‚«‚Ü‚¹‚ñB
-”­¶êŠ C:\private\event-pos\deploy\windows\start-printer-host.ps1:3 •¶š:41
+Join-Path : å¼•æ•°ãŒç©ºã®æ–‡å­—åˆ—ã§ã‚ã‚‹ãŸã‚ã€ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãƒ¼ 'Path' ã«ãƒã‚¤ãƒ³ãƒ‰ã§ãã¾ã›ã‚“ã€‚
+ç™ºç”Ÿå ´æ‰€ C:\private\event-pos\deploy\windows\start-printer-host.ps1:3 æ–‡å­—:41
 +   [string]$EnvironmentFile = (Join-Path $PSScriptRoot 'printer-host.e ...
 +                                         ~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidData: (:) [Join-Path]AParentContainsErrorRecordException
-    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.Join 
+    + CategoryInfo          : InvalidData: (:) [Join-Path]ã€ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.Join
    PathCommand
- 
