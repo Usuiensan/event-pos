@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "tm-t70ii-parity-v1",
+  "fixtureVersion": 1,
+  "canonicalIrSha256": "0937291e0b1e4f663973b24eae9c9fc2b94a82386e2a041dccfb13e98a88a12f",
+  "escposSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+  "bytesLength": 313,
+  "rendererVersion": "event-pos-escpos-v1",
+  "fixtureContains": [
+    "ASCII",
+    "CP932日本語",
+    "U+00A5",
+    "32桁row",
+    "固定画像",
+    "QR",
+    "Code 128",
+    "3行feed",
+    "partial cut"
+  ],
+  "prohibited": [
+    "full cut",
+    "drawer",
+    "buzzer",
+    "NV memory",
+    "printer setting",
+    "arbitrary raw payload"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-03T03:16:53.7432867+09:00",
+  "environment": {
+    "platform": "Windows",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "architecture": "AMD64"
+  },
+  "fixture": {
+    "writeSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "fixtureId": "tm-t70ii-parity-v1",
+    "canonicalIrSha256": "0937291e0b1e4f663973b24eae9c9fc2b94a82386e2a041dccfb13e98a88a12f",
+    "escposSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "adapterSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "compiler": "event-pos-escpos-v1",
+    "bytesLength": 313,
+    "fixtureVersion": 1
+  },
+  "adapter": {
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 1024,
+      "WorkOffline": null
+    },
+    "name": "Winspool RAW WritePrinter",
+    "spoolerJobId": 4,
+    "timeoutMs": null,
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON"
+    },
+    "mutex": "hardware probe process only; PrinterHost mutex is not exercised"
+  },
+  "writes": [
+    {
+      "offset": 0,
+      "bytesWritten": 313,
+      "errno": null
+    }
+  ],
+  "statusBefore": "unknown",
+  "statusAfter": "unknown",
+  "statusRequests": [
+    {
+      "mechanism": "Get-Printer coarse queue observation",
+      "normalized": "unknown",
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 1024,
+        "WorkOffline": null
+      },
+      "reason": "queue state alone is not device-ready proof"
+    }
+  ],
+  "delivery": {
+    "physicalPaperCompleted": true,
+    "transportAccepted": true,
+    "automaticRetry": false
+  },
+  "physicalPaperEvidenceId": "W-02-photo-1",
+  "paperReview": {
+    "evidenceFile": "paper-W-01.jpg",
+    "sha256": "70f7b2ce5f0dfde9b2c2bb385f902d53d9a79a95c18260a31b0e56294a90c66f",
+    "visualResult": {
+      "ascii": "pass",
+      "cp932Japanese": "pass",
+      "yen": "pass",
+      "row32Columns": "pass",
+      "fixedImage": "pass",
+      "qrVisible": "pass",
+      "code128Visible": "pass",
+      "feedAndPartialCut": "pass"
+    },
+    "machineRead": { "qr": "not-yet-recorded", "code128": "not-yet-recorded" },
+    "reviewLimit": "写真での視認結果。QR/Code128のデコーダー実読取りは別証跡が必要"
+  }
+}
