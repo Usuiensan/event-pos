@@ -10,6 +10,8 @@ import {
   type SaleCalculationLineInput,
 } from "@event-pos/contracts";
 import { getCatalog, type PosDatabase } from "./db.js";
+import { renderReceipt } from "./receipt-store.js";
+import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 
 export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
@@ -46,7 +48,7 @@ export type FinalizeResult = {
   totalYen: number;
   paymentKind: string;
   printJobId: string;
-  printState: "queued";
+  printState: "pending";
   completedAt: string;
 };
 export type FailureInjector = (step: "after_idempotency_check" | "after_recalculation" | "after_transaction" | "after_inventory" | "after_cash" | "after_audit" | "after_print_job" | "before_commit") => void;
@@ -333,6 +335,27 @@ function allocatePublicReference(db: PosDatabase, eventId: string, businessDate:
 
 export function finalizeRequestHash(draftId: string, version: number): string { return createHash("sha256").update(JSON.stringify({ draftId, version })).digest("hex"); }
 
+function formatYen(value: number): string { return `¥${Math.trunc(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`; }
+
+function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, confirmedAt: string): ReceiptSnapshot {
+  const catalogRecord = getCatalog(db, String(row.event_id));
+  const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
+  const staffId = String(row.staff_id); const configuredStaff = catalog?.staffMembers?.find((member) => member.responsibleNumber === staffId || member.displayName === staffId);
+  const staffPrintLabel = configuredStaff?.responsibleNumber ?? staffId.replace(/^staff-/, "").slice(0, 12);
+  const registerNo = String(row.register_id).replace(/^register-/, "").slice(0, 12);
+  const cashTendered = payments.filter((payment) => payment.tenderedYen !== undefined).reduce((sum, payment) => sum + (payment.tenderedYen ?? 0), 0);
+  const change = payments.filter((payment) => payment.changeYen !== undefined).reduce((sum, payment) => sum + (payment.changeYen ?? 0), 0);
+  const jst = new Date(Date.parse(confirmedAt) + 9 * 60 * 60 * 1000).toISOString();
+  return {
+    schemaVersion: 1, eventName: String(row.event_id), circleName: catalog?.customerWelcome?.circleName ?? String(row.event_id), transactionId, publicReference, transactionType: "sale", originalPublicReference: "", confirmedAt, confirmedAtPrinted: `${jst.slice(0, 10)} ${jst.slice(11, 16)}`, businessDate: String(row.business_date), registerNo, staffPrintLabel,
+    lines: calculation.lines.map((line) => ({ productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, unitPriceFormatted: formatYen(line.priceInclTax), grossYen: line.grossYen, grossFormatted: formatYen(line.grossYen), discountAllocatedYen: line.discountYen, discountFormatted: formatYen(line.discountYen), taxYen: line.taxYen, taxFormatted: formatYen(line.taxYen), netYen: line.netYen, netFormatted: formatYen(line.netYen), taxRateBps: line.taxRate * 100 })),
+    discounts: calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen, amountFormatted: formatYen(discount.amountYen) })),
+    taxSummaries: calculation.taxSummaries.map((summary) => ({ taxRateBps: summary.taxRateBps, taxableNetYen: summary.taxableNetYen, taxableNetFormatted: formatYen(summary.taxableNetYen), taxYen: summary.taxAmountYen, taxFormatted: formatYen(summary.taxAmountYen) })),
+    payments: payments.map((payment) => ({ methodName: ({ cash: "現金", credit: "クレジット", accounts_receivable: "売掛", no_charge: "無配" } as const)[payment.kind], amountYen: payment.amountYen, amountFormatted: formatYen(payment.amountYen), tenderedYen: payment.tenderedYen ?? null, tenderedFormatted: payment.tenderedYen === undefined ? "" : formatYen(payment.tenderedYen), changeYen: payment.changeYen ?? null, changeFormatted: payment.changeYen === undefined ? "" : formatYen(payment.changeYen) })),
+    subtotalYen: calculation.subtotalYen, subtotalFormatted: formatYen(calculation.subtotalYen), discountTotalYen: calculation.discountTotalYen, discountTotalFormatted: formatYen(calculation.discountTotalYen), taxTotalYen: calculation.taxTotalYen, taxTotalFormatted: formatYen(calculation.taxTotalYen), totalYen: calculation.totalYen, totalFormatted: formatYen(calculation.totalYen), tenderedYen: cashTendered || null, tenderedFormatted: cashTendered ? formatYen(cashTendered) : "", changeYen: change || null, changeFormatted: change ? formatYen(change) : "", isReprint: false, reprintLabel: "", reprintNo: 0, originalReceiptNumber: "", footer: "ありがとうございました", returnPolicy: "返品は責任者へお申し出ください", hasOriginalTransaction: false, hasDiscounts: calculation.discountTotalYen > 0, hasTendered: cashTendered > 0, hasChange: change > 0,
+  };
+}
+
 export function finalizeSale(db: PosDatabase, draftId: string, version: number, idempotencyKey: string, failureInjector?: FailureInjector): FinalizeResult {
   if (!idempotencyKey.trim()) throw new CheckoutError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Keyが必要です");
   const requestHash = finalizeRequestHash(draftId, version);
@@ -388,14 +411,18 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
     db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'sale_finalize','transaction',?,?,?)").run(String(row.event_id), transactionId, JSON.stringify({ draftId, draftVersion: version, registerId: row.register_id, terminalId: row.terminal_id, staffId: row.staff_id, publicReference: reference.display, totalYen: calculation.totalYen, paymentKind }), now);
     failureInjector?.("after_audit");
     const printJobId = uuidV7();
-    const receiptPayload = { schemaVersion: 1, transactionId, publicReference: reference.display, lines: calculation.lines.map((line) => ({ productCode: line.productCode, name: line.name, unitPriceYen: line.priceInclTax, quantity: line.quantity, grossYen: line.grossYen, discountYen: line.discountYen, taxYen: line.taxYen, netYen: line.netYen, taxCategory: line.taxCategory })), discounts: calculation.discounts, taxSummaries: calculation.taxSummaries, totals: { subtotalYen: calculation.subtotalYen, discountYen: calculation.discountTotalYen, taxYen: calculation.taxTotalYen, totalYen: calculation.totalYen }, payments: payments.map(({ paymentId: _paymentId, ...payment }) => payment), completedAt: now };
-    db.prepare("INSERT INTO print_jobs (job_id,transaction_id,printer_id,document_type,payload_json,created_at,state,updated_at,source,renderer_version) VALUES (?,?,?,'receipt',?,?,'queued',?,'event-pos','checkout-v1')").run(printJobId, transactionId, String(row.register_id), JSON.stringify(receiptPayload), now, now);
+    const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, now);
+    const receipt = renderReceipt(db, snapshot);
+    const operationId = uuidV7();
+    db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,receipt_snapshot_json,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty)
+      VALUES (?,?,?,?,?,'original',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')`)
+      .run(printJobId, operationId, transactionId, String(row.register_id), "receipt", JSON.stringify(snapshot), now, "pending", now, "event-pos", receipt.rendererVersion, receipt.bytesSha256, receipt.templateKey, receipt.templateVersion, receipt.templateSourceSha256, JSON.stringify(receipt.assets.map(({ rasterBase64: _raster, mime: _mime, ...asset }) => asset)), receipt.fontId, receipt.fontVersion, receipt.fontSha256, receipt.finishingPolicyId, receipt.finishingPolicyVersion, JSON.stringify(snapshot), receipt.canonicalIr, receipt.irSha256, Buffer.from(receipt.escposBytes), receipt.escposBytes.length);
     const operationSequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
-    db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,payload_ref,state,available_at,attempt_count,created_at) VALUES (?,?,'print',?,'queued',?,0,?)").run(uuidV7(), operationSequence, printJobId, now, now);
+    db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, operationSequence, printJobId, now, now, now);
     failureInjector?.("after_print_job");
     const completedVersion = version + 1;
     db.prepare("UPDATE sale_drafts SET state='completed',version=?,completed_transaction_id=?,updated_at=? WHERE draft_id=?").run(completedVersion, transactionId, now, draftId);
-    const result: FinalizeResult = { transactionId, draftId, draftVersion: completedVersion, publicReference: reference.raw, publicReferenceDisplay: reference.display, subtotalYen: calculation.subtotalYen, discountTotalYen: calculation.discountTotalYen, taxTotalYen: calculation.taxTotalYen, totalYen: calculation.totalYen, paymentKind, printJobId, printState: "queued", completedAt: now };
+    const result: FinalizeResult = { transactionId, draftId, draftVersion: completedVersion, publicReference: reference.raw, publicReferenceDisplay: reference.display, subtotalYen: calculation.subtotalYen, discountTotalYen: calculation.discountTotalYen, taxTotalYen: calculation.taxTotalYen, totalYen: calculation.totalYen, paymentKind, printJobId, printState: "pending", completedAt: now };
     db.prepare("INSERT INTO idempotency_records (scope,idempotency_key,request_hash,response_json,transaction_id,created_at) VALUES ('sale-finalize',?,?,?,?,?)").run(idempotencyKey, requestHash, JSON.stringify(result), transactionId, now);
     updateProjection(db, draftId);
     failureInjector?.("before_commit");

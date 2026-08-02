@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
-import { openDatabase } from "./db.js";
+import { createPrintJob, openDatabase } from "./db.js";
+import { bytesSha256 } from "@event-pos/escpos";
 import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { rmSync } from "node:fs";
@@ -112,15 +113,16 @@ describe("server foundation", () => {
   it("persists a print job and drives its state through a fake printer host", async () => {
     const database = openDatabase();
     const accepted: string[] = [];
-    const app = buildApp({ database, printerHost: { accept: async (job) => { accepted.push(job.jobId); } } });
+    const app = buildApp({ database, printerHost: { accept: async (job) => { accepted.push(job.jobId); return { jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!, bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted", duplicate: false }; } } });
     apps.push(app);
-    const request = { jobId: "job-1", transactionId: "tx-1", printerId: "register-1", documentType: "receipt", payload: { lines: ["test"] }, createdAt: "2026-08-02T00:00:00.000Z" };
+    const request = { jobId: "job-1", transactionId: "tx-1", printerId: "register-1", documentType: "disaster-notification", payload: { escposBase64: Buffer.from("test").toString("base64") }, createdAt: "2026-08-02T00:00:00.000Z", source: "test", rendererVersion: "test-v1" };
     const created = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: request });
     expect(created.statusCode).toBe(201);
+    await new Promise<void>((resolve) => setImmediate(resolve));
     expect(accepted).toEqual(["job-1"]);
-    expect(created.json()).toMatchObject({ jobId: "job-1", state: "queued" });
+    expect(created.json()).toMatchObject({ jobId: "job-1", state: "pending" });
     const printing = await app.inject({ method: "PATCH", url: "/api/v1/print-jobs/job-1/state", payload: { state: "printing" } });
-    expect(printing.json()).toMatchObject({ jobId: "job-1", state: "printing" });
+    expect(printing.json()).toMatchObject({ jobId: "job-1", state: "sending" });
     const completed = await app.inject({ method: "PATCH", url: "/api/v1/print-jobs/job-1/state", payload: { state: "completed" } });
     expect(completed.json()).toMatchObject({ jobId: "job-1", state: "completed" });
   });
@@ -128,18 +130,28 @@ describe("server foundation", () => {
   it("forwards a persisted job to an HTTP printer host", async () => {
     const host = Fastify({ logger: false });
     const received: unknown[] = [];
-    host.post("/api/v1/print-jobs", async (request, reply) => { received.push(request.body); return reply.code(201).send(request.body); });
+    host.post("/api/v1/print-jobs", async (request, reply) => { const job = request.body as { jobId: string; expectedBytesLength: number; bytesSha256: string }; received.push(request.body); return reply.code(201).send({ jobId: job.jobId, acceptedBytes: job.expectedBytesLength, payloadLength: job.expectedBytesLength, bytesSha256: job.bytesSha256, completionEvidence: "transport_accepted", duplicate: false }); });
     await host.listen({ host: "127.0.0.1", port: 0 });
     const address = host.server.address();
     if (!address || typeof address === "string") throw new Error("test host did not bind a TCP port");
     const app = buildApp({ database: openDatabase(), printerHost: new HttpPrinterHostClient(`http://127.0.0.1:${address.port}`) });
     apps.push(app);
-    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId: "http-job", transactionId: "http-tx", printerId: "register-1", documentType: "disaster-notification", payload: { lines: ["速報"] }, createdAt: "2026-08-02T00:00:00.000Z", source: "kishou_server", sourceEventId: "event-1" } });
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId: "http-job", transactionId: "http-tx", printerId: "register-1", documentType: "disaster-notification", payload: { lines: ["速報"], escposBase64: Buffer.from("速報").toString("base64") }, createdAt: "2026-08-02T00:00:00.000Z", source: "kishou_server", sourceEventId: "event-1", rendererVersion: "kishou-v1" } });
     expect(response.statusCode).toBe(201);
-    expect(received).toHaveLength(1);
+    await vi.waitFor(() => expect(received).toHaveLength(1));
     expect(received[0]).toMatchObject({ jobId: "http-job", documentType: "disaster-notification", source: "kishou_server" });
     const latestAlert = await app.inject({ method: "GET", url: "/api/v1/emergency-alerts/latest" });
     expect(latestAlert.json().alert).toMatchObject({ id: "http-job", title: "緊急情報", message: "速報", source: "kishou_server" });
     await host.close();
+  });
+
+  it("起動時にSQLiteの未完了jobを取得してPrinterHostへ送る", async () => {
+    const database = openDatabase(); const raw = Uint8Array.from([0x1b, 0x40, 0x0a, 0x1b, 0x69]);
+    createPrintJob(database, { jobId: "restart-job", transactionId: "restart-tx", printerId: "register-1", documentType: "disaster-notification", payload: { escposBase64: Buffer.from(raw).toString("base64") }, createdAt: "2026-08-02T00:00:00.000Z", source: "test", rendererVersion: "test-v1", bytesSha256: bytesSha256(raw), expectedBytesLength: raw.length });
+    const accepted: string[] = [];
+    const app = buildApp({ database, printerHost: { accept: async (job) => { accepted.push(job.jobId); return { jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!, bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted", duplicate: false }; } } });
+    apps.push(app);
+    await vi.waitFor(() => expect(accepted).toEqual(["restart-job"]));
+    expect((await app.inject("/api/v1/print-jobs/restart-job")).json()).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
   });
 });

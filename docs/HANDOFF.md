@@ -212,3 +212,42 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 
 自動試験とDocker healthyは確認済みだが、Goal 4全体とR18を完了扱いにしない。残るHuman Reviewは、実speaker・会場騒音下の3音量と2種類のエラー音、顧客端末の実電源断/復帰、低帯域/遅延、別browser context E2E、R18対面手順、会計済み各操作の現場確認である。
 
+## 13. Goal 5 レシート・永続印刷キュー
+
+作業branchは `codex/goal5-receipt-persistent-print-queue`。関連commitは次のとおり。
+
+- `2123830 決定的なレシートテンプレートとESC/POS変換を実装する`
+- `99835a9 永続印刷キューと再印刷フローを実装する`
+- `9a45179 Docker実行環境へレシート依存packageを含める`
+
+実装・運用上の正本:
+
+- 会計確定transaction内で `ReceiptSnapshot`、canonical IR/hash、ESC/POS bytes/hash、template/asset/font/renderer/finishing policy版と初回job/operationを保存する。確定後に商品・税・値引き・スタッフ設定を再参照しない。
+- `ReceiptSnapshot` はevent/circle、取引、受付番号、日時、営業日、レジ/担当、商品/値引配賦/税/支払/預り/釣銭/合計、footer/返品方針、再印刷情報を持つ。R18確認方法、身分証、生年月日等のPIIを含めない。
+- UTF-8 YAML templateはdraft→validate→preview→activateで新versionを作る。active sourceを上書きせず、activateはvalidate済みsource SHA-256一致を要求する。previewはcanonical IR、hash、警告、人間可読内容を返す。PNGは未実装。
+- `printer_operations` の最小sequenceが単一論理プリンターのFIFO正本。先頭が未来の`retry_wait`または`device_fault`なら後続を処理しない。POS server起動時はSQLiteの未完了jobを再走査する。
+- attemptは`prepared`→`dispatch_started`→`transport_accepted`→`postcheck_completed`。I/O直前の`dispatch_started`は別commitし、compiler/adapter/write hashを保存する。acceptedBytesがpayload長と一致する場合だけtransport受理とする。
+- 0 byte未送信が証明され、かつretryableな一時障害だけを2秒、5秒、15秒で再試行し、初回込み最大4 attempt。上限後は`failed/not_sent`。short write、timeout、送信結果不明、dispatch後crashは`failed/unknown`で自動再送しない。
+- `prepared`中断だけpendingへ戻す。device faultは責任者が`POST /api/v1/printer/resume`で解除するまで停止する。Goal 5のstatus APIは正常を推測せずunknownを返す。
+- PrinterHostは同じ`jobId`のHTTP再送をprocess内で冪等化し、worker側でfeed/cutを追加しない。既存`disaster-notification`はsource/renderer版付きの承認済みESC/POS payloadを無変換で通す。
+- 再印刷は元jobを変更・再送せず、新しいreprint job/operationを作る。`sourcePrintJobId`、元取引path、理由、実物結果3値が必須。`printed/indeterminate`はrisk acceptanceと責任者承認が必須で、自己承認は`self_approved`として監査する。売上、支払、在庫、現金台帳は変更しない。
+- UIは待機、送信中、送信完了、失敗、再試行待ち、結果不明、取消を区別する。transport acceptedは「送信完了（紙面完了は未確認）」、unknownは「結果不明（紙面を確認）」と表示する。会計済みlockは迂回しない。
+
+確認済み:
+
+- `pnpm check`: 型検査、118件の自動試験、全workspace build成功。
+- Docker Linux build stageでreceipt IR 2件、template 3件、ESC/POS golden 4件を実行し、Windowsと同じhashで成功。
+- `docker compose up -d --build --wait`: 新しいruntime packageを含めて再buildし、`event-pos-pos-1`は3000番でhealthy。live/readyは`ok`、既存volumeへschema version 5とdefault templateを適用済み。
+- template一覧APIでactive `sale-receipt` version 1とvalidate済みsource hashを確認。
+- preview APIでcanonical/bytes hash、警告0件、人間可読レシートを確認。実ブラウザーで送信中→「結果不明（紙面を確認）」、受付番号、実物結果3値・理由・二重印刷risk・自己承認を持つ再印刷modalを目視確認。
+
+未完了・Goal 6/7への引継ぎ:
+
+1. TM-T70II実機で日本語、U+00A5、32桁幅、画像、QR、バーコード、3行feed、partial cut、紙面配置を確認する。
+2. Linux実USB/RAW、udev、systemd、安定device名、権限、USB切断/再接続、paper out、cover open、offline、status取得能力を証拠化する。
+3. x86_64/ARM64と既存Debian基準紙面を比較し、compiler/adapter/write hash、acceptedBytes、写真/scanを保存する。
+4. 通常失敗、再試行待ち、取消を含む全印刷状態とtemplate layoutのHuman Reviewを完了する。結果不明表示と再印刷確認画面はGoal 5で確認済み。
+5. composeはPOS serverだけを起動する。実PrinterHostは`PRINTER_HOST_URL`を設定した別processとしてGoal 6/7で運用化する。
+
+ADR-P009はProposedのままであり、実機紙面、実status、実カット、USB運用をGoal 5の自動試験だけで完了扱いにしない。
+

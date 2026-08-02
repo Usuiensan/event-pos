@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { ManualDiscountInput } from "@event-pos/contracts";
-import { getPrintJob, updatePrintJob, type PosDatabase } from "./db.js";
+import { type PosDatabase } from "./db.js";
 import {
   addAgeVerification,
   addDraftBundle,
@@ -23,8 +23,8 @@ import {
 } from "./checkout-store.js";
 import type { RealtimeHub } from "./realtime.js";
 
-type PrinterHost = { accept(job: NonNullable<ReturnType<typeof getPrintJob>>): Promise<void> };
-export type CheckoutRouteOptions = { database: PosDatabase; printerHost?: PrinterHost; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub };
+type PrintQueue = { trigger(): void };
+export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub };
 
 function headerValue(value: string | string[] | undefined): string | undefined { return Array.isArray(value) ? value[0] : value; }
 function ifMatch(headers: Record<string, string | string[] | undefined>): number {
@@ -130,8 +130,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
       const completedDraft = getSaleDraft(options.database, request.params.draftId);
       notifyDraft(options, completedDraft);
       options.realtimeHub?.notify({ type: "transaction.finalized", registerId: completedDraft.registerId, transactionId: result.transactionId });
-      const job = getPrintJob(options.database, result.printJobId);
-      if (job && options.printerHost) void options.printerHost.accept(job).catch((error) => { updatePrintJob(options.database, job.jobId, { state: "failed", errorMessage: error instanceof Error ? error.message : "プリンターホストへの送信に失敗しました" }); });
+      options.printQueue?.trigger();
       return reply.code(201).send(result);
     } catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });

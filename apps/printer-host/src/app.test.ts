@@ -1,45 +1,88 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { PrintJob } from "@event-pos/contracts";
+import { BUILTIN_FONT, bytesSha256, DEFAULT_FINISHING_POLICY, ESCPOS_RENDERER_VERSION, receiptDocumentToEscPos } from "@event-pos/escpos";
+import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { buildPrinterHost } from "./app.js";
-import { FakeTransport } from "./transport.js";
+import { FakeTransport, TransportSendError } from "./transport.js";
 
 const apps: ReturnType<typeof buildPrinterHost>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 
-const job = { jobId: "job-1", transactionId: "tx-1", printerId: "register-1", documentType: "receipt", payload: { lines: ["hello"] }, createdAt: "2026-08-02T00:00:00.000Z", state: "queued" as const, updatedAt: "2026-08-02T00:00:00.000Z" };
+const document: ReceiptDocument = {
+  schemaVersion: 1,
+  contentWidthDots: 384,
+  physicalWidthDots: 416,
+  nodes: [{ kind: "reset" }, { kind: "text", value: "hello" }, { kind: "feed", lines: 3 }, { kind: "cut", mode: "partial" }],
+};
+const canonicalIr = canonicalizeReceiptDocument(document);
+const receiptBytes = receiptDocumentToEscPos(document);
+const job: PrintJob = {
+  jobId: "job-1",
+  transactionId: "tx-1",
+  printerId: "register-1",
+  documentType: "receipt",
+  payload: {},
+  canonicalIr,
+  irSha256: bytesSha256(new TextEncoder().encode(canonicalIr)),
+  bytesSha256: bytesSha256(receiptBytes),
+  expectedBytesLength: receiptBytes.length,
+  rendererVersion: ESCPOS_RENDERER_VERSION,
+  templateKey: "sale-receipt",
+  templateVersion: 1,
+  templateSourceSha256: "template-v1",
+  fontId: BUILTIN_FONT.id,
+  fontVersion: BUILTIN_FONT.version,
+  fontSha256: BUILTIN_FONT.sha256,
+  finishingPolicyId: DEFAULT_FINISHING_POLICY.id,
+  finishingPolicyVersion: DEFAULT_FINISHING_POLICY.version,
+  createdAt: "2026-08-02T00:00:00.000Z",
+  state: "pending",
+  updatedAt: "2026-08-02T00:00:00.000Z",
+};
 
 describe("printer host", () => {
-  it("renders and sends once, returning the same job for duplicate jobId", async () => {
+  it("canonical IRを決定的に変換し、同じjobIdを1回だけ送信する", async () => {
     const transport = new FakeTransport();
     const app = buildPrinterHost({ transport }); apps.push(app);
     const first = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
     const second = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
     expect(first.statusCode).toBe(201); expect(second.statusCode).toBe(200);
-    expect(first.json()).toMatchObject({ state: "completed" });
+    expect(first.json()).toMatchObject({ jobId: "job-1", acceptedBytes: receiptBytes.length, bytesSha256: bytesSha256(receiptBytes), duplicate: false });
+    expect(second.json()).toMatchObject({ jobId: "job-1", acceptedBytes: receiptBytes.length, duplicate: true });
     expect(transport.sent).toHaveLength(1);
-    expect(new TextDecoder().decode(transport.sent[0])).toContain("hello");
-    const sent = transport.sent[0];
-    expect(sent).toBeDefined();
-    expect(Array.from(sent!.slice(-9))).toEqual([0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00]);
+    expect(Array.from(transport.sent[0] ?? [])).toEqual(Array.from(receiptBytes));
+    expect(Array.from((transport.sent[0] ?? new Uint8Array()).slice(-5))).toEqual([0x0a, 0x0a, 0x0a, 0x1b, 0x69]);
   });
 
-  it("marks an unavailable printer as unknown", async () => {
-    const app = buildPrinterHost({ transport: new FakeTransport(new Error("usb unavailable")) }); apps.push(app);
-    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
-    expect(response.json()).toMatchObject({ state: "unknown", errorMessage: "printer_not_ready" });
+  it("状態不明と用紙切れをI/O前のdevice faultとして返す", async () => {
+    for (const status of ["unknown", "paper_out"] as const) {
+      const app = buildPrinterHost({ transport: new FakeTransport(undefined, status) }); apps.push(app);
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: `job-${status}` } });
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ failure: { acceptedBytes: 0, notSentProven: true, deviceFault: true } });
+    }
   });
 
-  it("does not treat paper-out as ready", async () => {
-    const app = buildPrinterHost({ transport: new FakeTransport(undefined, "paper_out") }); apps.push(app);
-    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
-    expect(response.json()).toMatchObject({ state: "unknown", errorMessage: "printer_not_ready" });
+  it("short writeとdispatch後例外をunknownとして固定し、再送しない", async () => {
+    const shortTransport = new FakeTransport(undefined, "ready", 1);
+    const shortApp = buildPrinterHost({ transport: shortTransport }); apps.push(shortApp);
+    const first = await shortApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-short" } });
+    const duplicate = await shortApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-short" } });
+    expect(first.json()).toMatchObject({ failure: { code: "SHORT_WRITE", acceptedBytes: 1, notSentProven: false } });
+    expect(duplicate.json()).toMatchObject({ failure: { code: "SHORT_WRITE" }, duplicate: true });
+    expect(shortTransport.sent).toHaveLength(1);
+
+    const timeoutApp = buildPrinterHost({ transport: new FakeTransport(new TransportSendError("timeout", 12, false), "ready") }); apps.push(timeoutApp);
+    const timeout = await timeoutApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-timeout" } });
+    expect(timeout.json()).toMatchObject({ failure: { code: "TRANSPORT_ERROR", acceptedBytes: 12, notSentProven: false } });
   });
 
-  it("passes pre-rendered ESC/POS bytes through unchanged", async () => {
+  it("承認済み外部rendererのESC/POS bytesだけを無変換で渡す", async () => {
     const transport = new FakeTransport();
     const app = buildPrinterHost({ transport }); apps.push(app);
-    const preRendered = Buffer.from([0x1b, 0x40, 0x0a, 0x1d, 0x56, 0x00]).toString("base64");
-    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, payload: { escposBase64: preRendered }, source: "kishou_server", sourceEventId: "eq-1", rendererVersion: "discord-printer-bot-escpos-1" } });
-    expect(response.json()).toMatchObject({ state: "completed", source: "kishou_server" });
-    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x40, 0x0a, 0x1d, 0x56, 0x00]);
+    const raw = Uint8Array.from([0x1b, 0x40, 0x0a, 0x1b, 0x69]);
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-external", documentType: "disaster-notification", payload: { escposBase64: Buffer.from(raw).toString("base64") }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: raw.length, bytesSha256: bytesSha256(raw), source: "kishou_server", sourceEventId: "eq-1", rendererVersion: "kishou-escpos-v1" } });
+    expect(response.json()).toMatchObject({ jobId: "job-external", acceptedBytes: raw.length });
+    expect(Array.from(transport.sent[0] ?? [])).toEqual(Array.from(raw));
   });
 });

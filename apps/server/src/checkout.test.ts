@@ -62,7 +62,7 @@ describe("durable checkout API", () => {
     const response = await finalize(app, draft, "cash-exact");
     expect(response.statusCode).toBe(201);
     const result = response.json();
-    expect(result).toMatchObject({ totalYen: 110, paymentKind: "cash", printState: "queued" });
+    expect(result).toMatchObject({ totalYen: 110, paymentKind: "cash", printState: "pending" });
     expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM transaction_lines").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM payments").get()).toMatchObject({ count: 1 });

@@ -1,7 +1,7 @@
 export { calculateDammCheckDigit, createPublicReference, formatPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
 export type { PublicReferenceParts } from "./public-reference.js";
-export { isPrintJobState, printJobStates } from "./print-job.js";
-export type { PrintJob, PrintJobRequest, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
+export { durablePrintJobStates, isPrintJobState, legacyPrintJobStates, normalizePrintJobState, printJobStates } from "./print-job.js";
+export type { AttemptPhase, DeliveryCertainty, DurablePrintJobState, LegacyPrintJobState, PrintJob, PrintJobRequest, PrinterDispatchFailure, PrinterDispatchResult, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
 export { formatJapaneseYenSpeech, readJapaneseYen } from "./japanese-money.js";
 export { exportEventCatalog, importEventCatalog, taxCategories, taxCategoryLabel, taxRateForCategory, validateEventCatalog } from "./catalog.js";
 export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry, StaffMember, StaffPermission, TaxCategory } from "./catalog.js";

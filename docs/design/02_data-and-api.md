@@ -132,8 +132,9 @@ register modeではcashboxにregister IDを必須、shared modeではNULLとし�
 | --- | --- |
 | `receipt_templates` | template_key, version, source_text, source_sha256, status(draft/active/retired), unique(key,version) |
 | `printer_operations` | unique monotonic sequence, kind(print/drawer), unique payload_ref, state, available_at, attempt_count/max_attempts, block_reason, lease_owner/until。queue状態の唯一の正本 |
-| `print_jobs` | unique operation_id, transaction_id, kind(original/reprint/closing/test), source_job_id, reprint_no, requested_by/reason/approval, source_physical_outcome, risk_accepted, template/version, finishing_policy/version, payload_json, renderer/font version, ir/hash, bytes/hash, delivery_certainty, completion_evidence |
+| `print_jobs` | unique operation_id, transaction_id, kind(original/reprint/closing/test), source_job_id, reprint_no, requested_by/reason/approval, source_physical_outcome, risk_accepted, template key/version/source hash, asset manifest、font/renderer/finishing policy版、ReceiptSnapshot、canonical IR/hash、ESC/POS bytes/hash、delivery_certainty、completion_evidence |
 | `print_attempts` | job_id, attempt_no, phase(prepared/dispatch_started/transport_accepted/postcheck_completed), started/ended_at, compiler/adapter/write byte hashes, accepted_bytes, result, error_code/message, status_snapshot_json |
+| `print_approvals` | approval_id, operation_type(reprint), subject_job_id, executor_id, approver_id, self_approved, risk_accepted, reason, approved_at。Goal 5の再印刷承認正本 |
 | `device_jobs` | unique operation_id, kind(drawer), business_reason, transaction_id nullable, requested_by, approval_id。レシート再印刷と分離 |
 | `receipt_template_assets` | template_id/version, asset_key, mime, immutable content/hash, width, height |
 | `printer_observations` | observed_at, transport, normalized_status_json, raw_status_json |
@@ -243,11 +244,15 @@ canonical export bundleは運用中でもevent、business day、日時範囲を�
 | --- | --- | --- |
 | GET | `/printer/status` | 正規化状態と取得可否 |
 | GET | `/print-jobs/{id}` | 状態、試行、テンプレート版 |
+| GET | `/print-jobs/{id}/attempts` | attempt phase、各境界hash、accepted bytes、結果 |
 | POST | `/transactions/{id}/reprints` | 明示的再印刷。売上を変更しない |
 | POST | `/print-jobs/{id}/cancel` | pending/retry_waitのみ取消 |
 | GET/POST | `/receipt-templates` | 一覧・draft作成 |
-| POST | `/receipt-templates/{id}/validate` | 構文・変数・引数検査とpreview |
-| POST | `/receipt-templates/{id}/activate` | 検証済み版を有効化 |
+| GET | `/receipt-templates/{templateKey}/{version}` | template source、SHA-256、状態、版固定asset取得 |
+| POST | `/receipt-templates/{templateKey}/{version}/validate` | 構文・変数・引数・asset検査 |
+| POST | `/receipt-templates/{templateKey}/{version}/preview` | canonical IR、IR/bytes hash、警告、人間可読内容 |
+| POST | `/receipt-templates/{templateKey}/{version}/activate` | 検証済みsource SHA-256一致時だけ有効化 |
+| POST | `/printer/resume` | device fault停止を責任者が確認後に再開 |
 | POST | `/printer/test-jobs` | 権限付きテスト印刷 |
 
 ### 5.5 顧客画面
@@ -271,7 +276,9 @@ canonical export bundleは運用中でもevent、business day、日時範囲を�
 
 ドロアー開放は `/device-jobs/drawer` の専用権限付きAPIで作成する。現金会計確定時は会計transactionと同時にdevice jobを登録できるが、レシートtemplateと再印刷からは生成しない。
 
-`POST /transactions/{id}/reprints` は `sourcePrintJobId`、`reasonCode`、任意 `reasonText`、`physicalOutcome`（`printed` / `not_printed` / `indeterminate`）、`riskAccepted`、責任者承認を要求する。source jobがpath上の取引に属することを検証し、template/version・asset/font/renderer/finishing policy版はsource jobと同一に固定して上書きを許さない。`printed` または `indeterminate` では `riskAccepted=true` と有効な `approval_id` がなければ409にする。要件5.3どおり実行者と承認者の同一人物を許可し、承認記録と監査へ `self_approved` を保存する。`requestedBy` は認証sessionから設定し、reprint no、job、operation、承認消費、監査を同じDB transactionで確定する。
+`POST /transactions/{id}/reprints` は `sourcePrintJobId`、`reason`、`physicalOutcome`（`printed` / `not_printed` / `indeterminate`）、`riskAccepted` を要求する。`printed` または `indeterminate` では `approval.approverId/approvedAt` も必須とする。source jobがpath上の取引に属することを検証し、template/version・asset/font/renderer/finishing policy版はsource jobと同一に固定して上書きを許さない。要件5.3どおり実行者と承認者の同一人物を許可し、`print_approvals` と監査へ `self_approved` を保存する。reprint no、job、operation、承認、監査を同じDB transactionで確定し、transaction、payment、inventory movement、cash ledgerへ書き込まない。
+
+Goal 5時点の最小UI/APIでは責任者を `X-POS-Role: manager` と `X-POS-Actor-Id` で受ける。これは既存サインオンUIへ接続する暫定境界であり、将来の認証Cookie・challenge/token実装時にも上記の版固定・監査・同一transaction境界を維持する。
 
 ## 6. WebSocket契約
 
