@@ -82,6 +82,7 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
       case "feed": output.push(...new Array<number>(node.lines).fill(LF)); break;
       case "image": { const asset = assetsById.get(node.assetId); if (!asset) throw new EscPosError(`画像assetがありません: ${node.assetId}`); append(output, rasterBytes(asset, node.widthDots)); break; }
       case "qr": output.push(ESC, 0x61, 1); append(output, qrBytes(node.data, node.moduleSize, node.errorCorrection)); output.push(ESC, 0x61, 0); break;
+      case "barcode": append(output, encodeBarcode(node.value, { width: node.width, height: node.height, hri: node.hri })); break;
       case "cut": if (node.mode === "partial") output.push(ESC, 0x69); else if (node.mode === "partial3") output.push(ESC, 0x6d); break;
     }
   }

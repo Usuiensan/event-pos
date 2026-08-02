@@ -268,6 +268,7 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
     else if (node.kind === "feed") for (let index = 0; index < node.lines; index += 1) result.push("");
     else if (node.kind === "image") result.push(`[画像: ${node.assetId}]`);
     else if (node.kind === "qr") result.push(`[QR: ${node.data}]`);
+    else if (node.kind === "barcode") result.push(`[Code 128: ${node.value}]`);
     else if (node.kind === "cut" && node.mode !== "none") result.push(`[部分カット: ${node.mode}]`);
   }
   return result.join("\n");

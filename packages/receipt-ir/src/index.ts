@@ -12,6 +12,7 @@ export type ReceiptNode =
   | { kind: "feed"; lines: number }
   | { kind: "image"; assetId: string; widthDots: number }
   | { kind: "qr"; data: string; moduleSize: number; errorCorrection: "L" | "M" | "Q" | "H" }
+  | { kind: "barcode"; value: string; width: number; height: number; hri: "none" | "above" | "below" | "both" }
   | { kind: "cut"; mode: CutMode };
 
 export type ReceiptDocument = {
@@ -47,6 +48,7 @@ export function canonicalizeReceiptDocument(document: ReceiptDocument): string {
       case "feed": return command("feed", node.lines);
       case "image": return command("image", { assetId: node.assetId, widthDots: node.widthDots });
       case "qr": return command("qr", { data: normalizeText(node.data), errorCorrection: node.errorCorrection, moduleSize: node.moduleSize });
+      case "barcode": return command("barcode", { height: node.height, hri: node.hri, value: node.value, width: node.width });
       case "cut": return command("cut", node.mode);
     }
   });
@@ -98,6 +100,12 @@ export function parseCanonicalReceiptIr(source: string): ReceiptDocument {
         break;
       case "qr":
         if (isRecord(value)) { exactKeys(value, ["data", "errorCorrection", "moduleSize"], lineNo); if (typeof value.data === "string" && new TextEncoder().encode(value.data).length <= 7089 && Number.isSafeInteger(value.moduleSize) && Number(value.moduleSize) >= 1 && Number(value.moduleSize) <= 8 && ["L", "M", "Q", "H"].includes(String(value.errorCorrection))) return { kind: "qr", data: normalizeText(value.data), moduleSize: Number(value.moduleSize), errorCorrection: value.errorCorrection as "L" | "M" | "Q" | "H" }; }
+        break;
+      case "barcode":
+        if (isRecord(value)) {
+          exactKeys(value, ["height", "hri", "value", "width"], lineNo);
+          if (typeof value.value === "string" && /^[\x20-\x7e]+$/.test(value.value) && value.value.length <= 255 && Number.isSafeInteger(value.width) && Number(value.width) >= 2 && Number(value.width) <= 6 && Number.isSafeInteger(value.height) && Number(value.height) >= 1 && Number(value.height) <= 255 && ["none", "above", "below", "both"].includes(String(value.hri))) return { kind: "barcode", value: value.value, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" };
+        }
         break;
       case "cut": if (value === "none" || value === "partial" || value === "partial3") return { kind: "cut", mode: value }; break;
       default: throw new ReceiptIrError(`未知commandです: ${name}`, lineNo);

@@ -13,16 +13,16 @@ TM-T70IIへ固定fixtureを送信し、送信方式、状態取得、障害復�
 
 実機を接続するまで、送信方式や取得可能なstatusを確定扱いにしない。印刷成功とstatus取得失敗を別々に記録する。
 
-## printer-host CLI
+## 共通fixtureとdry-run
 
-現在のCLIはLinux RAWデバイス用の雛形である。Goal 6でWindows/Linux共通fixtureとOS別probeへ拡張し、結果とbytes SHA-256を同じschemaのJSONへ保存する。
+fixtureは本番document typeにも任意raw payloadにも依存しない純粋なcanonical IR builderである。ASCII、CP932日本語、U+00A5、32桁row、固定画像、QR、Code 128、3行feed、partial cutだけを含む。full cut、drawer、buzzer、NV書込み、設定変更は含めない。
 
 ```sh
-PRINTER_DEVICE=/dev/usb/lp0 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii \
+PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/dry-run \
   pnpm --filter @event-pos/printer-host hardware-test
 ```
 
-`statusBefore=unknown`でも送信可否と印刷結果を分離して記録する。デバイスが未指定の場合はデバイスへ触れず終了コード2とする。送信途中のI/Oエラーは`unknown`として保存し、自動再送しない。
+これは`fixture.ir`、`fixture.bin`、`fixture-manifest.json`を生成するだけで、デバイスへ触れない。双方でこの`.bin`のSHA-256が一致することを確認してから実機送信を行う。
 
 ## Goal 6 実機試験手順
 
@@ -39,12 +39,24 @@ systemctl status event-pos-printer-host --no-pager || true
 ### A. RAW送信と紙面
 
 ```sh
-PRINTER_DEVICE=/dev/usb/lp0 \
-PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/$(date +%Y%m%d-%H%M%S) \
-pnpm --filter @event-pos/printer-host hardware-test
+PRINTER_DEVICE=/dev/event-pos-tmt70ii \
+PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/linux-x86_64-$(date +%Y%m%d-%H%M%S) \
+sh tools/hardware-test/run-linux.sh
 ```
 
 JSONの`result`、`statusBefore`、`statusAfter`、`bytesSha256`、`bytesLength`を保存し、紙面の文字・フィード・カットを目視して同じ試験番号へ記録する。送信成功だけでは紙面完了の証拠としない。status取得に失敗した場合の`statusAfter`は`unknown`として保存する。
+
+既存Debianでは先にDiscord bot serviceを停止し、`lsof /dev/event-pos-tmt70ii`等でdevice保持processがないことを記録する。終了後は元serviceを戻し、`systemctl status`と`journalctl -u <service>`を保存する。
+
+### Windows x64 RAW spooler
+
+PowerShellでdry-run後、明示的に`-Run`を付ける。リポジトリ同梱のWinspool `WritePrinter` scriptを使うため、`discord-printer-bot`への実行時依存はない。
+
+```powershell
+.\tools\hardware-test\run-windows.ps1 -PrinterName 'EPSON TM-T70II Receipt' -EvidenceDir .\evidence\tm-t70ii\windows-x64 -Run
+```
+
+`windows-spooler-result.json`へdriver、port、spooler job ID、acceptedBytes、queue由来raw値、write offsetを記録する。queueの`Normal`はdevice statusの`ready`を意味しないため、紙切れ/cover/offlineはEPSON APIまたはOPOS比較を含む実測まで`unknown`のままとする。
 
 ### B. 切断・再接続
 

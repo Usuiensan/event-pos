@@ -3,11 +3,14 @@ import { promisify } from "node:util";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { PrinterTransport, PrinterStatus, SendReceipt } from "./transport.js";
 
 const execFileAsync = promisify(execFile);
 
-export type WindowsRawTransportOptions = { printerName: string; rawPrintScript: string };
+export type WindowsRawTransportOptions = { printerName: string; rawPrintScript?: string };
+
+const bundledRawPrintScript = fileURLToPath(new URL("../scripts/windows-raw-spooler.ps1", import.meta.url));
 
 export class WindowsRawTransport implements PrinterTransport {
   constructor(private readonly options: WindowsRawTransportOptions) {}
@@ -24,8 +27,10 @@ export class WindowsRawTransport implements PrinterTransport {
     const path = join(dir, "job.bin");
     try {
       await writeFile(path, bytes);
-      await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "event-pos print job"], { windowsHide: true, maxBuffer: 1024 * 1024 });
-      return { acceptedBytes: bytes.length };
+      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript ?? bundledRawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "event-pos print job"], { windowsHide: true, maxBuffer: 1024 * 1024 });
+      const receipt = JSON.parse(String(result.stdout)) as { acceptedBytes?: unknown };
+      if (!Number.isSafeInteger(receipt.acceptedBytes) || Number(receipt.acceptedBytes) < 0 || Number(receipt.acceptedBytes) > bytes.length) throw new Error("RAW spooler returned invalid acceptedBytes");
+      return { acceptedBytes: Number(receipt.acceptedBytes) };
     } finally { await rm(dir, { recursive: true, force: true }); }
   }
   async close(): Promise<void> {}

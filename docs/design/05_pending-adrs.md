@@ -23,6 +23,7 @@
 
 ### ADR-P001 Windows/Linuxプリンター通信方式
 
+- 状態: `Research`。Goal 6のfixture/probeは実装済みだが、Windows x64、Linux x86_64、Linux ARM64の実機・紙面証跡は未取得。
 - 決定済み: Windows x64と64bit Linuxを同格の本番対応プロファイルとし、同じ印刷job契約とESC/POS bytesを使う。
 - 決めること: WindowsのRAW spooler/EPSON/OPOS方式、Linuxの`/dev/usb/lp*`/libusb方式、driver、配布、ライセンス、timeout、排他、再接続。
 - 必要証拠: Windows x64、既存Debian、Linux x86_64/ARM64で同一ESC/POS bytes送信、install再現、競合・切断・再接続、Windows Service、udev/systemd復旧を試験する。
@@ -31,6 +32,7 @@
 
 ### ADR-P002 OS別状態取得保証範囲
 
+- 状態: `Research`。能力表の全値は実測まで`unknown`であり、queueやwrite成功から`ready`を推測しない。
 - 決めること: OS/接続方式ごとのreachable、online、cover、paper、recoverable/fatal errorの `supported/unsupported/unknown` 能力表。
 - 必要証拠: Windows/Linux双方で紙切れ、カバー開、USB切断、再接続を実測しraw responseを保存する。印刷成功とstatus取得失敗を別結果として記録する。
 - ブロック: 状態監視正式実装、PR-03、PR-04。

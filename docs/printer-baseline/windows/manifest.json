@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "evidenceState": "template-not-measured",
+  "platform": "Windows x64",
+  "fixture": { "manifest": "../fixture-manifest.json", "sameBytesRequired": true },
+  "required": ["os/kernel/architecture", "printer/driver/version/port", "spooler job ID", "write offsets/acceptedBytes/errno", "raw status/API response", "normalized status", "mutex/claim timeout", "paper evidence ID"],
+  "results": []
+}

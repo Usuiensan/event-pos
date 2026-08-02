@@ -17,4 +17,10 @@ describe("canonical receipt IR", () => {
     expect(() => parseCanonicalReceiptIr('!cut "full"\n')).toThrow("cutの引数が不正");
     expect(() => parseCanonicalReceiptIr('!size {"width":3,"height":1}\n')).toThrow("sizeの引数が不正");
   });
+
+  it("Code 128 nodeをcanonical IRへ含める", () => {
+    const source = '!barcode {"height":96,"hri":"below","value":"{BPS111234","width":3}\n';
+    expect(canonicalizeReceiptDocument(parseCanonicalReceiptIr(source))).toBe(source);
+    expect(() => parseCanonicalReceiptIr('!barcode {"height":96,"hri":"below","value":"日本語","width":3}\n')).toThrow("barcodeの引数が不正");
+  });
 });

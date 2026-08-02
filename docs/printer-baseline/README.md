@@ -14,3 +14,13 @@ Discord botが稼働するDebian環境を初期基準として、Windows/Linux�
 - Windows/Linux別のstatus能力表と同一紙面判定
 
 秘密情報、Discord token、個人情報は保存しない。
+
+## Goal 6の実行入口
+
+- [共通probe手順](../../tools/hardware-test/README.md)
+- [OS別能力表](capability-matrix.md)
+- [PR-01/03/06/07/10のOS別進捗](acceptance-status.md)
+- [紙面証跡対応表](paper-evidence-map.md)
+- `windows/`、`linux-x86_64/`、`linux-arm64/` のmanifestへ実測JSON、raw status、ログ、写真IDを追記する。
+
+現時点のmanifestはすべて`template-not-measured`である。実機が未接続の環境で値を埋めたり、`unknown`を`ready`へ置換したりしない。

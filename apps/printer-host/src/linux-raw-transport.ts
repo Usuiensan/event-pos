@@ -4,7 +4,7 @@ import { TransportSendError, type PrinterStatus, type PrinterTransport, type Sen
 /** Linux RAW USB transport skeleton. Device/status behavior remains hardware-gated. */
 export class LinuxRawTransport implements PrinterTransport {
   private handle: FileHandle | undefined;
-  constructor(private readonly devicePath: string, private readonly statusProbe: () => Promise<PrinterStatus> = async () => "unknown") {}
+  constructor(private readonly devicePath: string, private readonly statusProbe: () => Promise<PrinterStatus> = async () => "unknown", private readonly onWrite?: (offset: number, bytesWritten: number, error?: string) => void) {}
   async getStatus(): Promise<PrinterStatus> {
     try { return await this.statusProbe(); } catch { return "unknown"; }
   }
@@ -14,11 +14,13 @@ export class LinuxRawTransport implements PrinterTransport {
     try {
       while (offset < bytes.byteLength) {
         const result = await this.handle.write(bytes, offset, bytes.byteLength - offset);
+        this.onWrite?.(offset, result.bytesWritten);
         if (result.bytesWritten <= 0) throw new Error("printer write made no progress");
         offset += result.bytesWritten;
       }
       return { acceptedBytes: offset };
     } catch (error) {
+      this.onWrite?.(offset, 0, error instanceof Error && "code" in error ? String((error as NodeJS.ErrnoException).code) : error instanceof Error ? error.message : String(error));
       await this.close();
       throw new TransportSendError(error instanceof Error ? error.message : "printer write failed", offset, offset === 0);
     }
