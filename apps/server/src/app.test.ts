@@ -82,7 +82,7 @@ describe("server foundation", () => {
     const database = openDatabase(databasePath);
     const app = buildApp({ database });
     apps.push(app);
-    const catalog = { eventId: "event-catalog", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale", internalToken: "P1A001" }], quickEntries: [{ id: "set-1", label: "セット", components: [{ productCode: "A001", quantity: 2 }] }] };
+    const catalog = { eventId: "event-catalog", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", internalToken: "P1A001" }], quickEntries: [{ id: "set-1", label: "セット", components: [{ productCode: "A001", quantity: 2 }] }] };
     expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-catalog/catalog", payload: catalog })).statusCode).toBe(200);
     expect((await app.inject({ method: "GET", url: "/api/v1/events/event-catalog/catalog" })).json().catalog).toEqual(catalog);
     await app.close(); apps.splice(apps.indexOf(app), 1);

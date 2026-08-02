@@ -3,6 +3,8 @@ export type ProductDefinition = {
   name: string;
   priceInclTax: number;
   taxRate: number;
+  taxCategory: TaxCategory;
+  priceExclTax?: number;
   saleState: "on_sale" | "off_sale";
   internalToken?: string;
   ageCheck?: "none" | "18" | "20";
@@ -10,6 +12,32 @@ export type ProductDefinition = {
   displayColor?: string;
   thumbnailUrl?: string;
 };
+
+export const taxCategories = ["inclusive_10", "inclusive_8", "exclusive_10", "exclusive_8", "exempt", "non_taxable"] as const;
+export type TaxCategory = typeof taxCategories[number];
+
+const taxCategoryLabels: Record<TaxCategory, string> = {
+  inclusive_10: "税込10%",
+  inclusive_8: "税込8%",
+  exclusive_10: "税抜10%",
+  exclusive_8: "税抜8%",
+  exempt: "非課税",
+  non_taxable: "不課税",
+};
+
+export function taxCategoryLabel(category: TaxCategory): string { return taxCategoryLabels[category]; }
+export function taxRateForCategory(category: TaxCategory): number {
+  if (category === "inclusive_10" || category === "exclusive_10") return 10;
+  if (category === "inclusive_8" || category === "exclusive_8") return 8;
+  return 0;
+}
+
+function legacyTaxCategory(taxRate: number): TaxCategory {
+  if (taxRate === 10) return "inclusive_10";
+  if (taxRate === 8) return "inclusive_8";
+  if (taxRate === 0) return "exempt";
+  fail("税区分は税込10%・税込8%・税抜10%・税抜8%・非課税・不課税から指定してください");
+}
 
 export type ProductTab = { id: string; label: string; color?: string };
 export type StaffPermission = "catalog_import" | "refund" | "reprint";
@@ -40,11 +68,20 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (typeof p.name !== "string" || !p.name.trim()) fail(`products[${index}].nameが必要です`);
     if (typeof p.priceInclTax !== "number" || !Number.isSafeInteger(p.priceInclTax) || p.priceInclTax < 0) fail(`products[${index}].priceInclTaxは0以上の整数です`);
     if (typeof p.taxRate !== "number" || p.taxRate < 0 || p.taxRate > 100) fail(`products[${index}].taxRateが不正です`);
+    const taxCategory = p.taxCategory === undefined ? legacyTaxCategory(p.taxRate) : p.taxCategory;
+    if (!taxCategories.includes(taxCategory)) fail(`products[${index}].taxCategoryが不正です`);
+    if (p.taxRate !== taxRateForCategory(taxCategory)) fail(`products[${index}].taxRateが税区分と一致しません`);
+    const exclusive = taxCategory === "exclusive_10" || taxCategory === "exclusive_8";
+    if (exclusive) {
+      if (!Number.isSafeInteger(p.priceExclTax) || (p.priceExclTax ?? -1) < 0) fail(`products[${index}].priceExclTaxは税抜区分で必要な0以上の整数です`);
+      const expected = p.priceExclTax! + Math.floor(p.priceExclTax! * p.taxRate / 100);
+      if (p.priceInclTax !== expected) fail(`products[${index}].priceInclTaxは税抜価格から計算した${expected}円と一致させてください`);
+    } else if (p.priceExclTax !== undefined) fail(`products[${index}].priceExclTaxは税抜区分だけで指定できます`);
     if (p.saleState !== "on_sale" && p.saleState !== "off_sale") fail(`products[${index}].saleStateが不正です`);
     const priceInclTax = p.priceInclTax as number;
     if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
     for (const key of ["displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
-    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
+    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);
