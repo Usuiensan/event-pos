@@ -28,6 +28,7 @@ export type ReceiptSnapshot = {
   transactionType: "sale" | "void" | "return";
   originalPublicReference: string;
   confirmedAt: string;
+  confirmedAtPrinted: string;
   businessDate: string;
   registerNo: string;
   staffPrintLabel: string;
@@ -68,7 +69,7 @@ export class ReceiptTemplateError extends Error {
 }
 
 const GLOBAL_VARIABLES = new Set([
-  "eventName", "circleName", "transactionId", "publicReference", "transactionType", "originalPublicReference", "confirmedAt", "businessDate", "registerNo", "staffPrintLabel",
+  "eventName", "circleName", "transactionId", "publicReference", "transactionType", "originalPublicReference", "confirmedAt", "confirmedAtPrinted", "businessDate", "registerNo", "staffPrintLabel",
   "subtotalFormatted", "discountTotalFormatted", "taxTotalFormatted", "totalFormatted", "tenderedFormatted", "changeFormatted", "isReprint", "reprintLabel", "reprintNo",
   "originalReceiptNumber", "footer", "returnPolicy", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange",
 ]);
@@ -288,7 +289,7 @@ body:
       - text: "元受付番号 {{originalReceiptNumber}}"
       - emphasis: { bold: false, underline: false, invert: false }
   - row: { left: "受付番号", right: "{{publicReference}}" }
-  - row: { left: "確定日時", right: "{{confirmedAt}}" }
+  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }
   - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }
   - rule: single
   - each: lines

@@ -1,7 +1,9 @@
 import { DatabaseSync } from "node:sqlite";
 import type { CashCheck, PrintJob, PrintJobRequest, PrintJobStateUpdate } from "@event-pos/contracts";
-import { importEventCatalog } from "@event-pos/contracts";
+import { importEventCatalog, normalizePrintJobState } from "@event-pos/contracts";
 import { applyCheckoutSchema } from "./checkout-schema.js";
+import { applyPrintingSchema } from "./printing-schema.js";
+import { ensureDefaultReceiptTemplate } from "./receipt-store.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -79,6 +81,8 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
     db.prepare("INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run("schema_version", "2");
   }
   applyCheckoutSchema(db);
+  applyPrintingSchema(db);
+  ensureDefaultReceiptTemplate(db);
   return db;
 }
 
@@ -229,12 +233,25 @@ export function findCashJournalCandidates(db: PosDatabase, sessionId: string, se
 
 export function createPrintJob(db: PosDatabase, request: PrintJobRequest): PrintJob {
   const now = new Date().toISOString();
-  db.prepare(`INSERT INTO print_jobs (job_id, transaction_id, printer_id, document_type, payload_json, created_at, state, updated_at, source, source_event_id, renderer_version, bytes_sha256)
-    VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?) ON CONFLICT(job_id) DO NOTHING`).run(
-    request.jobId, request.transactionId, request.printerId, request.documentType,
-    JSON.stringify(request.payload), request.createdAt, now, request.source ?? null, request.sourceEventId ?? null,
-    request.rendererVersion ?? null, request.bytesSha256 ?? null,
-  );
+  const existing = getPrintJob(db, request.jobId);
+  if (existing) {
+    if (existing.transactionId !== request.transactionId || existing.printerId !== request.printerId || existing.documentType !== request.documentType || JSON.stringify(existing.payload) !== JSON.stringify(request.payload)) throw new Error("jobIdが異なるpayloadで再利用されました");
+    return existing;
+  }
+  const operationId = `operation:${request.jobId}`;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,payload_json,created_at,state,updated_at,source,source_event_id,renderer_version,bytes_sha256,canonical_ir,ir_sha256,expected_bytes_length,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,delivery_certainty)
+      VALUES (?,?,?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')`).run(
+      request.jobId, operationId, request.transactionId, request.printerId, request.documentType, JSON.stringify(request.payload), request.createdAt, now, request.source ?? null, request.sourceEventId ?? null,
+      request.rendererVersion ?? null, request.bytesSha256 ?? null, request.canonicalIr ?? null, request.irSha256 ?? null, request.expectedBytesLength ?? null, request.templateKey ?? null, request.templateVersion ?? null,
+      request.templateSourceSha256 ?? null, JSON.stringify(request.assets?.map(({ rasterBase64: _raster, ...asset }) => asset) ?? []), request.fontId ?? null, request.fontVersion ?? null, request.fontSha256 ?? null,
+      request.finishingPolicyId ?? null, request.finishingPolicyVersion ?? null,
+    );
+    const sequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
+    db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, request.jobId, now, now, now);
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
   const job = getPrintJob(db, request.jobId);
   if (!job) throw new Error("print job was not persisted");
   return job;
@@ -243,20 +260,41 @@ export function createPrintJob(db: PosDatabase, request: PrintJobRequest): Print
 export function getPrintJob(db: PosDatabase, jobId: string): PrintJob | undefined {
   const row = db.prepare("SELECT * FROM print_jobs WHERE job_id = ?").get(jobId) as Record<string, unknown> | undefined;
   if (!row) return undefined;
+  const assets = row.template_key && row.template_version ? db.prepare("SELECT asset_id AS assetId,asset_version AS version,content_sha256 AS sha256,width_dots AS widthDots,height_dots AS heightDots,content_base64 AS rasterBase64 FROM receipt_template_assets WHERE template_key=? AND template_version=? ORDER BY asset_id").all(String(row.template_key), Number(row.template_version)) as PrintJob["assets"] : undefined;
   return {
     jobId: String(row.job_id), transactionId: String(row.transaction_id), printerId: String(row.printer_id),
     documentType: String(row.document_type), payload: JSON.parse(String(row.payload_json)),
     createdAt: String(row.created_at), state: row.state as PrintJob["state"], updatedAt: String(row.updated_at),
+    ...(row.operation_id ? { operationId: String(row.operation_id) } : {}),
+    ...(row.kind ? { kind: row.kind as NonNullable<PrintJob["kind"]> } : {}),
+    ...(row.source_job_id ? { sourceJobId: String(row.source_job_id) } : {}),
+    ...(row.reprint_no ? { reprintNo: Number(row.reprint_no) } : {}),
+    ...(row.delivery_certainty ? { deliveryCertainty: row.delivery_certainty as NonNullable<PrintJob["deliveryCertainty"]> } : {}),
+    ...(row.completion_evidence ? { completionEvidence: row.completion_evidence as NonNullable<PrintJob["completionEvidence"]> } : {}),
     ...(row.source ? { source: String(row.source) } : {}),
     ...(row.source_event_id ? { sourceEventId: String(row.source_event_id) } : {}),
     ...(row.renderer_version ? { rendererVersion: String(row.renderer_version) } : {}),
     ...(row.bytes_sha256 ? { bytesSha256: String(row.bytes_sha256) } : {}),
+    ...(row.canonical_ir ? { canonicalIr: String(row.canonical_ir) } : {}),
+    ...(row.ir_sha256 ? { irSha256: String(row.ir_sha256) } : {}),
+    ...(row.expected_bytes_length !== null && row.expected_bytes_length !== undefined ? { expectedBytesLength: Number(row.expected_bytes_length) } : {}),
+    ...(row.template_key ? { templateKey: String(row.template_key) } : {}),
+    ...(row.template_version ? { templateVersion: Number(row.template_version) } : {}),
+    ...(row.template_source_sha256 ? { templateSourceSha256: String(row.template_source_sha256) } : {}),
+    ...(assets?.length ? { assets } : {}),
+    ...(row.font_id ? { fontId: String(row.font_id) } : {}),
+    ...(row.font_version ? { fontVersion: Number(row.font_version) } : {}),
+    ...(row.font_sha256 ? { fontSha256: String(row.font_sha256) } : {}),
+    ...(row.finishing_policy_id ? { finishingPolicyId: String(row.finishing_policy_id) } : {}),
+    ...(row.finishing_policy_version ? { finishingPolicyVersion: Number(row.finishing_policy_version) } : {}),
     ...(row.error_message ? { errorMessage: String(row.error_message) } : {}),
   };
 }
 
 export function updatePrintJob(db: PosDatabase, jobId: string, update: PrintJobStateUpdate): PrintJob | undefined {
-  db.prepare("UPDATE print_jobs SET state = ?, updated_at = ?, error_message = ? WHERE job_id = ?")
-    .run(update.state, new Date().toISOString(), update.errorMessage ?? null, jobId);
+  const normalized = normalizePrintJobState(update.state); const now = new Date().toISOString();
+  db.prepare("UPDATE print_jobs SET state=?,delivery_certainty=COALESCE(?,delivery_certainty),completion_evidence=COALESCE(?,completion_evidence),updated_at=?,error_message=? WHERE job_id=?")
+    .run(normalized.state, update.deliveryCertainty ?? normalized.deliveryCertainty ?? null, update.completionEvidence ?? null, now, update.errorMessage ?? null, jobId);
+  db.prepare("UPDATE printer_operations SET state=?,updated_at=? WHERE payload_ref=?").run(normalized.state, now, jobId);
   return getPrintJob(db, jobId);
 }
