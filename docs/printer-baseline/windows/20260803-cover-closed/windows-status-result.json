@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "mode": "status-only",
+  "scenario": "cover-closed",
+  "executedAt": "2026-08-03T04:15:50.7507600+09:00",
+  "environment": {
+    "architecture": "AMD64",
+    "platform": "Windows",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    }
+  },
+  "adapter": {
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON",
+      "DriverPath": null
+    },
+    "name": "Windows print queue observation only",
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 0,
+      "WorkOffline": null,
+      "Shared": false,
+      "Published": false
+    }
+  },
+  "statusRequests": [
+    {
+      "reason": "queue state alone is not device-ready proof",
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 0,
+        "WorkOffline": null,
+        "Shared": false,
+        "Published": false
+      },
+      "normalized": "unknown",
+      "mechanism": "Get-Printer coarse queue observation"
+    }
+  ],
+  "pnpDevices": [
+    {
+      "Status": "OK",
+      "Class": "USB",
+      "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+      "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+      "Problem": 0,
+      "ConfigManagerErrorCode": 0
+    },
+    {
+      "Status": "OK",
+      "Class": "PrintQueue",
+      "FriendlyName": "EPSON TM-T70II Receipt",
+      "InstanceId": "SWD\\PRINTENUM\\{496E064F-B777-41FC-B81E-FC8FD6353FE3}",
+      "Problem": 0,
+      "ConfigManagerErrorCode": 0
+    }
+  ],
+  "opos": {
+    "t70iiServiceComponentInstalled": true,
+    "reason": "inventory only; no configured logical device is guessed or opened",
+    "logicalDeviceConfigured": false,
+    "installed": true,
+    "openOrClaimAttempted": false,
+    "logicalDeviceRegistryKeys": []
+  },
+  "delivery": {
+    "automaticRetry": false,
+    "transportAccepted": null,
+    "physicalPaperCompleted": null
+  }
+}

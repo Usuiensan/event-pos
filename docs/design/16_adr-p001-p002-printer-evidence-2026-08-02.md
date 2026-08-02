@@ -28,6 +28,8 @@ Windows x64ではprinterをDebianへ接続した状態でstatus-only probeを実
 
 カバー開状態でも同じWindows x64のUSB PnP statusは`OK`、queue raw `PrinterStatus` は`0`で通常時と差がなかった。Winspool queue/PnP observation単独ではcoverを検出できないため、cover capabilityは`unknown`を維持する。raw JSONは`docs/printer-baseline/windows/20260803-cover-open/`に保存した。
 
+カバーを閉じた後も同じraw `PrinterStatus=0`/USB PnP `OK`を観測した。これはcover openとの区別を提供しないため`ready`への変換根拠にはしない。raw JSONは`docs/printer-baseline/windows/20260803-cover-closed/`に保存した。
+
 ## 未取得の必須証拠
 
 - Windows x64実機: driver/API/OPOS比較、紙切れ・cover・offline・USB再接続、Service account/sleep/update後の復旧。
