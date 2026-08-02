@@ -4,7 +4,7 @@
   <description>TM-T70IIへevent-posの永続印刷ジョブを送信します。</description>
   <executable>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</executable>
   <arguments>-NoProfile -ExecutionPolicy Bypass -File "%BASE%\start-printer-host.ps1" -EnvironmentFile "%BASE%\printer-host.env"</arguments>
-  <workingdirectory>%BASE%\..\..</workingdirectory>
+  <workingdirectory>%BASE%</workingdirectory>
   <stoptimeout>15 sec</stoptimeout>
   <onfailure action="restart" delay="5 sec" />
   <onfailure action="restart" delay="15 sec" />

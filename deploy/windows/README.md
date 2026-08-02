@@ -5,12 +5,18 @@
 ## portable起動
 
 1. Node.js 24 x64、pnpm 11を導入し、repository rootで`pnpm install --frozen-lockfile`、`pnpm check`を実行する。
-2. `printer-host.env.example`を`printer-host.env`へ複製し、`NODE_EXE`と`PRINTER_NAME`を実機に合わせる。`printer-host.env`はGitへ追加しない。
-3. POS server側へ`PRINTER_HOST_URL=http://127.0.0.1:4318`を設定する。ドロアー未受入中は`DRAWER_ENABLED=false`のままにする。
-4. repository rootから次を実行する。
+2. production dependencyだけを含むportable directoryを、まだ存在しない出力先へ作成する。
 
 ```powershell
-.\deploy\windows\start-printer-host.ps1
+.\deploy\windows\build-portable.ps1 -OutputDirectory C:\event-pos\releases\printer-host-<commit>
+```
+
+3. 出力先の`printer-host.env.example`を`printer-host.env`へ複製し、`NODE_EXE`と`PRINTER_NAME`を実機に合わせる。`printer-host.env`はGitへ追加しない。
+4. POS server側へ`PRINTER_HOST_URL=http://127.0.0.1:4318`を設定する。ドロアー未受入中は`DRAWER_ENABLED=false`のままにする。
+5. 出力先から次を実行する。repository checkoutからの保守起動にも同じlauncherを使用できる。
+
+```powershell
+.\start-printer-host.ps1
 ```
 
 別terminalで`Invoke-RestMethod http://127.0.0.1:4318/health/live`と`Invoke-RestMethod http://127.0.0.1:4318/api/v1/printer/status`を確認する。statusが`unknown`またはofflineなら印刷を開始しない。

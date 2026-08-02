@@ -19,8 +19,14 @@ if (Test-Path -LiteralPath $EnvironmentFile) {
   }
 }
 
-$repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
-$entryPoint = Join-Path $repositoryRoot 'apps\printer-host\dist\index.js'
+$portableEntryPoint = Join-Path $PSScriptRoot 'dist\index.js'
+if (Test-Path -LiteralPath $portableEntryPoint) {
+  $applicationRoot = $PSScriptRoot
+  $entryPoint = $portableEntryPoint
+} else {
+  $applicationRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+  $entryPoint = Join-Path $applicationRoot 'apps\printer-host\dist\index.js'
+}
 if (-not (Test-Path -LiteralPath $entryPoint)) {
   throw "Built PrinterHost is missing. Run pnpm build at the repository root: $entryPoint"
 }
@@ -28,7 +34,7 @@ if (-not (Test-Path -LiteralPath $entryPoint)) {
 $configuredNode = if ($NodeExe) { $NodeExe } elseif ($env:NODE_EXE) { $env:NODE_EXE } else { (Get-Command node.exe -ErrorAction Stop).Source }
 if (-not (Test-Path -LiteralPath $configuredNode)) { throw "node.exe was not found: $configuredNode" }
 
-Push-Location $repositoryRoot
+Push-Location $applicationRoot
 try {
   & $configuredNode $entryPoint
   exit $LASTEXITCODE
