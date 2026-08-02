@@ -20,7 +20,7 @@ export type PrinterStatusObservation = {
 export type PrintJob = {
   jobId: string;
   operationId?: string;
-  kind?: "original" | "reprint" | "closing" | "test" | "drawer";
+  kind?: "original" | "reprint" | "opening" | "interim" | "closing" | "test" | "drawer";
   sourceJobId?: string;
   reprintNo?: number;
   transactionId: string;

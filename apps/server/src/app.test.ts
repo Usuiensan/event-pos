@@ -24,12 +24,18 @@ describe("server foundation", () => {
   });
 
   it("calculates cash check theoretical amount from the server ledger", async () => {
-    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02", cashboxId: "box-1" } })).json()).toMatchObject({ cashboxId: "box-1", state: "open" });
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/movements", payload: { type: "sale", amountYen: 500, reason: "test sale", idempotencyKey: "sale-1" } });
     const interim = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/interim", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }] } });
     expect(interim.statusCode).toBe(201); expect(interim.json()).toMatchObject({ theoreticalYen: 1500, countedYen: 1500, differenceYen: 0 });
+    const closing = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }], carryoverYen: 1000 } });
+    expect(closing.statusCode).toBe(201);
+    expect(database.prepare("SELECT kind,document_type,state FROM print_jobs ORDER BY created_at,kind").all()).toEqual([
+      { kind: "opening", document_type: "cash-check", state: "pending" }, { kind: "interim", document_type: "cash-check", state: "pending" }, { kind: "closing", document_type: "cash-check", state: "pending" },
+    ]);
+    expect(database.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "print", sequence: 1 }, { kind: "print", sequence: 2 }, { kind: "print", sequence: 3 }]);
   });
   it("rejects duplicate closing and idempotency payload changes", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
