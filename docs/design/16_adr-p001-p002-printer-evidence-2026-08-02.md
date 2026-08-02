@@ -24,6 +24,8 @@ LXC OS再起動後も`/dev/usb/lp0`、DLE EOT正常値、bot service `active/run
 
 Windows x64ではprinterをDebianへ接続した状態でstatus-only probeを実行した。EPSON TM-T70II Receipt5 queueのraw `PrinterStatus` は`4096`だったが、queueの値だけではdevice-level errorを区別できないためnormalized statusは`unknown`とした。EPSON OPOS for .NETとTM-T70II service componentは導入済みだが、OPOS logical deviceの登録は検出されず、Open/Claimを推測実行していない。raw JSONは`docs/printer-baseline/windows/20260803-printer-connected-to-linux/`に保存する。
 
+同じWindows x64へUSBを再接続した直後、EPSON USB ControllerのPnP statusは`OK`、queue raw `PrinterStatus` は`0`だった。これも紙/cover/errorを区別するdevice-level statusではないため`unknown`のままとし、`docs/printer-baseline/windows/20260803-reconnected/`へ保存した。
+
 ## 未取得の必須証拠
 
 - Windows x64実機: driver/API/OPOS比較、紙切れ・cover・offline・USB再接続、Service account/sleep/update後の復旧。
