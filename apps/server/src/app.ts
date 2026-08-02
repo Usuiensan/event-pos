@@ -1,12 +1,14 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { createCashSession, createPrintJob, findCashJournalCandidates, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobState, type PrintJobStateUpdate } from "@event-pos/contracts";
+import { registerCheckoutRoutes } from "./checkout-routes.js";
+import type { FailureInjector } from "./checkout-store.js";
 
 const printJobStates: readonly PrintJobState[] = ["queued", "accepted", "printing", "completed", "failed", "unknown"];
 const isPrintJobState = (value: unknown): value is PrintJobState => typeof value === "string" && printJobStates.includes(value as PrintJobState);
 
 export type PrinterHost = { accept(job: ReturnType<typeof createPrintJob>): Promise<void> };
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -134,5 +136,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const job = updatePrintJob(options.database, request.params.jobId, request.body);
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
+  registerCheckoutRoutes(app, options);
   return app;
 }
