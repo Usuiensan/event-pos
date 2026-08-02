@@ -9,9 +9,11 @@ import type { FailureInjector } from "./checkout-store.js";
 import { RealtimeHub, registerRealtimeRoutes } from "./realtime.js";
 import { PersistentPrintQueue, type PrinterHost } from "./print-queue.js";
 import { registerPrintingRoutes } from "./printing-routes.js";
+import { BackupArtifactWorker, type BackupArtifactFailureInjector } from "./backup-artifacts.js";
+import { getBackupArtifact, listBackupArtifacts, reserveBackupArtifactRegeneration } from "./backup-artifact-schema.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; backupArtifactFailureInjector?: BackupArtifactFailureInjector };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -38,10 +40,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
   const realtimeHub = options.realtimeHub ?? new RealtimeHub();
   const printQueue = options.printerHost ? new PersistentPrintQueue(options.database, options.printerHost) : undefined;
+  const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector) : undefined;
   app.register(websocket);
   app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub));
   let latestEmergencyAlert: EmergencyAlert | null = null;
-  app.addHook("onClose", async () => { await printQueue?.stop(); options.database.close(); });
+  app.addHook("onClose", async () => { await printQueue?.stop(); await backupArtifactWorker?.stop(); options.database.close(); });
   app.get("/health/live", async () => ({ status: "ok" }));
   app.get("/health/ready", async (_request, reply) => {
     try {
@@ -103,7 +106,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     try {
       const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: getTheoreticalCash(options.database, request.params.sessionId), ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }), ...(auth.actorId ? { actorId: auth.actorId } : request.body.actorId ? { actorId: request.body.actorId } : {}), ...(request.body.terminalId ? { terminalId: request.body.terminalId } : {}) };
       const check = createCashCheck(input);
-      const saved = saveCashCheck(options.database, check); printQueue?.trigger();
+      const saved = saveCashCheck(options.database, check); printQueue?.trigger(); backupArtifactWorker?.trigger();
       return reply.code(201).send(saved);
     } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
   });
@@ -136,6 +139,35 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(200).send({ catalog, updatedAt: record.updatedAt });
     } catch (error) { return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
   });
+  app.get<{ Querystring: { eventId?: string; businessDate?: string; cashboxId?: string } }>("/api/v1/backup-artifacts", async (request, reply) => {
+    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    if (!request.query.eventId) return reply.code(400).send({ error: "event_id_required" });
+    return { artifacts: listBackupArtifacts(options.database, { eventId: request.query.eventId, ...(request.query.businessDate ? { businessDate: request.query.businessDate } : {}), ...(request.query.cashboxId ? { cashboxId: request.query.cashboxId } : {}) }) };
+  });
+  app.get<{ Params: { artifactId: string } }>("/api/v1/backup-artifacts/:artifactId", async (request, reply) => {
+    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    return getBackupArtifact(options.database, request.params.artifactId) ?? reply.code(404).send({ error: "backup_artifact_not_found" });
+  });
+  app.post<{ Params: { artifactId: string } }>("/api/v1/backup-artifacts/:artifactId/regenerate", async (request, reply) => {
+    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const rawKey = request.headers["idempotency-key"]; const requestKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+    if (!requestKey?.trim()) return reply.code(400).send({ error: "idempotency_key_required" });
+    try {
+      options.database.exec("BEGIN IMMEDIATE");
+      let artifact;
+      try {
+        const existingRequest = options.database.prepare("SELECT 1 FROM backup_artifacts WHERE request_key=?").get(`manual:${requestKey}`);
+        artifact = reserveBackupArtifactRegeneration(options.database, request.params.artifactId, requestKey, auth.actorId);
+        if (!existingRequest) options.database.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'backup_artifact_regeneration_requested','backup_artifact',?,?,?)").run(artifact.eventId, artifact.artifactId, JSON.stringify({ artifactId: artifact.artifactId, retryOfArtifactId: artifact.retryOfArtifactId, triggerKind: artifact.triggerKind, requestedBy: artifact.requestedBy ?? null, result: artifact.state }), artifact.requestedAt);
+        options.database.exec("COMMIT");
+      } catch (error) { options.database.exec("ROLLBACK"); throw error; }
+      backupArtifactWorker?.trigger();
+      return reply.code(202).send(artifact);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "再生成要求に失敗しました";
+      return reply.code(message.includes("見つかりません") ? 404 : message.includes("再生成できません") ? 409 : 400).send({ error: "backup_artifact_regeneration_failed", message });
+    }
+  });
   app.post<{ Body: PrintJobRequest }>("/api/v1/print-jobs", async (request, reply) => {
     const body = request.body;
     if (!body?.jobId || !body.transactionId || !body.printerId || !body.documentType || !body.createdAt) return reply.code(400).send({ error: "invalid_print_job" });
@@ -158,5 +190,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
+  backupArtifactWorker?.trigger();
   return app;
 }
