@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-03T04:12:27.9194558+09:00",
+  "environment": {
+    "architecture": "AMD64",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "platform": "Windows"
+  },
+  "fixture": {
+    "fixtureId": "tm-t70ii-parity-v1",
+    "compiler": "event-pos-escpos-v1",
+    "fixtureVersion": 2,
+    "adapterSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "canonicalIrSha256": "84293a557bb652d6ec573cbd1b15e76b832f4e6841dee86479fabee830cdb0f3",
+    "escposSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "bytesLength": 316,
+    "writeSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695"
+  },
+  "adapter": {
+    "name": "Winspool RAW WritePrinter",
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 1024,
+      "WorkOffline": null
+    },
+    "spoolerJobId": 6,
+    "mutex": "hardware probe process only; PrinterHost mutex is not exercised",
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON"
+    },
+    "timeoutMs": null
+  },
+  "writes": [
+    {
+      "bytesWritten": 316,
+      "errno": null,
+      "complete": true,
+      "offset": 0,
+      "requestedBytes": 316
+    }
+  ],
+  "statusBefore": "unknown",
+  "statusAfter": "unknown",
+  "statusRequests": [
+    {
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 1024,
+        "WorkOffline": null
+      },
+      "normalized": "unknown",
+      "reason": "queue state alone is not device-ready proof",
+      "mechanism": "Get-Printer coarse queue observation"
+    }
+  ],
+  "delivery": {
+    "shortWriteHandling": "no automatic retry; delivery certainty remains unknown",
+    "transportAccepted": true,
+    "automaticRetry": false,
+    "physicalPaperCompleted": true
+  },
+  "physicalPaperEvidenceId": "W-04",
+  "paperReview": {
+    "reviewedBy": "operator",
+    "reviewedAt": "2026-08-03T04:13:00+09:00",
+    "result": "accepted",
+    "details": "ASCII, CP932 Japanese, U+00A5, 32-column row, fixed raster, QR, Code 128 with HRI, feed, and partial cut were all good."
+  }
+}
