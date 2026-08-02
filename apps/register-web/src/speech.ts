@@ -21,26 +21,48 @@ const yenParts: Record<string, string> = {
   "せんえん": "sen-en.wav", "にせんえん": "nisen-en.wav", "さんぜんえん": "sanzen-en.wav", "よんせんえん": "yonsen-en.wav", "ごせんえん": "gosen-en.wav", "ろくせんえん": "rokusen-en.wav", "ななせんえん": "nanasen-en.wav", "はっせんえん": "hassen-en.wav", "きゅうせんえん": "kyuusen-en.wav",
 };
 const audioRevision = "voice-parts-v8-normal-guidance";
-const preloaded = new Map<string, HTMLAudioElement>();
-let alarmContext: AudioContext | null = null;
+const decodedAudio = new Map<string, Promise<AudioBuffer>>();
+let sharedAudioContext: AudioContext | null = null;
+let alarmOscillator: OscillatorNode | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof AudioContext === "undefined") return null;
+  sharedAudioContext ??= new AudioContext();
+  return sharedAudioContext;
+}
+
+function loadAudioBuffer(url: string): Promise<AudioBuffer> {
+  const existing = decodedAudio.get(url);
+  if (existing) return existing;
+  const context = getAudioContext();
+  if (!context) return Promise.reject(new Error("Web Audio APIを利用できません"));
+  const loading = fetch(url).then((response) => {
+    if (!response.ok) throw new Error(`音声を取得できません: ${response.status}`);
+    return response.arrayBuffer();
+  }).then((data) => context.decodeAudioData(data));
+  decodedAudio.set(url, loading);
+  return loading;
+}
 
 function preloadSpeaker(speakerId: number): void {
-  if (typeof Audio === "undefined") return;
+  if (!getAudioContext()) return;
   const filenames = new Set([...Object.values(prepared).map((value) => value.split("/").at(-1)!.replace(".wav", ".mp3")), ...Object.values(yenParts).map((value) => value.replace(".wav", ".mp3"))]);
   for (const filename of filenames) {
     const directory = Object.values(yenParts).some((value) => value.replace(".wav", ".mp3") === filename) ? "yen" : "speaker";
     const url = `/audio/${directory}/${speakerId}/${filename}?v=${audioRevision}`;
-    if (preloaded.has(url)) continue;
-    const audio = new Audio(url); audio.preload = "auto"; audio.load(); preloaded.set(url, audio);
+    void loadAudioBuffer(url).catch(() => { decodedAudio.delete(url); });
   }
 }
 
 export function createSpeechPlayer(options: { speakerId?: number } = {}): SpeechPlayer {
   let speakerId = options.speakerId ?? 3;
-  let active: HTMLAudioElement[] = [];
+  let active: AudioBufferSourceNode[] = [];
+  let generation = 0;
   preloadSpeaker(speakerId);
   return { get speakerId() { return speakerId; }, setSpeaker(next) { speakerId = Number.isInteger(next) && next > 0 ? next : 3; preloadSpeaker(speakerId); }, speak(text) {
-    for (const audio of active) { audio.pause(); audio.currentTime = 0; }
+    generation += 1;
+    const requestedGeneration = generation;
+    for (const source of active) { try { source.stop(); } catch { /* already stopped */ } }
     active = [];
     const parts = text.split(" ").filter(Boolean);
     const urls: string[] = [];
@@ -55,25 +77,39 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     } else { fallback(text); return; }
     if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile.replace(".wav", ".mp3")}?v=${audioRevision}`);
     if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.mp3?v=${audioRevision}`);
-    if (urls.length && typeof Audio !== "undefined") {
-      const playlist = urls.map((url) => { const audio = new Audio(url); audio.preload = "auto"; audio.playbackRate = 1; audio.load(); return audio; });
-      active = playlist;
-      let index = 0;
-      const play = () => { const audio = playlist[index]!; audio.onended = () => { index += 1; if (index < playlist.length) play(); else active = []; }; void audio.play().catch(() => fallback(text)); };
-      play(); return;
+    const context = getAudioContext();
+    if (urls.length && context) {
+      void Promise.all(urls.map(loadAudioBuffer)).then(async (buffers) => {
+        if (generation !== requestedGeneration) return;
+        await context.resume();
+        if (generation !== requestedGeneration) return;
+        let startAt = context.currentTime + .01;
+        const sources = buffers.map((buffer) => {
+          const source = context.createBufferSource();
+          source.buffer = buffer;
+          source.connect(context.destination);
+          source.start(startAt);
+          startAt += buffer.duration;
+          return source;
+        });
+        active = sources;
+        sources.at(-1)!.onended = () => { if (generation === requestedGeneration) active = []; };
+      }).catch(() => { if (generation === requestedGeneration) fallback(text); });
+      return;
     }
     fallback(text);
   } };
 }
 export function playOperationSound(kind: OperationSound): void {
-  if (typeof AudioContext === "undefined") return;
+  const context = getAudioContext();
+  if (!context) return;
+  void context.resume();
   if (kind === "error") {
     stopOperationSound();
-    const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain();
+    const oscillator = context.createOscillator(); const gain = context.createGain();
     oscillator.type = "square"; oscillator.frequency.value = 880; gain.gain.value = .72;
-    oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmContext = context; return;
+    oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmOscillator = oscillator; return;
   }
-  const context = new AudioContext();
   const tones: Array<readonly [number, number]> = kind === "complete" ? [[880, 0], [1320, .07]] : [[kind === "cancel" ? 330 : kind === "tap" ? 820 : 1100, 0]];
   const start = context.currentTime;
   for (const [frequency, offset] of tones) {
@@ -83,9 +119,8 @@ export function playOperationSound(kind: OperationSound): void {
     gain.gain.setValueAtTime(.0001, start + offset); gain.gain.exponentialRampToValueAtTime(kind === "tap" ? .3 : .42, start + offset + .006); gain.gain.exponentialRampToValueAtTime(.0001, start + offset + duration + .02);
     oscillator.connect(gain).connect(context.destination); oscillator.start(start + offset); oscillator.stop(start + offset + duration);
   }
-  window.setTimeout(() => void context.close(), 250);
 }
-export function stopOperationSound(): void { if (!alarmContext) return; const context = alarmContext; alarmContext = null; void context.close(); }
+export function stopOperationSound(): void { if (!alarmOscillator) return; const oscillator = alarmOscillator; alarmOscillator = null; try { oscillator.stop(); } catch { /* already stopped */ } oscillator.disconnect(); }
 function fallback(text: string): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
