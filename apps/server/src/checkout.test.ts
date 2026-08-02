@@ -216,6 +216,19 @@ describe("durable checkout API", () => {
     expect((await app.inject({ method: "GET", url: `/api/v1/sale-drafts/${draft.draftId}` })).json().state).toBe("payment");
   });
 
+  it("keeps the committed sale when post-commit printer dispatch fails", async () => {
+    const db = openDatabase();
+    const app = buildApp({ database: db, printerHost: { accept: async () => { throw new Error("printer offline"); } } });
+    apps.push(app); await installCatalog(app);
+    let draft = await startDraft(app, "register-print-failure"); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
+    const response = await finalize(app, draft, "print-failure-key");
+    expect(response.statusCode).toBe(201);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toMatchObject({ count: 1 });
+    expect(db.prepare("SELECT state,error_message FROM print_jobs WHERE job_id=?").get(response.json().printJobId)).toMatchObject({ state: "failed", error_message: "printer offline" });
+  });
+
   it("restores the completed transaction and public projection after a database reopen", async () => {
     const path = "./.checkout-reopen-test.sqlite";
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
