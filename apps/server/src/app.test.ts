@@ -138,6 +138,8 @@ describe("server foundation", () => {
     expect(response.statusCode).toBe(201);
     expect(received).toHaveLength(1);
     expect(received[0]).toMatchObject({ jobId: "http-job", documentType: "disaster-notification", source: "kishou_server" });
+    const latestAlert = await app.inject({ method: "GET", url: "/api/v1/emergency-alerts/latest" });
+    expect(latestAlert.json().alert).toMatchObject({ id: "http-job", title: "緊急情報", message: "速報", source: "kishou_server" });
     await host.close();
   });
 });

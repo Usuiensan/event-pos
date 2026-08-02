@@ -7,6 +7,15 @@ const isPrintJobState = (value: unknown): value is PrintJobState => typeof value
 
 export type PrinterHost = { accept(job: ReturnType<typeof createPrintJob>): Promise<void> };
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean };
+type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
+
+function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
+  const payload = body.payload && typeof body.payload === "object" ? body.payload as Record<string, unknown> : {};
+  const lines = Array.isArray(payload.lines) ? payload.lines.filter((line): line is string => typeof line === "string") : [];
+  const title = typeof payload.title === "string" && payload.title.trim() ? payload.title.trim() : "緊急情報";
+  const messageField = [payload.message, payload.body, payload.text].find((value) => typeof value === "string" && value.trim()) as string | undefined;
+  return { id: body.jobId, title, message: lines.length ? lines.join("\n") : messageField?.trim() ?? "防災情報を受信しました。詳細は印刷内容を確認してください。", receivedAt: new Date().toISOString(), ...(body.source ? { source: body.source } : {}) };
+}
 
 type CashRole = "operator" | "manager";
 function cashAuth(request: { headers: Record<string, string | string[] | undefined> }, required: CashRole, enabled: boolean): { ok: true; actorId?: string } | { ok: false; status: number; error: string } {
@@ -22,6 +31,7 @@ function cashAuth(request: { headers: Record<string, string | string[] | undefin
 
 export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
+  let latestEmergencyAlert: EmergencyAlert | null = null;
   app.addHook("onClose", async () => options.database.close());
   app.get("/health/live", async () => ({ status: "ok" }));
   app.get("/health/ready", async (_request, reply) => {
@@ -110,9 +120,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const body = request.body;
     if (!body?.jobId || !body.transactionId || !body.printerId || !body.documentType || !body.createdAt) return reply.code(400).send({ error: "invalid_print_job" });
     const job = createPrintJob(options.database, body);
+    if (body.documentType === "disaster-notification") latestEmergencyAlert = emergencyAlertFromPrintJob(body);
     if (options.printerHost) await options.printerHost.accept(job);
     return reply.code(201).send(job);
   });
+  app.get("/api/v1/emergency-alerts/latest", async () => ({ alert: latestEmergencyAlert }));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => {
     const job = getPrintJob(options.database, request.params.jobId);
     return job ? job : reply.code(404).send({ error: "not_found" });

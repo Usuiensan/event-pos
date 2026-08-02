@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { speakAgeCheckRequired, speakChangeReady, speakIdentityMayBeRequested, speakReceiptReady, type SpeechPlayer } from "./speech.js";
+import { speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakReceiptReady, type SpeechPlayer } from "./speech.js";
 
 function playerWithSpeak(spy: ReturnType<typeof vi.fn>): SpeechPlayer {
   return { speakerId: 114, setSpeaker: vi.fn(), speak: spy };
@@ -24,5 +24,11 @@ describe("会計完了案内", () => {
     speakAgeCheckRequired(player);
     speakIdentityMayBeRequested(player);
     expect(speak.mock.calls).toEqual([["年齢確認が必要です"], ["身分証明書の提示をお願いする場合がございます"]]);
+  });
+
+  it("緊急情報の受信を案内する", () => {
+    const speak = vi.fn();
+    speakEmergencyAlertReceived(playerWithSpeak(speak));
+    expect(speak).toHaveBeenCalledWith("緊急情報を受信しました");
   });
 });
