@@ -24,10 +24,10 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .signed-in-user { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; font-size: 16px; font-weight: 400; }
 .pos-screen.register-shell .product-grid { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 108px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; } .pos-screen.register-shell .product-grid button { min-width: 0; font-size: 18px; } .pos-screen.register-shell .product-grid span { font-size: 22px; } .pos-screen.register-shell .detail-panel { min-height: 0; height: 100%; } .pos-screen.register-shell .cart { min-height: 130px; }
 .product-thumbnail { width: 100%; min-height: 0; height: 56px; object-fit: contain; border-radius: .35rem; }
-.line-highlight { animation: line-soft-invert 1s cubic-bezier(.2, .8, .2, 1); }
+.line-highlight { animation: line-soft-invert .75s ease-out; }
 @keyframes line-soft-invert {
-  0%, 100% { filter: none; transform: scale(1); }
-  18%, 42% { filter: invert(.88) hue-rotate(180deg); transform: scale(1.006); }
+  0% { filter: invert(1) hue-rotate(180deg); transform: scale(1.006); }
+  100% { filter: none; transform: scale(1); }
 }
 .payment-controls { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; } .payment-controls label { display: grid; gap: .25rem; } .payment-controls input, .payment-controls select { padding: .55rem; font: inherit; } .age-modal small { display: block; padding: 0 1rem 1rem; color: #64748b; }
 .staff-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(430px, 48%); gap: 1rem; min-height: 150px; background: #f8fafc; border: 2px solid #334155; padding: .7rem 1rem; box-sizing: border-box; } .last-added { display: flex; flex-direction: column; justify-content: center; gap: .35rem; font-size: 24px; min-width: 0; } .last-added strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .last-added span { font-size: 20px; }

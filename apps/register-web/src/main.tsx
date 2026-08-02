@@ -50,6 +50,19 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const formatDateJa = (date: Date) => `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   const speech = useMemo<SpeechPlayer>(() => createSpeechPlayer({ speakerId }), []);
   const fileRef = useRef<HTMLInputElement>(null);
+  const highlightTimeoutRef = useRef<number | null>(null);
+  const triggerHighlight = (productCode: string) => {
+    setHighlighted(productCode);
+    if (highlightTimeoutRef.current !== null) window.clearTimeout(highlightTimeoutRef.current);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLElement>(".line-highlight").forEach((row) => {
+        row.style.animation = "none";
+        void row.offsetWidth;
+        row.style.animation = "";
+      });
+    }));
+    highlightTimeoutRef.current = window.setTimeout(() => { setHighlighted((current) => current === productCode ? null : current); highlightTimeoutRef.current = null; }, 750);
+  };
   const activeCart = cart.filter((line) => !line.cancelled);
   const staffPermissions = new Set(catalog.staffMembers?.find((member) => member.responsibleNumber === signedInResponsibleNumber)?.permissions ?? []);
   const canCancelRegistration = activeCart.length > 0;
@@ -72,7 +85,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   }, [catalog.products]);
   useEffect(() => { if (role === "staff") localStorage.setItem(storageKey("cart"), JSON.stringify(cart.map((line) => ({ productCode: line.product.productCode, quantity: line.quantity, cancelled: line.cancelled })))); }, [cart, role]);
   useEffect(() => { if (role !== "customer") return; const syncAge = () => { const value = localStorage.getItem(storageKey("age-check")); setCustomerAgeNotice(value?.startsWith("verified") ? "verified" : value?.startsWith("required") ? "required" : null); setCustomerAgeMinimum(value?.endsWith(":18") ? 18 : 20); }; syncAge(); window.addEventListener("storage", syncAge); return () => window.removeEventListener("storage", syncAge); }, [role]);
-  useEffect(() => { if (role !== "customer") return; const syncHighlight = (event: StorageEvent) => { if (event.key !== storageKey("line-highlight") || !event.newValue) return; try { const value = JSON.parse(event.newValue) as { productCode?: string }; if (!value.productCode) return; setHighlighted(value.productCode); window.setTimeout(() => setHighlighted((current) => current === value.productCode ? null : current), 1100); } catch { /* ignore malformed preview state */ } }; window.addEventListener("storage", syncHighlight); return () => window.removeEventListener("storage", syncHighlight); }, [role]);
+  useEffect(() => { if (role !== "customer") return; const syncHighlight = (event: StorageEvent) => { if (event.key !== storageKey("line-highlight") || !event.newValue) return; try { const value = JSON.parse(event.newValue) as { productCode?: string }; if (!value.productCode) return; triggerHighlight(value.productCode); } catch { /* ignore malformed preview state */ } }; window.addEventListener("storage", syncHighlight); return () => window.removeEventListener("storage", syncHighlight); }, [role]);
+  useEffect(() => () => { if (highlightTimeoutRef.current !== null) window.clearTimeout(highlightTimeoutRef.current); }, []);
   useEffect(() => {
     if (!highlighted) return;
     const row = document.querySelector<HTMLElement>(".line-highlight");
@@ -100,7 +114,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   }, [inputBuffer, paymentFinished, role, showSignIn, speech, total, catalog.products]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showError("カタログを読み込めません。初期値を表示しています"); }); }, []);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
-  const highlightLine = (productCode: string) => { setHighlighted(productCode); localStorage.setItem(storageKey("line-highlight"), JSON.stringify({ productCode, at: Date.now() })); window.setTimeout(() => setHighlighted((current) => current === productCode ? null : current), 1100); };
+  const highlightLine = (productCode: string) => { triggerHighlight(productCode); localStorage.setItem(storageKey("line-highlight"), JSON.stringify({ productCode, at: Date.now() })); };
   const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false) => {
     if (product.saleState !== "on_sale") return showError("この商品は販売停止中のため登録できません。");
     const requiredAge = ageRequirement(product);
