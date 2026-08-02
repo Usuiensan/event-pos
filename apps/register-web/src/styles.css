@@ -82,13 +82,15 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .mini-cart { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .7rem; min-height: 0; }
 .mini-cart h2 { margin: 0; padding: .65rem .75rem; background: #1f2937; color: white; font-size: 21px; }
 .mini-cart-table { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; overflow: hidden; border: 2px solid #334155; border-radius: .7rem; background: #f8fafc; }
-.mini-cart-head, .mini-cart-line { display: grid; grid-template-columns: 1.7rem 3.8rem minmax(0, 1fr) 2.4rem 4.3rem 3.5rem; gap: .15rem; align-items: center; }
-.mini-cart-head { padding: .45rem .35rem; background: #475569; color: white; font-size: 12px; font-weight: 700; }
+.mini-cart-head { padding: .45rem .55rem; background: #475569; color: white; font-size: 12px; font-weight: 700; }
 .mini-cart-lines { min-height: 0; overflow-y: auto; }
-.mini-cart-line { position: relative; min-height: 50px; padding: .35rem; border-bottom: 1px solid #cbd5e1; background: white; cursor: pointer; }
+.mini-cart-line { position: relative; display: grid; gap: .15rem; min-height: 50px; padding: .4rem .55rem; border-bottom: 1px solid #cbd5e1; background: white; cursor: pointer; }
 .mini-cart-line:nth-child(even) { background: #dff3f8; }
-.mini-cart-line strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.mini-cart-line span { overflow: hidden; text-align: right; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.mini-cart-item-name { display: flex; gap: .35rem; min-width: 0; align-items: baseline; }
+.mini-cart-item-name > span { flex: 0 0 1.8rem; color: #475569; font-size: 13px; }
+.mini-cart-item-name strong { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.mini-cart-item-detail { display: flex; flex-wrap: wrap; gap: .2rem .7rem; padding-left: 1.8rem; color: #475569; font-size: 13px; }
+.mini-cart-item-discount { color: #b45309; font-weight: 700; }
 .mini-cart-empty { display: grid; height: 100%; place-items: center; color: #64748b; }
 .mini-cart-table footer { display: flex; justify-content: space-between; padding: .65rem .75rem; border-top: 2px solid #334155; background: #fffbea; font-size: 19px; }
 .product-tabs { display: flex; gap: .35rem; align-items: flex-end; flex-wrap: wrap; z-index: 1; padding: 0 .65rem; margin-bottom: -2px; }
