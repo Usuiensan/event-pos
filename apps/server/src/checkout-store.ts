@@ -124,12 +124,13 @@ export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
 }
 
 function publicProjection(draft: SaleDraftDto): Record<string, unknown> {
+  const cashPayment = draft.payments.find((payment) => payment.kind === "cash");
   return {
     registerId: draft.registerId, version: draft.version, state: draft.state,
     lines: draft.lines.filter((line) => line.status === "active").map((line) => ({ lineId: line.lineId, productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, taxCategory: line.taxCategory, netYen: draft.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? 0 })),
     discounts: draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })),
     totals: { subtotalYen: draft.calculation.subtotalYen, discountYen: draft.calculation.discountTotalYen, taxYen: draft.calculation.taxTotalYen, totalYen: draft.calculation.totalYen },
-    payment: draft.payments.length ? { state: draft.state === "completed" ? "completed" : "entered", kinds: draft.payments.map((payment) => payment.kind) } : { state: "waiting", kinds: [] },
+    payment: draft.payments.length ? { state: draft.state === "completed" ? "completed" : "entered", kinds: draft.payments.map((payment) => payment.kind), ...(cashPayment?.tenderedYen === undefined ? {} : { tenderedYen: cashPayment.tenderedYen, changeYen: cashPayment.changeYen }) } : { state: "waiting", kinds: [] },
     ...(draft.completedTransactionId ? { transactionId: draft.completedTransactionId } : {}),
   };
 }

@@ -180,6 +180,7 @@ describe("durable checkout API", () => {
 
   it("prevents double finalization from simultaneous Enter/button requests and allocates unique references across registers", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
+    db.prepare("UPDATE inventory_balances SET on_hand=1 WHERE product_id=?").run(`${catalog.eventId}:00000001`);
     let firstDraft = await startDraft(app, "register-1"); firstDraft = await addLine(app, firstDraft); firstDraft = await addPayment(app, firstDraft, "credit", 110);
     let secondDraft = await startDraft(app, "register-2"); secondDraft = await addLine(app, secondDraft); secondDraft = await addPayment(app, secondDraft, "credit", 110);
     const [enter, button, secondRegister] = await Promise.all([finalize(app, firstDraft, "double-key"), finalize(app, firstDraft, "double-key"), finalize(app, secondDraft, "register-2-key")]);
@@ -187,6 +188,8 @@ describe("durable checkout API", () => {
     expect(secondRegister.statusCode).toBe(201);
     const references = db.prepare("SELECT public_reference FROM transactions ORDER BY public_reference").all() as Array<{ public_reference: string }>;
     expect(new Set(references.map((row) => row.public_reference)).size).toBe(2);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toMatchObject({ count: 2 });
+    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE product_id=?").get(`${catalog.eventId}:00000001`)).toMatchObject({ on_hand: -1 });
   });
 
   it("rolls every artifact back when failure is injected in the transaction", async () => {
@@ -208,7 +211,7 @@ describe("durable checkout API", () => {
     const reopened = makeApp(openDatabase(path));
     expect((await reopened.app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` })).statusCode).toBe(200);
     expect((await reopened.app.inject({ method: "GET", url: "/api/v1/registers/register-1/sale-draft" })).json()).toMatchObject({ state: "completed", completedTransactionId: result.transactionId });
-    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/customer-displays/register-1" })).json()).toMatchObject({ state: "completed", transactionId: result.transactionId });
+    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/customer-displays/register-1" })).json()).toMatchObject({ state: "completed", transactionId: result.transactionId, payment: { state: "completed", kinds: ["credit"] } });
     await reopened.app.close(); apps.splice(apps.indexOf(reopened.app), 1);
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
   });
