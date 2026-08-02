@@ -133,8 +133,8 @@ async function askChoice(message, choices) {
 async function askRequired(message) {
   while (true) {
     const answer = (await reader.question(`${message}: `)).trim();
-    if (answer) return answer;
-    console.log("空欄にはできません。事象または写真を追跡できるIDを入力してください。");
+    if (answer && !/^(?:ok|なし|none|n\/a|na|未確認)$/i.test(answer)) return answer;
+    console.log("空欄やプレースホルダーは使えません。事象または写真を追跡できる実在のIDを入力してください。");
   }
 }
 
