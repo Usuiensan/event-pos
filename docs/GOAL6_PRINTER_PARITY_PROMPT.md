@@ -32,7 +32,7 @@ dry-runでESC/POS `.bin`、canonical IR、各SHA-256、bytes長、fixture/versio
 - portable起動とWindows Serviceの無人起動、専用account、再起動、ログ、Windows再起動・sleep復帰・update後復旧を検証する。
 - POSコンテナからUSBを直接扱わず、Windows native printer-hostとのHTTP境界を維持する。
 
-## Linux x86_64/ARM64
+## Linux x86_64
 
 - 既存Debianを基準とし、`/dev/usb/lp*`と必要な双方向方式を比較する。libusbはRAW経路で必要能力が得られない場合に測定する。
 - DLE EOT等の要求bytesとraw responseを保存し、公式TM-T70II資料と照合する。
@@ -44,7 +44,7 @@ dry-runでESC/POS `.bin`、canonical IR、各SHA-256、bytes長、fixture/versio
 
 両OSで同じ`.bin`を使い、正常印刷、日本語・円記号・32桁配置、画像、QR/バーコード実読取り、feed、部分cut、同時open、紙切れ、カバー開、USB切断前/送信中/再接続、printer-host停止・再起動、OS再起動、同一jobId再送、4レジFIFOを確認する。
 
-Windows x64、Linux x86_64/ARM64でIR/bytes hashが一致し、取引番号、全文、配置、文字化け、feed、cutが同じ紙面になることを写真またはscanで判定する。OSが全bytesを受理したことと物理紙面完了を分けて記録する。
+Windows x64、Linux x86_64でIR/bytes hashが一致し、取引番号、全文、配置、文字化け、feed、cutが同じ紙面になることを写真またはscanで判定する。OSが全bytesを受理したことと物理紙面完了を分けて記録する。Linux ARM64は2026-08-03に実機未保有のため、Goal 6の正式サポート対象から除外した。
 
 実機、OS、architecture、障害シナリオへ到達できない場合は成功を推測せず、未取得証拠を明示する。片方の証拠しかない状態でGoal 6やPrinterHost対応全体を完了扱いにしない。
 

@@ -9,6 +9,6 @@
 | W-05 | Windows x64 Winspool RAW | `f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695` | 操作者報告（`windows/20260803-usb-reconnected-print/`） | 操作者実読取りOK | 操作者実読取りOK | 操作者確認済み | HRIまで読取り可・cut可 | USB切断→再接続後のv2復旧紙面受入。OS/spooler 316/316 bytes受理と紙面完了を別記録 |
 | L64-01 | Linux x86_64 `/dev/usb/lp0` | `cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d` | 操作者報告 | 操作者実読取りOK | 操作者実読取りOK | 操作者確認済み | HRIがcutで見切れ（不合格） | v1の紙面不具合。v2で是正 |
 | L64-02 | Linux x86_64 `/dev/usb/lp0` | `f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695` | 操作者報告 | 操作者実読取りOK | 操作者実読取りOK | 操作者確認済み | HRIまで読取り可・cut可 | v2正常紙面受入。状態・障害試験は未実施 |
-| LA64-01 | Linux ARM64 | 未生成 | 未取得 | 未取得 | 未取得 | 未取得 | 未取得 | 未実施 |
+| LA64-01 | Linux ARM64 | 対象外 | 対象外 | 対象外 | 対象外 | 対象外 | 対象外 | 2026-08-03にGoal 6の正式サポート・受入対象から除外 |
 
 写真・scanはこの表のIDでファイル名へ結び、取引番号・個人情報を写さない。各OSで同じ`fixture.bin`のhashを記録し、物理紙面の一致は別途人間が判定する。

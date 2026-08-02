@@ -30,7 +30,7 @@
 
 ## Goal 6: プリンター技術検証とADR決定
 
-> Windows x64、既存Debian、Linux x86_64/ARM64で共通fixtureを使うprobeを作り、TM-T70IIへのbytes送信、排他、再接続、紙切れ、カバー、USB切断、status raw response、部分カットを測定する。WindowsではRAW spooler、EPSON driver/API、OPOS、Windows Service/portableを、Linuxでは`/dev/usb/lp*`、必要な双方向方式、udev、systemdを比較する。drawer型番が提供された場合だけ安全なpulse試験を行う。OS/CPU/driver/library/USB class/実測結果を比較し、ADR-P001/P002/P003を証拠に基づき更新する。両OSの能力表、再現可能なprobe、ログ・紙面証拠が揃うまで完了扱いにしない。
+> Windows x64、既存Debian Linux x86_64で共通fixtureを使うprobeを作り、TM-T70IIへのbytes送信、排他、再接続、紙切れ、カバー、USB切断、status raw response、部分カットを測定する。WindowsではRAW spooler、EPSON driver/API、OPOS、Windows Service/portableを、Linuxでは`/dev/usb/lp*`、必要な双方向方式、udev、systemdを比較する。drawer型番が提供された場合だけ安全なpulse試験を行う。OS/CPU/driver/library/USB class/実測結果を比較し、ADR-P001/P002/P003を証拠に基づき更新する。Linux ARM64は2026-08-03に実機未保有のためGoal 6の正式サポート対象から除外する。両OSの能力表、再現可能なprobe、ログ・紙面証拠が揃うまで完了扱いにしない。
 
 ## Goal 7: Windows/Linuxプリンター実機統合
 

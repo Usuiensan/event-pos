@@ -2,7 +2,9 @@
 
 - 状態: `Research`（実機証跡待ち）
 - 決定日: 未定
-- 対象: Windows x64、Linux x86_64、Linux ARM64 の TM-T70II
+- 対象: Windows x64、Linux x86_64 の TM-T70II
+
+Linux ARM64は実機未保有のため、2026-08-03にGoal 6の正式サポート・受入対象から除外した。将来ARM64を採用する場合、P001/P002を再度`Research`として同じfixture・障害・紙面受入を実測する。
 
 ## ADR-P001 通信方式
 
@@ -42,7 +44,6 @@ USB再接続後にEPSON USB ControllerのPnP `OK`/queue raw `PrinterStatus=0`へ
 
 - Windows x64実機: driver/API/OPOS比較、紙切れ・cover・offline・USB再接続、Service account/sleep/update後の復旧。
 - Debian x86_64実機: bot service停止とdevice保持process不在の記録、DLE EOT raw応答、udev/systemd復旧。
-- ARM64実機: 同じLinux一式と紙面比較。
 - 両OS: 4レジFIFO、同一jobId、host/OS再起動、全紙面写真またはscan。
 
 P003はdrawer型番・pin・pulseが未提供のため`Pending decision`を維持する。P006は両OSのBOMと運用証跡、P009は防災経路の別ADRが揃うまで`Accepted`にしない。

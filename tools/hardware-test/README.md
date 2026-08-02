@@ -9,7 +9,7 @@ TM-T70IIへ固定fixtureを送信し、送信方式、状態取得、障害復�
 - `/dev/usb/lp*`への直接送信
 - 双方向statusが必要な場合のlibusb等
 - Debian既存環境の出力bytes・紙面・systemd・USB設定
-- Windows x64、Linux x86_64/ARM64
+- Windows x64、Linux x86_64（Goal 6の正式サポート対象）
 
 実機を接続するまで、送信方式や取得可能なstatusを確定扱いにしない。印刷成功とstatus取得失敗を別々に記録する。
 
@@ -26,7 +26,7 @@ PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii/dry-run \
 
 ## Goal 6 実機試験手順
 
-試験はWindows x64とLinux x86_64/ARM64の双方で行う。Linuxでは`/dev/usb/lp0`の番号を固定せず、まず実際のデバイス名と権限を記録する。Windowsではprinter名、driver/version、port、spooler/OPOS状態を記録する。
+試験はWindows x64とLinux x86_64の双方で行う。Linux ARM64は2026-08-03に実機未保有のため、このGoal 6の正式サポート・受入対象から除外した。Linuxでは`/dev/usb/lp0`の番号を固定せず、まず実際のデバイス名と権限を記録する。Windowsではprinter名、driver/version、port、spooler/OPOS状態を記録する。
 
 ```sh
 uname -a
