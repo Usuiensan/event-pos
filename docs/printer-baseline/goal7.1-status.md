@@ -60,3 +60,11 @@ Linuxでは同じcommandのoutput先を`linux-x86_64/<run-id>`にする。runner
 | P002 | capabilityのunknown境界は決定可能、Acceptedは証拠不足 | Windows RAWはreachableだけ、Linux DLE EOTは正常時onlineまで。Windows OPOS fault値、正式Hostでの両OS障害runが不足 |
 | P003 | 証拠不足 | BC-415M-B(6C)到着・接続図確認・Windows/Linux各1回の物理開放が未完了。既定無効を維持 |
 | P006 | 証拠不足 | 両OS本番候補のBOM、storage/router/UPS/予備機、復旧時間訓練が未取得 |
+
+## 2026-08-03 継続監査
+
+自動検証を再実行し、`pnpm check`（全workspaceのbuild・typecheck・test・PrinterHostのbuilt/deploy smoke）と、POS→PrinterHost統合テストは合格した。これにより、ビルド済み起動経路、FIFO先頭処理、同一jobIdの冪等性、結果不明の自動再送禁止は自動証拠として維持される。
+
+Windowsの未追跡run artifact `windows/20260803-070121-goal7.1-pos-feed8/pos-printerhost-evidence.json` には5種のjobId、payload hash、acceptedBytes、spoolerJobId、操作者判定が記録されている。ただし中間計・精算の`paperPhotoId`が`ok`というプレースホルダーで、紙面写真の実体・hashがなく、runの`result.md`も「再印刷承認待ち」と記載されたままである。このため、送信証拠は保存済みでも、5種の紙面受入をWindows Acceptedへ昇格させない。
+
+Linux x86_64の正式Host/systemd/POS経由run、Windows/LinuxのHost常駐無人起動、USB切断・再接続および送信後結果不明の実機証跡は未取得である。紙切れ・カバー開・ドロアー物理開放は引き続き`unknown`/未実施とする。P001/P002/P003/P006の判定は変更しない。
