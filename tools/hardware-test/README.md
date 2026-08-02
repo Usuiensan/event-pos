@@ -60,6 +60,17 @@ PowerShellでdry-run後、明示的に`-Run`を付ける。リポジトリ同梱
 
 `windows-spooler-result.json`へdriver、port、spooler job ID、acceptedBytes、queue由来raw値、write offsetを記録する。queueの`Normal`はdevice statusの`ready`を意味しないため、紙切れ/cover/offlineはEPSON APIまたはOPOS比較を含む実測まで`unknown`のままとする。
 
+印刷しない障害状態は、次の status-only probe で採取する。Windows queue/PnPのraw値、EPSON OPOS for .NETとTM-T70II componentの導入有無、OPOS logical deviceの登録有無を保存する。OPOSを導入済みでもlogical deviceが未設定なら、推測してOpen/Claimはしない。
+
+```powershell
+.\tools\hardware-test\capture-windows-status.ps1 `
+  -PrinterName 'EPSON TM-T70II Receipt' `
+  -EvidenceDir .\evidence\tm-t70ii\windows-x64-cover-open `
+  -Scenario cover-open
+```
+
+`windows-status-result.json`のqueue状態は常に`unknown`として扱う。EPSON APIまたはOPOSによるdevice-level statusを別途実測した場合だけ、raw値と対応表をADR-P002へ追加する。
+
 ### B. 切断・再接続
 
 1. printer-hostを停止し、USBを抜いた状態でprobeを実行する。デバイス未存在またはI/Oエラーは`unknown`になり、自動再送されないことを確認する。
