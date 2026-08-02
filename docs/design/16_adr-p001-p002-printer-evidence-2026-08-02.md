@@ -36,6 +36,8 @@ Windows x64ではprinterをDebianへ接続した状態でstatus-only probeを実
 
 意図的USB切断ではEPSON USB Controllerのphysical PnP entryが消失し、queue raw `PrinterStatus` は`4096`になった。再接続時のPnp `OK`/queue raw `0`との比較で、Windows native hostはUSBのreachable/unreachableを観測できる。一方、queue値単独はdevice-readyでも紙/cover/errorでもないためnormalized statusは`unknown`を維持する。raw JSONは`docs/printer-baseline/windows/20260803-usb-disconnected/`に保存した。
 
+USB再接続後にEPSON USB ControllerのPnP `OK`/queue raw `PrinterStatus=0`へ復帰したことを再確認した。これは到達可能性の復帰観測であり、device-readyの証明ではない。raw JSONは`docs/printer-baseline/windows/20260803-usb-reconnected/`に保存した。
+
 ## 未取得の必須証拠
 
 - Windows x64実機: driver/API/OPOS比較、紙切れ・cover・offline・USB再接続、Service account/sleep/update後の復旧。
