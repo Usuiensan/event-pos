@@ -36,6 +36,9 @@ describe("server foundation", () => {
     expect(database.prepare("SELECT kind,document_type,state FROM print_jobs ORDER BY created_at,kind").all()).toEqual([
       { kind: "opening", document_type: "cash-check", state: "pending" }, { kind: "interim", document_type: "cash-check", state: "pending" }, { kind: "closing", document_type: "cash-check", state: "pending" },
     ]);
+    const cashReceipts = database.prepare("SELECT canonical_ir,renderer_version,finishing_policy_id,finishing_policy_version FROM print_jobs ORDER BY created_at,kind").all() as Array<Record<string, unknown>>;
+    expect(cashReceipts).toHaveLength(3);
+    for (const receipt of cashReceipts) expect(receipt).toMatchObject({ renderer_version: "event-pos-cash-check-v2", finishing_policy_id: "receipt-partial-cut", finishing_policy_version: 2, canonical_ir: expect.stringContaining("!feed 8") });
     expect(database.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "print", sequence: 1 }, { kind: "print", sequence: 2 }, { kind: "print", sequence: 3 }]);
   });
   it("rejects duplicate closing and idempotency payload changes", async () => {

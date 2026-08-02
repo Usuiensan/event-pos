@@ -20,7 +20,7 @@
 
 Windows x64は2026-08-03 06:17 JST時点ではUSB未接続で、Hostが`reachable=false`とした証跡を`windows/20260803-goal7.1-offline/windows-status-result.json`へ保存した。その後TM-T70IIを再接続し、06:41 JSTにbuild済みPrinterHostをWindows launcherから実backendで起動、`reachable=true`を確認した。online/cover/paper/errorはWinspool RAWで取得不能のため`unknown`のままとした。
 
-`windows/20260803-064002-goal7.1-pos/`ではPOS経由の開局と現金会計初回を実機送信し、jobId、payload hash、acceptedBytes、spooler job ID、Hostログ、操作者紙面判定を保存した。ただし再印刷riskの明示承認が得られず安全停止し、中間計・精算は未送信である。また紙面から営業日がUTC由来で前日になった不具合を検出してローカル日付へ修正した。このpartial runは不合格証跡であり、Windows Acceptedへ数えない。
+`windows/20260803-064002-goal7.1-pos/`ではPOS経由の開局と現金会計初回を実機送信し、jobId、payload hash、acceptedBytes、spooler job ID、Hostログ、操作者紙面判定を保存した。ただし再印刷riskの明示承認が得られず安全停止し、中間計・精算は未送信である。紙面から営業日がUTC由来で前日になった不具合と、3行feedでは最終文字行へcut位置が掛かる不具合を検出した。営業日はローカル日付、production末尾は5行追加した8行feedへ修正した。このpartial runは不合格証跡であり、Windows Acceptedへ数えない。
 
 Linux x86_64の既存証跡機は、この作業端末のSSH/DNS設定から`services`を解決できず、release配置、systemd起動、POS統合印刷を実行していない。
 

@@ -5,7 +5,7 @@ import { applyCheckoutSchema } from "./checkout-schema.js";
 import { applyPrintingSchema } from "./printing-schema.js";
 import { ensureDefaultReceiptTemplate } from "./receipt-store.js";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
-import { bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
+import { DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { randomUUID } from "node:crypto";
 
 export type PosDatabase = DatabaseSync;
@@ -161,11 +161,11 @@ function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; b
     { kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: `${labels[check.kind]}レシート` }, { kind: "emphasis", bold: false, underline: false, invert: false },
     { kind: "align", value: "left" }, { kind: "text", value: `営業日 ${session.business_date}` }, { kind: "text", value: `現金箱 ${session.cashbox_id}` }, { kind: "rule", style: "single" },
     ...lines, { kind: "rule", style: "single" }, { kind: "row", left: "理論現金", right: yen(check.theoreticalYen) }, { kind: "row", left: "実在高", right: yen(check.countedYen) }, { kind: "row", left: "過不足", right: yen(check.differenceYen) },
-    ...(check.kind === "closing" ? [{ kind: "row" as const, left: "翌日残し", right: yen(check.carryoverYen ?? 0) }] : []), { kind: "feed", lines: 3 }, { kind: "cut", mode: "partial" },
+    ...(check.kind === "closing" ? [{ kind: "row" as const, left: "翌日残し", right: yen(check.carryoverYen ?? 0) }] : []), { kind: "feed", lines: 8 }, { kind: "cut", mode: "partial" },
   ] };
   const canonicalIr = canonicalizeReceiptDocument(document); const bytes = receiptDocumentToEscPos(document); const jobId = randomUUID(); const operationId = randomUUID();
-  db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')")
-    .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v1", bytesSha256(bytes), canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
+  db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,finishing_policy_id,finishing_policy_version,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')")
+    .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v2", bytesSha256(bytes), DEFAULT_FINISHING_POLICY.id, DEFAULT_FINISHING_POLICY.version, canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
   const sequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
   db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, jobId, check.createdAt, check.createdAt, check.createdAt);
   return jobId;

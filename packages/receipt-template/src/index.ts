@@ -274,6 +274,8 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
   return result.join("\n");
 }
 
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 2;
+
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
   - reset: true
@@ -313,5 +315,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - finish: { feedLines: 3, cutMode: partial }
+  - finish: { feedLines: 8, cutMode: partial }
 `;
+
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1 = DEFAULT_RECEIPT_TEMPLATE.replace("feedLines: 8", "feedLines: 3");
