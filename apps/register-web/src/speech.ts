@@ -23,7 +23,9 @@ const yenParts: Record<string, string> = {
   "ひゃくえん": "hyaku-en.mp3", "にひゃくえん": "nihyaku-en.mp3", "さんびゃくえん": "sanbyaku-en.mp3", "よんひゃくえん": "yonhyaku-en.mp3", "ごひゃくえん": "gohyaku-en.mp3", "ろっぴゃくえん": "roppyaku-en.mp3", "ななひゃくえん": "nanahyaku-en.mp3", "はっぴゃくえん": "happyaku-en.mp3", "きゅうひゃくえん": "kyuuhyaku-en.mp3",
   "せんえん": "sen-en.mp3", "にせんえん": "nisen-en.mp3", "さんぜんえん": "sanzen-en.mp3", "よんせんえん": "yonsen-en.mp3", "ごせんえん": "gosen-en.mp3", "ろくせんえん": "rokusen-en.mp3", "ななせんえん": "nanasen-en.mp3", "はっせんえん": "hassen-en.mp3", "きゅうせんえん": "kyuusen-en.mp3",
 };
-const audioRevision = "voice-parts-v10-speed-1.25";
+const audioRevision = "voice-parts-v11-speed-1.25-short-gap";
+// 各MP3の末尾に含まれる無音を完全に連結せず、次の音声を少し早めに開始して間を短くする。
+const partOverlapSeconds = 0.06;
 const decodedAudio = new Map<string, Promise<AudioBuffer>>();
 let sharedAudioContext: AudioContext | null = null;
 let alarmOscillator: OscillatorNode | null = null;
@@ -95,7 +97,7 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
           source.connect(gain);
           gain.connect(context.destination);
           source.start(startAt);
-          startAt += buffer.duration;
+          startAt += Math.max(0, buffer.duration - partOverlapSeconds);
           return source;
         });
         active = sources;
