@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "mode": "OPOS status-only",
+  "executedAt": "2026-08-03T04:29:08.9612707+09:00",
+  "environment": {
+    "architecture": "AMD64",
+    "platform": "Windows",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    }
+  },
+  "opos": {
+    "release": {
+      "completed": false,
+      "attempted": false
+    },
+    "close": {
+      "completed": false,
+      "attempted": false
+    },
+    "claimTimeoutMs": 3000,
+    "open": {
+      "completed": false,
+      "elapsedMs": null,
+      "attempted": false
+    },
+    "logicalName": "M-T70II",
+    "claim": {
+      "completed": false,
+      "elapsedMs": null,
+      "attempted": false
+    },
+    "api": "Microsoft.PointOfService PosExplorer / PosPrinter",
+    "properties": null
+  },
+  "delivery": {
+    "physicalPaperCompleted": null,
+    "transportAccepted": null,
+    "automaticRetry": false
+  },
+  "exception": {
+    "message": "Exception calling \".ctor\" with \"0\" argument(s): \"The type initializer for 'Microsoft.PointOfService.Management.Explorer' threw an exception.\"",
+    "type": "System.Management.Automation.MethodInvocationException"
+  }
+}

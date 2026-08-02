@@ -28,6 +28,8 @@ Windows x64ではprinterをDebianへ接続した状態でstatus-only probeを実
 
 後続の管理者権限SetupPOS確認では、OPOS logical device `M-T70II`（`PosPrinter` / `TM-T70II`）が登録済みと判明した。EPSON CheckHealthTestでこのdeviceを選択するとPOSPrinter Service dialogへ到達し、operatorが`Print`を実行した結果は`Complete`、実機紙面も正常だった。Open/Claimと診断印刷は実測できたが、同ツールはraw statusとClaim timeoutを出力しないため、cover/paper/errorやtimeout能力は未取得のままとする。JSONは`docs/printer-baseline/windows/20260803-opos-checkhealth/`に保存した。
 
+Microsoft.PointOfService APIでは、service object名`TM-T70II`をWindows PowerShell 5.1 x64でOpen 130ms、Claim(3000ms) 208msで取得できた。`DeviceEnabled=true`中の値は`State=Idle`、`CoverOpen=false`、`RecEmpty=false`、`RecNearEnd=true`、`ErrorLevel=None`、`PowerState=Unknown`だった。near-endは短いロール紙の運用状態と整合する。finallyで`DeviceEnabled=false`、Release、Closeを完了した。PowerShell 7はEPSON OPOS .NETの.NET Framework APIと互換せず、Open前に失敗するため、本方式の実行環境はWindows PowerShell 5.1 x64とする。JSONは`docs/printer-baseline/windows/20260803-opos-enabled-normal/`に保存した。
+
 同じWindows x64へUSBを再接続した直後、EPSON USB ControllerのPnP statusは`OK`、queue raw `PrinterStatus` は`0`だった。これも紙/cover/errorを区別するdevice-level statusではないため`unknown`のままとし、`docs/printer-baseline/windows/20260803-reconnected/`へ保存した。
 
 カバー開状態でも同じWindows x64のUSB PnP statusは`OK`、queue raw `PrinterStatus` は`0`で通常時と差がなかった。Winspool queue/PnP observation単独ではcoverを検出できないため、cover capabilityは`unknown`を維持する。raw JSONは`docs/printer-baseline/windows/20260803-cover-open/`に保存した。

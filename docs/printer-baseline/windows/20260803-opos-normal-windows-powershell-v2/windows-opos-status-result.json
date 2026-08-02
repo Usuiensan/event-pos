@@ -1,0 +1,48 @@
+﻿{
+    "schemaVersion":  1,
+    "mode":  "OPOS status-only",
+    "executedAt":  "2026-08-03T04:30:13.3400231+09:00",
+    "environment":  {
+                        "platform":  "Windows",
+                        "architecture":  "AMD64",
+                        "os":  {
+                                   "Caption":  "Microsoft Windows 11 Pro",
+                                   "Version":  "10.0.26200",
+                                   "BuildNumber":  "26200"
+                               }
+                    },
+    "opos":  {
+                 "release":  {
+                                 "completed":  false,
+                                 "attempted":  false
+                             },
+                 "properties":  null,
+                 "claimTimeoutMs":  3000,
+                 "close":  {
+                               "completed":  false,
+                               "attempted":  false
+                           },
+                 "open":  {
+                              "attempted":  false,
+                              "completed":  false,
+                              "elapsedMs":  null
+                          },
+                 "logicalName":  "M-T70II",
+                 "api":  "Microsoft.PointOfService PosExplorer / PosPrinter",
+                 "claim":  {
+                               "attempted":  false,
+                               "completed":  false,
+                               "elapsedMs":  null
+                           }
+             },
+    "delivery":  {
+                     "physicalPaperCompleted":  null,
+                     "automaticRetry":  false,
+                     "transportAccepted":  null
+                 },
+    "exception":  {
+                      "type":  "System.Management.Automation.RuntimeException",
+                      "message":  "OPOS PosPrinter logical device \u0027M-T70II\u0027 was not found.",
+                      "inner":  null
+                  }
+}

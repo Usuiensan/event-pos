@@ -71,6 +71,21 @@ PowerShellでdry-run後、明示的に`-Run`を付ける。リポジトリ同梱
 
 `windows-status-result.json`のqueue状態は常に`unknown`として扱う。EPSON APIまたはOPOSによるdevice-level statusを別途実測した場合だけ、raw値と対応表をADR-P002へ追加する。
 
+### Windows x64 OPOS status-only
+
+SetupPOSに登録済みのlogical deviceを、印刷なしで `Open → Claim(timeout) → status properties → Release → Close` する。`-EnableDevice`を付けた場合はproperty readのため一時的に`DeviceEnabled=true`へ設定し、必ず`false`へ戻してからRelease/Closeする。`-Run`なしではdeviceを操作しない。Claimの成否・実測時間・cover/paper/error/powerのOPOS値を保存し、例外時にも自動再送はしない。
+
+EPSON OPOS for .NET 1.14はPowerShell 7と互換ではないため、64-bit Windows PowerShell 5.1（`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`）で実行する。`TM-T70II`はPosExplorerのservice object名であり、SetupPOS UI上の表示名とは区別する。
+
+```powershell
+.\tools\hardware-test\capture-windows-opos-status.ps1 `
+  -LogicalName 'TM-T70II' `
+  -EvidenceDir .\evidence\tm-t70ii\windows-opos-normal `
+  -ClaimTimeoutMs 3000 `
+  -EnableDevice `
+  -Run
+```
+
 ### B. 切断・再接続
 
 1. printer-hostを停止し、USBを抜いた状態でprobeを実行する。デバイス未存在またはI/Oエラーは`unknown`になり、自動再送されないことを確認する。

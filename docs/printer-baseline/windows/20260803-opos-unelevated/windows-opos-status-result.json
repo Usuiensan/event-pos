@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "mode": "OPOS status-only",
+  "executedAt": "2026-08-03T04:29:35.1744463+09:00",
+  "environment": {
+    "platform": "Windows",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    },
+    "architecture": "AMD64"
+  },
+  "opos": {
+    "close": {
+      "completed": false,
+      "attempted": false
+    },
+    "release": {
+      "completed": false,
+      "attempted": false
+    },
+    "api": "Microsoft.PointOfService PosExplorer / PosPrinter",
+    "properties": null,
+    "open": {
+      "elapsedMs": null,
+      "completed": false,
+      "attempted": false
+    },
+    "claimTimeoutMs": 3000,
+    "claim": {
+      "elapsedMs": null,
+      "completed": false,
+      "attempted": false
+    },
+    "logicalName": "M-T70II"
+  },
+  "delivery": {
+    "physicalPaperCompleted": null,
+    "automaticRetry": false,
+    "transportAccepted": null
+  },
+  "exception": {
+    "type": "System.Management.Automation.MethodInvocationException",
+    "message": "Exception calling \".ctor\" with \"0\" argument(s): \"The type initializer for 'Microsoft.PointOfService.Management.Explorer' threw an exception.\"",
+    "inner": {
+      "type": "System.TypeInitializationException",
+      "message": "The type initializer for 'Microsoft.PointOfService.Management.Explorer' threw an exception.",
+      "inner": {
+        "type": "System.MissingMethodException",
+        "message": "Method not found: 'Void System.AppDomainSetup.set_ApplicationBase(System.String)'.",
+        "inner": null
+      }
+    }
+  }
+}
