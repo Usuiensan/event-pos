@@ -16,9 +16,9 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .register-shell { box-sizing: border-box; min-height: 100vh; max-width: 1100px; margin: auto; padding: 1.5rem; display: grid; gap: 1rem; } header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; } h1, h2, p { margin: 0; } h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); } h2 { margin-bottom: .6rem; } .eyebrow { color: #667085; letter-spacing: .08em; }
 .toolbar { display: flex; justify-content: flex-end; gap: .6rem; flex-wrap: wrap; } .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; } .product-grid h2 { grid-column: 1 / -1; margin-top: .5rem; } .product-grid button { display: grid; gap: .25rem; text-align: left; } .product-grid span { color: #075985; font-size: 1.25rem; } small { color: #667085; } .quick { background: #fff7ed; } .cart { background: #fff; border-radius: .8rem; padding: 1rem; box-shadow: 0 1px 4px #0002; } .cart p { padding: .35rem 0; border-bottom: 1px solid #e5e7eb; } .cart b { float: right; } .cart button { margin: .7rem .5rem 0 0; background: #1d4ed8; color: white; }
 .detail-panel { background: #f8fafc; border: 1px solid #334155; min-height: 360px; overflow: auto; } .detail-head { display: grid; grid-template-columns: 2rem 2rem 1fr 3rem 6rem 4rem 14rem; gap: .4rem; background: #1f2937; color: white; padding: .7rem; font-weight: 700; } .detail-row { display: grid; grid-template-columns: 2rem 2rem 1fr 3rem 6rem 4rem 14rem; gap: .4rem; padding: .75rem; border-bottom: 1px solid #cbd5e1; align-items: center; } .detail-row:nth-child(even) { background: #dff3f8; } .empty-detail { height: 280px; display: grid; place-items: center; color: #64748b; font-size: 1.4rem; } .line-actions { display: flex; gap: .25rem; } .line-actions button { padding: .25rem .5rem; font-size: 16px; }
-.panel-switch { display: block; width: 100%; min-height: 48px; padding: .6rem 1rem; border: 2px solid #1d4ed8; border-radius: .55rem; background: linear-gradient(#eff6ff, #bfdbfe); color: #1e3a8a; box-shadow: 0 3px 0 #1d4ed8, 0 4px 8px #0f172a33; text-align: left; font-size: 21px; font-weight: 800; }
-.panel-switch::after { content: "  ▶"; float: right; color: #1d4ed8; }
-.panel-switch:active { transform: translateY(3px); box-shadow: 0 0 0 #1d4ed8, inset 0 2px 5px #1e3a8a33; }
+.panel-switch { display: block; width: 100%; min-height: 48px; padding: .6rem 1rem; border: 2px solid #1d4ed8; border-radius: .55rem; background: #1d4ed8; color: white; box-shadow: none; text-align: left; font-size: 21px; font-weight: 800; }
+.panel-switch::after { content: "  ▶"; float: right; color: white; }
+.panel-switch:active { transform: none; box-shadow: none; background: #1e40af; }
 .pos-screen.register-shell { box-sizing: border-box; width: 100vw; height: 100vh; height: 100svh; max-width: none; min-height: 0; margin: 0; padding: 18px; overflow: hidden; grid-template-rows: 72px minmax(0, 1fr) auto; }
 .pos-screen.register-shell header { height: 72px; overflow: hidden; } .pos-screen.register-shell h2 { font-size: 24px; } .pos-screen.register-shell button, .pos-screen.register-shell select, .pos-screen.register-shell input { font-family: inherit; }
 .register-header { display: grid; grid-template-columns: 20rem minmax(0, 1fr) 15rem; align-items: center; gap: 1rem; padding: .55rem .8rem; box-sizing: border-box; border: 1px solid #94a3b8; background: #f8fafc; }
@@ -78,6 +78,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
   pointer-events: none;
 }
 .product-panel { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 1.25rem; min-height: 0; overflow: hidden; }
+.detail-view { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .7rem; min-height: 0; }
 .product-picker { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .mini-cart { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .7rem; min-height: 0; }
 .mini-cart h2 { margin: 0; padding: .65rem .75rem; background: #1f2937; color: white; font-size: 21px; }
