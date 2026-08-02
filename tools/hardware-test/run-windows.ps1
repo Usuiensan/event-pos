@@ -22,9 +22,9 @@ if ($Run) {
     environment = @{ platform = 'Windows'; architecture = $env:PROCESSOR_ARCHITECTURE; os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber) }
     fixture = @{ fixtureId = $manifest.fixtureId; fixtureVersion = $manifest.fixtureVersion; canonicalIrSha256 = $manifest.canonicalIrSha256; escposSha256 = $manifest.escposSha256; bytesLength = $manifest.bytesLength; compiler = $manifest.rendererVersion; adapterSha256 = $manifest.escposSha256; writeSha256 = $manifest.escposSha256 }
     adapter = @{ name = 'Winspool RAW WritePrinter'; printer = $printer; driver = $driver; spoolerJobId = $raw.spoolerJobId; timeoutMs = $null; mutex = 'hardware probe process only; PrinterHost mutex is not exercised' }
-    writes = @(@{ offset = 0; bytesWritten = $raw.acceptedBytes; errno = $null })
+    writes = @(@{ offset = 0; requestedBytes = $raw.requestedBytes; bytesWritten = $raw.acceptedBytes; complete = $raw.writeComplete; errno = $null })
     statusBefore = 'unknown'; statusAfter = 'unknown'; statusRequests = @(@{ mechanism = 'Get-Printer coarse queue observation'; raw = $printer; normalized = 'unknown'; reason = 'queue state alone is not device-ready proof' })
-    delivery = @{ transportAccepted = ($raw.acceptedBytes -eq (Get-Item $fixture).Length); physicalPaperCompleted = $null; automaticRetry = $false }
+    delivery = @{ transportAccepted = ($raw.writeComplete -and $raw.acceptedBytes -eq (Get-Item $fixture).Length); physicalPaperCompleted = $null; automaticRetry = $false; shortWriteHandling = 'no automatic retry; delivery certainty remains unknown' }
     physicalPaperEvidenceId = $null
   } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $EvidenceDir 'windows-spooler-result.json')
 }

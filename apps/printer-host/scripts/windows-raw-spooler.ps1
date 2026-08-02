@@ -34,7 +34,15 @@ try {
   if (-not [EventPosRawSpooler]::WritePrinter($handle, $bytes, $bytes.Length, [ref]$written)) { throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error()) }
   if (-not [EventPosRawSpooler]::EndPagePrinter($handle)) { throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error()) }
   if (-not [EventPosRawSpooler]::EndDocPrinter($handle)) { throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error()) }; $docStarted = $false
-  [pscustomobject]@{ spoolerJobId = $jobId; acceptedBytes = $written; api = 'Winspool RAW WritePrinter' } | ConvertTo-Json -Compress
+  # WritePrinter returning true does not by itself prove that every requested byte was
+  # accepted.  Do not retry a short write: the printer may already have consumed a prefix.
+  [pscustomobject]@{
+    spoolerJobId = $jobId
+    requestedBytes = $bytes.Length
+    acceptedBytes = $written
+    writeComplete = ($written -eq $bytes.Length)
+    api = 'Winspool RAW WritePrinter'
+  } | ConvertTo-Json -Compress
 } finally {
   if ($docStarted -and $handle -ne [IntPtr]::Zero) { [void][EventPosRawSpooler]::EndDocPrinter($handle) }
   if ($handle -ne [IntPtr]::Zero) { [void][EventPosRawSpooler]::ClosePrinter($handle) }
