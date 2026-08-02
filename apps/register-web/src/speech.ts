@@ -68,7 +68,7 @@ export function playOperationSound(kind: OperationSound): void {
   if (kind === "error") {
     stopOperationSound();
     const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain();
-    oscillator.type = "square"; oscillator.frequency.value = 1450; gain.gain.value = .72;
+    oscillator.type = "square"; oscillator.frequency.value = 880; gain.gain.value = .72;
     oscillator.connect(gain).connect(context.destination); oscillator.start(); alarmContext = context; return;
   }
   const context = new AudioContext();
