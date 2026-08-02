@@ -170,14 +170,24 @@ function Launcher() {
 
 function Root() {
   useEffect(() => {
-    const playTapFeedback = (event: PointerEvent) => {
+    const pointers = new Map<number, { control: HTMLElement; x: number; y: number }>();
+    const rememberTapStart = (event: PointerEvent) => {
       if (!event.isPrimary || event.button !== 0 || !(event.target instanceof Element)) return;
       const control = event.target.closest<HTMLElement>('button, input:not([type="hidden"]), select, [role="button"]');
       if (!control || control.matches(":disabled, [aria-disabled=\"true\"]")) return;
+      pointers.set(event.pointerId, { control, x: event.clientX, y: event.clientY });
+    };
+    const playTapFeedback = (event: PointerEvent) => {
+      const start = pointers.get(event.pointerId);
+      pointers.delete(event.pointerId);
+      if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10 || !start.control.contains(event.target as Node)) return;
       playOperationSound("tap");
     };
-    document.addEventListener("pointerdown", playTapFeedback, { capture: true });
-    return () => document.removeEventListener("pointerdown", playTapFeedback, { capture: true });
+    const cancelTap = (event: PointerEvent) => pointers.delete(event.pointerId);
+    document.addEventListener("pointerdown", rememberTapStart, { capture: true });
+    document.addEventListener("pointerup", playTapFeedback, { capture: true });
+    document.addEventListener("pointercancel", cancelTap, { capture: true });
+    return () => { document.removeEventListener("pointerdown", rememberTapStart, { capture: true }); document.removeEventListener("pointerup", playTapFeedback, { capture: true }); document.removeEventListener("pointercancel", cancelTap, { capture: true }); };
   }, []);
   const params = new URLSearchParams(window.location.search);
   const role = params.get("role");
