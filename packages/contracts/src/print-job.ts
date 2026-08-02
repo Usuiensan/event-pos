@@ -6,6 +6,16 @@ export type LegacyPrintJobState = (typeof legacyPrintJobStates)[number];
 export type PrintJobState = (typeof printJobStates)[number];
 export type DeliveryCertainty = "not_sent" | "accepted" | "unknown";
 export type AttemptPhase = "prepared" | "dispatch_started" | "transport_accepted" | "postcheck_completed";
+export type Capability<T> = { support: "supported"; value: T } | { support: "unsupported" } | { support: "unknown"; reason: string };
+export type PrinterStatusObservation = {
+  observedAt: string;
+  reachable: Capability<boolean>;
+  online: Capability<boolean>;
+  coverOpen: Capability<boolean>;
+  paper: Capability<"ok" | "near_end" | "empty">;
+  error: Capability<"none" | "recoverable" | "unrecoverable">;
+  raw: unknown;
+};
 
 export type PrintJob = {
   jobId: string;
@@ -50,6 +60,8 @@ export type PrinterDispatchResult = {
   payloadLength: number;
   bytesSha256: string;
   completionEvidence: "transport_accepted" | "device_postcheck_ok";
+  transportEvidence?: Record<string, string | number | boolean>;
+  statusObservation?: PrinterStatusObservation;
   duplicate: boolean;
 };
 
@@ -60,6 +72,8 @@ export type PrinterDispatchFailure = {
   notSentProven: boolean;
   retryable: boolean;
   deviceFault: boolean;
+  transportEvidence?: Record<string, string | number | boolean>;
+  statusObservation?: PrinterStatusObservation;
 };
 
 export function isPrintJobState(value: unknown): value is PrintJobState {

@@ -1,13 +1,22 @@
-import type { PrintJob } from "@event-pos/contracts";
+import type { PrintJob, PrinterStatusObservation } from "@event-pos/contracts";
 import { bytesSha256, canonicalIrToEscPos } from "@event-pos/escpos";
 
 export type PrinterStatus = "ready" | "paper_out" | "offline" | "unknown";
-export type SendReceipt = { acceptedBytes: number };
+export type SendReceipt = { acceptedBytes: number; transportEvidence: Record<string, string | number | boolean> };
 export type PrinterTransport = {
-  getStatus(): Promise<PrinterStatus>;
+  getStatus(): Promise<PrinterStatusObservation>;
   send(bytes: Uint8Array): Promise<SendReceipt>;
   close(): Promise<void>;
 };
+
+export function statusObservation(status: PrinterStatus, raw: unknown = status): PrinterStatusObservation {
+  const unknown = (reason: string) => ({ support: "unknown" as const, reason });
+  const base = { observedAt: new Date().toISOString(), coverOpen: unknown("この接続方式では未取得"), paper: unknown("この接続方式では未取得"), error: unknown("この接続方式では未取得"), raw };
+  if (status === "ready") return { ...base, reachable: { support: "supported", value: true }, online: { support: "supported", value: true } };
+  if (status === "offline") return { ...base, reachable: { support: "supported", value: false }, online: unknown("offlineの詳細は未取得") };
+  if (status === "paper_out") return { ...base, reachable: { support: "supported", value: true }, online: unknown("紙切れ時のonlineは未取得"), paper: { support: "supported", value: "empty" } };
+  return { ...base, reachable: unknown("状態取得不能"), online: unknown("状態取得不能") };
+}
 
 export class TransportSendError extends Error {
   constructor(message: string, public readonly acceptedBytes: number, public readonly notSentProven: boolean, public readonly retryable = notSentProven && acceptedBytes === 0) { super(message); }
@@ -32,12 +41,12 @@ export function renderEscPos(job: PrintJob): Uint8Array {
 export class FakeTransport implements PrinterTransport {
   readonly sent: Uint8Array[] = [];
   constructor(private readonly failure?: Error, private readonly status: PrinterStatus = failure ? "unknown" : "ready", private readonly acceptedBytes?: number) {}
-  async getStatus(): Promise<PrinterStatus> { return this.status; }
+  async getStatus(): Promise<PrinterStatusObservation> { return statusObservation(this.status); }
   async send(bytes: Uint8Array): Promise<SendReceipt> {
     if (this.failure) throw this.failure;
     const acceptedBytes = this.acceptedBytes ?? bytes.length;
     if (acceptedBytes > 0) this.sent.push(bytes.slice(0, acceptedBytes));
-    return { acceptedBytes };
+    return { acceptedBytes, transportEvidence: { adapter: "fake", acceptedBytes } };
   }
   async close(): Promise<void> {}
 }

@@ -22,6 +22,7 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   };
   app.addHook("onClose", async () => options.transport.close());
   app.get("/health/live", async () => ({ status: "ok" }));
+  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: await options.transport.getStatus() }));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => jobs.get(request.params.jobId)?.job ?? reply.code(404).send({ error: "not_found" }));
   app.post<{ Body: PrintJob }>("/api/v1/print-jobs", async (request, reply) => {
     const input = request.body; const existing = jobs.get(input?.jobId);
@@ -34,17 +35,18 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
     const hash = bytesSha256(bytes);
     return printerMutex.runExclusive(async () => {
       const status = await options.transport.getStatus();
-      if (status !== "ready") return reject(reply, job, { code: status === "unknown" ? "STATUS_UNKNOWN" : "DEVICE_FAULT", message: status === "unknown" ? "プリンター状態を取得できません" : `プリンター障害: ${status}`, acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true });
+      const ready = status.reachable.support === "supported" && status.reachable.value && status.online.support === "supported" && status.online.value && !(status.paper.support === "supported" && status.paper.value === "empty");
+      if (!ready) return reject(reply, job, { code: status.paper.support === "supported" && status.paper.value === "empty" ? "PAPER_OUT" : "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
       job = await setState(job, "sending");
       try {
         const receipt = await options.transport.send(bytes);
         if (receipt.acceptedBytes !== bytes.length) return reject(reply, job, { code: "SHORT_WRITE", message: "プリンターへのshort writeです", acceptedBytes: receipt.acceptedBytes, notSentProven: false, retryable: false, deviceFault: false });
         job = await setState(job, "completed");
-        const result: PrinterDispatchResult = { jobId: job.jobId, acceptedBytes: receipt.acceptedBytes, payloadLength: bytes.length, bytesSha256: hash, completionEvidence: "transport_accepted", duplicate: false };
+        const result: PrinterDispatchResult = { jobId: job.jobId, acceptedBytes: receipt.acceptedBytes, payloadLength: bytes.length, bytesSha256: hash, completionEvidence: "transport_accepted", transportEvidence: receipt.transportEvidence, statusObservation: status, duplicate: false };
         jobs.set(job.jobId, { job, result }); return reply.code(201).send(result);
       } catch (error) {
         const acceptedBytes = error instanceof TransportSendError ? error.acceptedBytes : 0; const notSentProven = error instanceof TransportSendError && error.notSentProven;
-        return reject(reply, job, { code: error instanceof TransportSendError ? "TRANSPORT_ERROR" : "TRANSPORT_RESULT_UNKNOWN", message: error instanceof Error ? error.message : "transport error", acceptedBytes, notSentProven, retryable: error instanceof TransportSendError && error.retryable, deviceFault: false });
+        return reject(reply, job, { code: error instanceof TransportSendError ? "TRANSPORT_ERROR" : "TRANSPORT_RESULT_UNKNOWN", message: error instanceof Error ? error.message : "transport error", acceptedBytes, notSentProven, retryable: error instanceof TransportSendError && error.retryable, deviceFault: false, statusObservation: status });
       }
     });
   });

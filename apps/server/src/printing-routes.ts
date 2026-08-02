@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
+import type { PrinterStatusObservation } from "@event-pos/contracts";
 import type { PrintJob } from "@event-pos/contracts";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 import { uuidV7 } from "./checkout-store.js";
@@ -40,7 +41,7 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   return getPrintJob(db, jobId)!;
 }
 
-export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue }): void {
+export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation> }): void {
   app.get("/api/v1/receipt-templates", async () => ({ templates: listReceiptTemplates(options.database) }));
   app.post<{ Body: { templateKey: string; sourceText: string; assets?: Parameters<typeof createReceiptTemplateDraft>[1]["assets"] } }>("/api/v1/receipt-templates", async (request, reply) => {
     try { return reply.code(201).send(createReceiptTemplateDraft(options.database, { templateKey: request.body.templateKey, sourceText: request.body.sourceText, ...(request.body.assets ? { assets: request.body.assets } : {}) })); } catch (err) { return error(reply, 400, "TEMPLATE_DRAFT_INVALID", err instanceof Error ? err.message : "template draftが不正です"); }
@@ -58,7 +59,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
 
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId/attempts", async (request, reply) => {
     if (!getPrintJob(options.database, request.params.jobId)) return error(reply, 404, "PRINT_JOB_NOT_FOUND", "印刷jobが見つかりません");
-    return { attempts: options.database.prepare("SELECT attempt_no AS attemptNo,phase,started_at AS startedAt,ended_at AS endedAt,compiler_bytes_sha256 AS compilerBytesSha256,adapter_bytes_sha256 AS adapterBytesSha256,write_bytes_sha256 AS writeBytesSha256,accepted_bytes AS acceptedBytes,result,error_code AS errorCode,error_message AS errorMessage FROM print_attempts WHERE job_id=? ORDER BY attempt_no").all(request.params.jobId) };
+    return { attempts: options.database.prepare("SELECT attempt_no AS attemptNo,phase,started_at AS startedAt,ended_at AS endedAt,compiler_bytes_sha256 AS compilerBytesSha256,adapter_bytes_sha256 AS adapterBytesSha256,write_bytes_sha256 AS writeBytesSha256,accepted_bytes AS acceptedBytes,result,error_code AS errorCode,error_message AS errorMessage,transport_evidence_json AS transportEvidenceJson,status_snapshot_json AS statusObservationJson FROM print_attempts WHERE job_id=? ORDER BY attempt_no").all(request.params.jobId) };
   });
   app.post<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId/cancel", async (request, reply) => {
     const operation = options.database.prepare("SELECT * FROM printer_operations WHERE payload_ref=?").get(request.params.jobId) as Record<string, unknown> | undefined;
@@ -73,6 +74,9 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     try { const job = insertReprint(options.database, request.params.transactionId, request.body, executorId); options.queue?.trigger(); return reply.code(201).send(job); }
     catch (err) { const code = err instanceof Error ? err.message : "REPRINT_FAILED"; return error(reply, code.includes("NOT_FOUND") ? 404 : 409, code, ({ REPRINT_INPUT_REQUIRED: "再印刷の理由と実物結果が必要です", REPRINT_RISK_APPROVAL_REQUIRED: "二重印刷リスク承認と責任者承認が必要です" } as Record<string, string>)[code] ?? code); }
   });
-  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", support: "unknown", display: "状態取得不能", observedAt: null }));
+  app.get("/api/v1/printer/status", async () => {
+    const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
+    return { printerId: "receipt-1", observation };
+  });
   app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => options.queue?.resumeDeviceFault(request.body?.actorId ?? "") ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"));
 }

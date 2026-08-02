@@ -1,9 +1,9 @@
-import type { PrinterDispatchFailure, PrinterDispatchResult, PrintJob } from "@event-pos/contracts";
+import type { PrinterDispatchFailure, PrinterDispatchResult, PrinterStatusObservation, PrintJob } from "@event-pos/contracts";
 import { bytesSha256 } from "@event-pos/escpos";
 import { uuidV7 } from "./checkout-store.js";
 import { getPrintJob, type PosDatabase } from "./db.js";
 
-export type PrinterHost = { accept(job: PrintJob): Promise<PrinterDispatchResult> };
+export type PrinterHost = { accept(job: PrintJob): Promise<PrinterDispatchResult>; getStatus?(): Promise<PrinterStatusObservation> };
 
 export class PrinterHostFailure extends Error {
   constructor(public readonly failure: PrinterDispatchFailure) { super(failure.message); }
@@ -21,9 +21,9 @@ function headOperation(db: PosDatabase): Record<string, unknown> | undefined {
   return db.prepare("SELECT * FROM printer_operations WHERE printer_id='receipt-1' AND state IN ('pending','sending','retry_wait') ORDER BY sequence LIMIT 1").get() as Record<string, unknown> | undefined;
 }
 
-function updateAttempt(db: PosDatabase, jobId: string, attemptNo: number, values: { phase?: string; endedAt?: string; adapterHash?: string; writeHash?: string; acceptedBytes?: number; result?: string; errorCode?: string; errorMessage?: string }): void {
-  db.prepare(`UPDATE print_attempts SET phase=COALESCE(?,phase),ended_at=COALESCE(?,ended_at),adapter_bytes_sha256=COALESCE(?,adapter_bytes_sha256),write_bytes_sha256=COALESCE(?,write_bytes_sha256),accepted_bytes=COALESCE(?,accepted_bytes),result=COALESCE(?,result),error_code=COALESCE(?,error_code),error_message=COALESCE(?,error_message) WHERE job_id=? AND attempt_no=?`)
-    .run(values.phase ?? null, values.endedAt ?? null, values.adapterHash ?? null, values.writeHash ?? null, values.acceptedBytes ?? null, values.result ?? null, values.errorCode ?? null, values.errorMessage ?? null, jobId, attemptNo);
+function updateAttempt(db: PosDatabase, jobId: string, attemptNo: number, values: { phase?: string; endedAt?: string; adapterHash?: string; writeHash?: string; acceptedBytes?: number; result?: string; errorCode?: string; errorMessage?: string; transportEvidence?: unknown; statusObservation?: unknown }): void {
+  db.prepare(`UPDATE print_attempts SET phase=COALESCE(?,phase),ended_at=COALESCE(?,ended_at),adapter_bytes_sha256=COALESCE(?,adapter_bytes_sha256),write_bytes_sha256=COALESCE(?,write_bytes_sha256),accepted_bytes=COALESCE(?,accepted_bytes),result=COALESCE(?,result),error_code=COALESCE(?,error_code),error_message=COALESCE(?,error_message),transport_evidence_json=COALESCE(?,transport_evidence_json),status_snapshot_json=COALESCE(?,status_snapshot_json) WHERE job_id=? AND attempt_no=?`)
+    .run(values.phase ?? null, values.endedAt ?? null, values.adapterHash ?? null, values.writeHash ?? null, values.acceptedBytes ?? null, values.result ?? null, values.errorCode ?? null, values.errorMessage ?? null, values.transportEvidence === undefined ? null : JSON.stringify(values.transportEvidence), values.statusObservation === undefined ? null : JSON.stringify(values.statusObservation), jobId, attemptNo);
 }
 
 export function recoverInterruptedPrintAttempts(db: PosDatabase, now = new Date().toISOString()): void {
@@ -112,7 +112,7 @@ export class PersistentPrintQueue {
         return this.finishFailure(operation, job, attemptNo, { code: "SHORT_WRITE_OR_HASH_MISMATCH", message: "acceptedBytesまたはbytes hashが一致しません", acceptedBytes: result.acceptedBytes, notSentProven: false, retryable: false, deviceFault: false });
       }
       transaction(this.db, () => {
-        updateAttempt(this.db, job.jobId, attemptNo, { phase: "transport_accepted", acceptedBytes: result.acceptedBytes, result: "transport_accepted" });
+        updateAttempt(this.db, job.jobId, attemptNo, { phase: "transport_accepted", acceptedBytes: result.acceptedBytes, result: "transport_accepted", transportEvidence: result.transportEvidence, statusObservation: result.statusObservation });
       });
       const endedAt = this.clock().toISOString();
       transaction(this.db, () => {
@@ -142,7 +142,7 @@ export class PersistentPrintQueue {
     const deviceBlock = failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0 && attemptNo < maxAttempts;
     const backoff = [2, 5, 15][attemptNo - 1] ?? 15; const availableAt = new Date(now.getTime() + backoff * 1000).toISOString();
     transaction(this.db, () => {
-      updateAttempt(this.db, job.jobId, attemptNo, { endedAt, acceptedBytes: failure.acceptedBytes, result: deviceBlock ? "device_fault" : safeRetry ? "retry_wait" : failure.notSentProven ? "failed" : "unknown", errorCode: failure.code, errorMessage: failure.message });
+      updateAttempt(this.db, job.jobId, attemptNo, { endedAt, acceptedBytes: failure.acceptedBytes, result: deviceBlock ? "device_fault" : safeRetry ? "retry_wait" : failure.notSentProven ? "failed" : "unknown", errorCode: failure.code, errorMessage: failure.message, transportEvidence: failure.transportEvidence, statusObservation: failure.statusObservation });
       if (deviceBlock) {
         this.db.prepare("UPDATE printer_operations SET state='retry_wait',block_reason='device_fault',available_at=?,updated_at=? WHERE operation_id=?").run(endedAt, endedAt, String(operation.operation_id));
         this.db.prepare("UPDATE print_jobs SET state='retry_wait',delivery_certainty='not_sent',updated_at=?,error_message=? WHERE job_id=?").run(endedAt, failure.message, job.jobId);

@@ -12,7 +12,7 @@ describe("LinuxRawTransport", () => {
     const dir = await mkdtemp(join(tmpdir(), "event-pos-printer-")); dirs.push(dir);
     const device = join(dir, "lp-test");
     const transport = new LinuxRawTransport(device, async () => "ready");
-    expect(await transport.getStatus()).toBe("ready");
+    expect(await transport.getStatus()).toMatchObject({ reachable: { support: "supported", value: true }, online: { support: "supported", value: true } });
     await transport.send(new TextEncoder().encode("test-bytes"));
     await transport.close();
     expect(await readFile(device, "utf8")).toBe("test-bytes");
@@ -20,6 +20,6 @@ describe("LinuxRawTransport", () => {
 
   it("converts status probe errors to unknown", async () => {
     const transport = new LinuxRawTransport("unused", async () => { throw new Error("probe failed"); });
-    expect(await transport.getStatus()).toBe("unknown");
+    expect(await transport.getStatus()).toMatchObject({ reachable: { support: "unknown" }, online: { support: "unknown" } });
   });
 });

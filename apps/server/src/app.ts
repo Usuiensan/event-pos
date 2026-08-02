@@ -154,7 +154,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
   registerCheckoutRoutes(app, { database: options.database, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), realtimeHub });
-  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}) });
+  const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
+  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}) });
   printQueue?.trigger();
   return app;
 }

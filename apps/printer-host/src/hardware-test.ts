@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   let result: "completed" | "unknown" = "unknown"; let errorMessage: string | undefined;
   try { const receipt = await transport.send(fixture.bytes); result = receipt.acceptedBytes === fixture.bytes.length ? "completed" : "unknown"; }
   catch (error) { errorMessage = error instanceof Error ? error.message : String(error); }
-  let statusAfter: string = "unknown";
+  let statusAfter = statusBefore;
   try { statusAfter = await transport.getStatus(); } finally { await transport.close(); }
   const evidence = {
     schemaVersion: 1, mode: "run", fixture: manifest, executedAt: new Date().toISOString(),

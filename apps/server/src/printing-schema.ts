@@ -60,6 +60,7 @@ export function applyPrintingSchema(db: PosDatabase): void {
       result TEXT,
       error_code TEXT,
       error_message TEXT,
+      transport_evidence_json TEXT,
       status_snapshot_json TEXT,
       UNIQUE(job_id,attempt_no),
       FOREIGN KEY(job_id) REFERENCES print_jobs(job_id)
@@ -106,6 +107,7 @@ export function applyPrintingSchema(db: PosDatabase): void {
     CREATE INDEX IF NOT EXISTS ix_printer_operations_head ON printer_operations(printer_id,sequence);
     CREATE INDEX IF NOT EXISTS ix_print_attempts_job ON print_attempts(job_id,attempt_no);
   `);
+  addColumn(db, "print_attempts", "transport_evidence_json TEXT");
   db.prepare("UPDATE print_jobs SET state=CASE state WHEN 'queued' THEN 'pending' WHEN 'accepted' THEN 'sending' WHEN 'printing' THEN 'sending' WHEN 'unknown' THEN 'failed' ELSE state END, delivery_certainty=CASE WHEN state='unknown' THEN 'unknown' WHEN state='completed' THEN 'accepted' ELSE COALESCE(delivery_certainty,'not_sent') END").run();
   db.prepare("INSERT INTO schema_migrations (version,applied_at) VALUES (5,?) ON CONFLICT(version) DO NOTHING").run(now);
   db.prepare("INSERT INTO app_metadata (key,value) VALUES ('schema_version','5') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
