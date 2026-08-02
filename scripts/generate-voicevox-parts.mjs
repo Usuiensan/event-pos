@@ -5,9 +5,9 @@ const baseUrl = process.env.VOICEVOX_URL ?? "http://localhost:50021";
 const speakers = (process.env.VOICEVOX_SPEAKERS ?? process.env.VOICEVOX_SPEAKER ?? "3,2,8,114").split(",").map(Number);
 // 100 registrations/minute leaves 600 ms per short price announcement.
 // Keep synthesis natural enough to hear while completing common short prices in that window.
-const fastSpeedScale = Number(process.env.VOICEVOX_FAST_SPEED_SCALE ?? 1.45);
+const fastSpeedScale = Number(process.env.VOICEVOX_FAST_SPEED_SCALE ?? 1.35);
 const guideSpeedScale = Number(process.env.VOICEVOX_GUIDE_SPEED_SCALE ?? 1.35);
-const moraLengthScale = Number(process.env.VOICEVOX_MORA_LENGTH_SCALE ?? 0.82);
+const moraLengthScale = Number(process.env.VOICEVOX_MORA_LENGTH_SCALE ?? 0.88);
 const parts = {
   "えん": "yen",
   "ぜろえん": "zeroen",
@@ -21,7 +21,7 @@ const parts = {
   "にせん": "nisen", "さんぜん": "sanzen", "よんせん": "yonsen", "ごせん": "gosen", "ろくせん": "rokusen", "ななせん": "nanasen", "はっせん": "hassen", "きゅうせん": "kyuusen",
   "にひゃく": "nihyaku", "さんびゃく": "sanbyaku", "よんひゃく": "yonhyaku", "ごひゃく": "gohyaku", "ろっぴゃく": "roppyaku", "ななひゃく": "nanahyaku", "はっぴゃく": "happyaku", "きゅうひゃく": "kyuuhyaku",
 };
-async function synthesize(text, speaker, fast) {
+async function synthesize(text, speaker, fast, speedScaleOverride) {
   const queryResponse = await fetch(`${baseUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`, { method: "POST" });
   if (!queryResponse.ok) throw new Error(`audio_query ${text}: ${queryResponse.status}`);
   const query = await queryResponse.json();
@@ -34,7 +34,7 @@ async function synthesize(text, speaker, fast) {
   const moraResponse = await fetch(`${baseUrl}/mora_data?speaker=${speaker}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(flatPhrases) });
   if (!moraResponse.ok) throw new Error(`mora_data ${text}: ${moraResponse.status}`);
   query.accent_phrases = await moraResponse.json();
-  query.speedScale = fast ? fastSpeedScale : guideSpeedScale;
+  query.speedScale = speedScaleOverride ?? (fast ? fastSpeedScale : guideSpeedScale);
   query.prePhonemeLength = 0.02;
   query.postPhonemeLength = 0.02;
   query.pauseLengthScale = 0.5;
@@ -63,7 +63,8 @@ for (const speaker of speakers) {
     console.log(`[${speaker}] ${text} -> ${file}.wav`);
   }
   for (const [text, file] of Object.entries(yenParts)) {
-    await fs.writeFile(path.join(yenDir, `${file}.wav`), await synthesize(text, speaker, true));
+    const isThousandYen = file === "sen-en";
+    await fs.writeFile(path.join(yenDir, `${file}.wav`), await synthesize(text, speaker, !isThousandYen, isThousandYen ? 1.15 : undefined));
     console.log(`[${speaker}] ${text} -> yen/${file}.wav`);
   }
 }

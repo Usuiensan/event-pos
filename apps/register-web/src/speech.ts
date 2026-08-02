@@ -17,7 +17,7 @@ const yenParts: Record<string, string> = {
   "ひゃくえん": "hyaku-en.wav", "にひゃくえん": "nihyaku-en.wav", "さんびゃくえん": "sanbyaku-en.wav", "よんひゃくえん": "yonhyaku-en.wav", "ごひゃくえん": "gohyaku-en.wav", "ろっぴゃくえん": "roppyaku-en.wav", "ななひゃくえん": "nanahyaku-en.wav", "はっぴゃくえん": "happyaku-en.wav", "きゅうひゃくえん": "kyuuhyaku-en.wav",
   "せんえん": "sen-en.wav", "にせんえん": "nisen-en.wav", "さんぜんえん": "sanzen-en.wav", "よんせんえん": "yonsen-en.wav", "ごせんえん": "gosen-en.wav", "ろくせんえん": "rokusen-en.wav", "ななせんえん": "nanasen-en.wav", "はっせんえん": "hassen-en.wav", "きゅうせんえん": "kyuusen-en.wav",
 };
-const audioRevision = "voice-parts-v3-flat-fast";
+const audioRevision = "voice-parts-v4-flat-moderate";
 
 export function createSpeechPlayer(options: { speakerId?: number } = {}): SpeechPlayer {
   let speakerId = options.speakerId ?? 1;
