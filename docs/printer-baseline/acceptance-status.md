@@ -32,3 +32,9 @@ Goal 7.1の自動経路は、全workspaceの`pnpm check`、built/deploy PrinterH
 Windowsの`20260803-070121-goal7.1-pos-feed8` artifactには、開局・初回・再印刷・中間計・精算のjobId、payload hash、acceptedBytes、spoolerJobIdが保存されている。一方、中間計・精算の紙面写真IDが実体写真ではないため、Windowsの5種紙面受入は証拠不足のまま保留する。Linux x86_64の正式Host/systemd/POS経由runは未取得である。
 
 したがって、Goal 7.1は自動試験・定義・運用文書を決定可能とするが、Windows/Linux双方の実機紙面・常駐起動・USB復旧を含む最終受入は未完了とする。紙切れ、カバー開、ドロアー物理開放は`unknown`/未実施として維持する。
+
+### 2026-08-03 再監査
+
+`pnpm check`（build/typecheck/test、built/deploy smokeを含む）は再実行して全件成功した。実機受入ランナーは紙面写真IDおよび未印刷・結果不明の事象記録IDに、`ok`、`なし`、`n/a`等のプレースホルダーを受け付けないよう更新済みである。これにより送信完了を紙面確認済みとして記録する誤記録を防止する。
+
+WindowsのPrinterHostは到達可能でPOSも稼働中。Linux候補ホスト（`services`、`linux-printer`、`printer-linux`）はDNS/SSH到達不可のため、Linux x86_64の正式Host/systemd/POS経由紙面runは引き続き証拠不足である。
