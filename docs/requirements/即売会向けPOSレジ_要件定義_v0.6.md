@@ -239,6 +239,8 @@ event終了時にDB、CSV、manifestおよびhashを暗号化archiveへ固定す
 
 bundleはUTF-8 BOM付きRFC 4180 CSV群と`manifest.json`で構成する。取引、明細、値引配賦、税率別集計、支払、返品・取消、在庫移動、無料配布、取り置き、現金台帳および締めを含め、各CSVに内部UUIDとevent IDを持たせる。manifestにはschema version、export ID、範囲、生成日時、行数およびSHA-256を保存する。
 
+2026-08-03のGoal 8追補では、中間計・精算確定直後の自動成果物を上記の随時CSV bundleとは別契約にした。自動成果物は、一貫したSQLite snapshot、用途別10シートを持つ単一Office Open XML `.xlsx`、`manifest.json`を同じ成果物IDで保存する。Excelを正本にせず、生成失敗で確定済みcash checkを取り消さない。状態、保存先、3ファイルのhash、失敗理由、責任者再生成は画面で確認できるものとする。詳細はADR-P005追補と`docs/design/17_goal8-backup-excel.md`を正本とする。
+
 会計ソフト固有adapterは初期実装しない。採用製品が決まった時点で変換adapterとgolden testを追加する。
 
 ## 16. 通信・セキュリティ

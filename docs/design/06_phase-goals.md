@@ -36,9 +36,9 @@
 
 > Accepted済みのADR-P001/P002/P003/P010に従い、Windows/Linux双方の本番用PrinterTransport、送信、status、排他、再接続、部分カット、drawer専用operation、service運用を実装する。取得不能状態を正常/異常と推測せずunknownとする。両OSから同じIR/bytesをTM-T70IIへ送り、紙切れ、カバー、USB切断、送信途中停止、復旧再印刷、4レジ同時投入、カット、drawer、OS/service再起動を検証する。PR-01〜07/10のA/H/R証跡がWindows/Linux双方ですべてそろったら完了とする。
 
-## Goal 8: 締め・CSV・バックアップ・復旧
+## Goal 8: 締め・Excel・バックアップ・復旧
 
-> Accepted済みのADR-P005/D014/D015/D018に従い、register/shared現金箱、準備金、cash ledger、理論現金、実在高、過不足、締め、承認付き再開、随時生成可能なcanonical CSV bundle、暗号化event archive、SQLite backup/restore、offline出力を実装する。会計ソフト固有adapterは初期対象外とする。取消・返品・調整・締め修正は元記録を変更せず追記する。CL-01〜10のA/R証跡、export再現性・manifest hash・期間抽出、archive復旧、migration/backup/強制終了/再起動試験が成功したら完了とする。
+> Accepted済みのADR-P005/D014/D015/D018と2026-08-03のGoal 8追補判断に従い、register/shared現金箱、準備金、cash ledger、理論現金、実在高、過不足、締め、承認付き再開、中間計・精算直後の単一canonical Excel帳票、manifest、SQLite backup/restore、offline出力を実装する。会計ソフト固有adapterは初期対象外とする。取消・返品・調整・締め修正は元記録を変更せず追記する。成果物失敗をcash check確定失敗へ読み替えず、安全な責任者再生成を可能にする。CL-01〜10のA/R証跡、xlsx読戻し、manifest hash、期間抽出、backup復旧、migration/強制終了/再起動試験が成功したら完了とする。暗号化event archiveなど未実装項目は別証拠が揃うまで残件とする。
 
 ## Goal 9: 総合受入・運用引渡し
 

@@ -37,6 +37,13 @@ export type CheckoutDraft = {
 export type FinalizeResult = { transactionId: string; draftId: string; draftVersion: number; publicReference: string; publicReferenceDisplay: string; totalYen: number; paymentKind: string; printJobId: string; printState: "pending"; completedAt: string };
 export type PrintJobDto = { jobId: string; transactionId: string; state: "pending" | "sending" | "completed" | "failed" | "retry_wait" | "canceled"; deliveryCertainty?: "not_sent" | "accepted" | "unknown"; errorMessage?: string; reprintNo?: number };
 export type TransactionDto = { transactionId: string; publicReferenceDisplay: string; printJob?: { jobId: string; state: string; createdAt: string } };
+export type BackupArtifactDto = {
+  artifactId: string; eventId: string; businessDate: string; cashboxId: string; cashSessionId: string; sourceCashCheckId: number;
+  triggerKind: "interim" | "closing" | "manual_regeneration"; retryOfArtifactId?: string; state: "pending" | "generating" | "completed" | "failed";
+  requestedBy?: string; requestedAt: string; startedAt?: string; completedAt?: string; outputDirectory?: string; backupPath?: string; workbookPath?: string; manifestPath?: string;
+  backupSha256?: string; workbookSha256?: string; manifestSha256?: string; snapshotLogicalSha256?: string; rowCounts?: Record<string, number>; totals?: Record<string, number>;
+  errorCode?: string; errorMessage?: string; attemptCount: number; canRegenerate: boolean;
+};
 export type CustomerProjection = {
   registerId: string;
   draftId: string;
@@ -93,6 +100,8 @@ export const checkoutApi = {
   getTransaction: (transactionId: string) => request<TransactionDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}`),
   getPrintJob: (jobId: string) => request<PrintJobDto>(`/api/v1/print-jobs/${encodeURIComponent(jobId)}`),
   createReprint: (transactionId: string, actorId: string, input: { sourcePrintJobId: string; reason: string; physicalOutcome: "printed" | "not_printed" | "indeterminate"; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } }) => request<PrintJobDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/reprints`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
+  getBackupArtifacts: (eventId: string, businessDate: string, cashboxId: string, actorId: string) => request<{ artifacts: BackupArtifactDto[] }>(`/api/v1/backup-artifacts?eventId=${encodeURIComponent(eventId)}&businessDate=${encodeURIComponent(businessDate)}&cashboxId=${encodeURIComponent(cashboxId)}`, { headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),
+  regenerateBackupArtifact: (artifactId: string, actorId: string, idempotencyKey: string) => request<BackupArtifactDto>(`/api/v1/backup-artifacts/${encodeURIComponent(artifactId)}/regenerate`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId, "idempotency-key": idempotencyKey }, body: body({}) }),
   openDrawer: (actorId: string) => request<PrintJobDto>("/api/v1/device-jobs/drawer", { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),
   getCustomerProjection: (registerId: string, terminalId = registerId) => request<CustomerProjection>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}?registerId=${encodeURIComponent(registerId)}`),
   heartbeatCustomerDisplay: (terminalId: string, registerId: string) => request<void>(`/api/v1/customer-displays/${encodeURIComponent(terminalId)}/heartbeat`, { method: "POST", body: body({ registerId }) }),

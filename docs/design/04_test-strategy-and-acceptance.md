@@ -114,3 +114,20 @@ P004、P005、D010の利用者判断は要件v0.5へ反映済みである。AC-1
 - canonical exportをevent/business day/日時範囲ごとに生成し、行数、UUID、金額、税率、manifest hash、同一snapshotからの再現性をDB正本と照合する。
 - 暗号化event archiveの作成・別場所復旧・hash照合と、期限処理runbookの対象一覧・承認証跡を検証する。実データ削除試験は隔離fixtureだけで行う。
 - 本番相当端末でローカルCAの信頼設定、HTTPS接続、HTTP拒否、Secure cookie、Origin/CSRF拒否を確認する。
+
+## 8. Goal 8 自動バックアップ・単一Excel成果物の受入状況（2026-08-03）
+
+この表はGoal 8のうち、中間計・精算直後の自動成果物機能の証拠である。Goal 8全体やCL-01〜10全体の完了判定には使わない。
+
+| ID | 受入項目 | 分類 | 証拠と判定 |
+| --- | --- | --- | --- |
+| G8-BA-01 | 中間計・精算の双方でpending登録後に自動生成 | A | `backup-artifacts.test.ts`で双方のcompletedと契機を照合。合格 |
+| G8-BA-02 | SQLite backup、単一xlsx、manifestを同一成果物IDで保存し3 hashを照合 | A | 3ファイル名、manifest artifact ID、実ファイルSHA-256を照合。合格 |
+| G8-BA-03 | xlsxの10シート、列、件数、売上・支払・税・現金合計を読戻す | A+H | ExcelJSの別readerで値、filter、freeze paneを自動照合し、実生成ブック全シートを描画確認。合格 |
+| G8-BA-04 | backupを別DBとして開き、主要件数・金額・logical hash・integrityを元DBと照合 | A | 売上、支払、在庫、現金、監査、印刷job/operationと`integrity_check=ok`を照合。合格 |
+| G8-BA-05 | 成果物失敗とcash check確定を分離 | A | 容量不足相当の`ENOSPC`注入後もclosing session/checkを保持し、成果物だけfailedを確認。合格 |
+| G8-BA-06 | 二重実行、途中停止、再起動、責任者再生成を安全に処理 | A | cash check一意制約、同一Idempotency-Key、二重worker claim、中断generatingのfailed回収と新artifact生成を照合。合格 |
+| G8-BA-07 | UIで生成待ち・生成中・成功・失敗、path、hash、理由、再生成可否を区別 | A+H | 状態formatter/API headerのunit testと実ブラウザーで4状態を確認。失敗から責任者再生成し新artifact成功まで確認。合格 |
+| G8-BA-08 | 本番保存先ACL、空き容量監視、保持期限runbook | R | 実装はPOS account専用modeを要求しWindows ACLを推測しない。導入先ごとの運用実演は未実施 |
+
+`G8-BA-01`〜`07`はcommit `3e68808`、`e7dc997`、設計commit `0ab56bf`で実装・確認した。CL-03の追記型境界、CL-09の生成者・契機・artifact ID・結果監査、CL-10のDB復元に対するA証拠を追加するが、CL各項目の総合A/R判定は変更しない。

@@ -7,6 +7,7 @@ import { ensureDefaultReceiptTemplate } from "./receipt-store.js";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { randomUUID } from "node:crypto";
+import { applyBackupArtifactSchema, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -85,6 +86,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
   }
   applyCheckoutSchema(db);
   applyPrintingSchema(db);
+  applyBackupArtifactSchema(db);
   ensureDefaultReceiptTemplate(db);
   return db;
 }
@@ -134,7 +136,7 @@ export function reopenCashSession(db: PosDatabase, sessionId: string, reason: st
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
 }
 
-export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { printJobId: string } {
+export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { printJobId: string; backupArtifact?: BackupArtifactRecord } {
   const session = db.prepare("SELECT event_id, business_date, cashbox_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(check.sessionId) as { event_id: string; business_date: string; cashbox_id: string; state: string; opening_yen: number | null } | undefined;
   if (!session) throw new Error("cash session not found");
   if (session.state !== "open") throw new Error("cash session is closed");
@@ -142,13 +144,15 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { 
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
   db.exec("BEGIN;");
   try {
-    db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt);
+    const savedCheck = db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt);
     if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
     if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'cash_check', ?, ?, ?)").run(session.event_id, check.kind, check.sessionId, JSON.stringify(check), check.createdAt);
     const printJobId = enqueueCashCheckReceipt(db, session, check);
+    const backupArtifact = check.kind === "interim" || check.kind === "closing" ? reserveAutomaticBackupArtifact(db, { eventId: session.event_id, businessDate: session.business_date, cashboxId: session.cashbox_id, cashSessionId: check.sessionId, cashCheckId: Number(savedCheck.lastInsertRowid), triggerKind: check.kind, ...(check.actorId ? { requestedBy: check.actorId } : {}), requestedAt: check.createdAt }) : undefined;
+    if (backupArtifact) db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'backup_artifact_requested','backup_artifact',?,?,?)").run(session.event_id, backupArtifact.artifactId, JSON.stringify({ artifactId: backupArtifact.artifactId, triggerKind: backupArtifact.triggerKind, requestedBy: backupArtifact.requestedBy ?? null, sourceCashCheckId: backupArtifact.sourceCashCheckId, result: "pending" }), check.createdAt);
     db.exec("COMMIT;");
-    return { ...check, printJobId };
+    return { ...check, printJobId, ...(backupArtifact ? { backupArtifact } : {}) };
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
 }
 
