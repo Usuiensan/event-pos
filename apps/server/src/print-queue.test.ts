@@ -145,6 +145,21 @@ describe("persistent print queue", () => {
     expect(db.prepare("SELECT action,detail_json FROM audit_log WHERE action='printer_resume'").get()).toMatchObject({ action: "printer_resume" });
   });
 
+  it("device faultは4回目以降もFIFO headを解除せず、責任者resumeまで待機する", async () => {
+    const db = database(); enqueueRaw(db, "blocked"); enqueueRaw(db, "later");
+    const queue = new PersistentPrintQueue(db, { accept: async () => { throw failure({ code: "PAPER_OUT", deviceFault: true }); } }); queues.push(queue);
+    expect(await queue.runOnce()).toBe("processed");
+    expect(await queue.runOnce()).toBe("blocked");
+    for (let index = 0; index < 3; index += 1) {
+      expect(queue.resumeDeviceFault("manager-1")).toBe(true);
+      await queue.waitForIdle();
+      expect(await queue.runOnce()).toBe("blocked");
+    }
+    expect(getPrintJob(db, "blocked")).toMatchObject({ state: "retry_wait", deliveryCertainty: "not_sent" });
+    expect(db.prepare("SELECT state,block_reason FROM printer_operations WHERE payload_ref='blocked'").get()).toEqual({ state: "retry_wait", block_reason: "device_fault" });
+    expect(db.prepare("SELECT state FROM printer_operations WHERE payload_ref='later'").get()).toEqual({ state: "pending" });
+  });
+
   it("prepared中断はpendingに戻し、dispatch_started中断はunknownで固定する", async () => {
     for (const [phase, expected] of [["prepared", { state: "pending", certainty: "not_sent", result: "recovered_before_dispatch" }], ["dispatch_started", { state: "failed", certainty: "unknown", result: "unknown" }]] as const) {
       const db = database(); const job = enqueueRaw(db, `job-${phase}`); const now = "2026-08-02T00:00:00.000Z";

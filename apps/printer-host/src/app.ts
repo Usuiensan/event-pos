@@ -8,6 +8,15 @@ export type StateSink = { update(jobId: string, update: PrintJobStateUpdate): Pr
 export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink };
 type Record = { job: PrintJob; result?: PrinterDispatchResult; failure?: PrinterDispatchFailure };
 
+function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
+  // The hash and length name the immutable bytes accepted by this Host.  Do not
+  // treat a reused jobId carrying different bytes as an idempotent retry.
+  return left.bytesSha256 === right.bytesSha256
+    && left.expectedBytesLength === right.expectedBytesLength
+    && left.documentType === right.documentType
+    && left.printerId === right.printerId;
+}
+
 export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   const app = Fastify({ logger: false }); const jobs = new Map<string, Record>(); const printerMutex = new AsyncMutex();
   const setState = async (job: PrintJob, state: PrintJobState, errorMessage?: string): Promise<PrintJob> => {
@@ -25,15 +34,19 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: await options.transport.getStatus() }));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => jobs.get(request.params.jobId)?.job ?? reply.code(404).send({ error: "not_found" }));
   app.post<{ Body: PrintJob }>("/api/v1/print-jobs", async (request, reply) => {
-    const input = request.body; const existing = jobs.get(input?.jobId);
-    if (existing?.result) return reply.code(200).send({ ...existing.result, duplicate: true });
-    if (existing?.failure) return reply.code(409).send({ failure: existing.failure, duplicate: true });
+    const input = request.body;
     if (!input?.jobId || !input.transactionId || !input.printerId || !input.documentType) return reply.code(400).send({ failure: { code: "INVALID_PRINT_JOB", message: "invalid print job", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false } });
-    let job: PrintJob = { ...input, state: "pending", updatedAt: new Date().toISOString() }; jobs.set(job.jobId, { job });
-    let bytes: Uint8Array;
-    try { bytes = renderEscPos(job); } catch (error) { return reject(reply, job, { code: "RENDER_FAILED", message: error instanceof Error ? error.message : "render failed", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false }); }
-    const hash = bytesSha256(bytes);
     return printerMutex.runExclusive(async () => {
+      const existing = jobs.get(input.jobId);
+      if (existing) {
+        if (!sameDispatchPayload(existing.job, input)) return reply.code(409).send({ failure: { code: "JOB_ID_PAYLOAD_MISMATCH", message: "同じjobIdに異なるpayload hashまたは長さは指定できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false } });
+        if (existing.result) return reply.code(200).send({ ...existing.result, duplicate: true });
+        if (existing.failure) return reply.code(409).send({ failure: existing.failure, duplicate: true });
+      }
+      let job: PrintJob = { ...input, state: "pending", updatedAt: new Date().toISOString() }; jobs.set(job.jobId, { job });
+      let bytes: Uint8Array;
+      try { bytes = renderEscPos(job); } catch (error) { return reject(reply, job, { code: "RENDER_FAILED", message: error instanceof Error ? error.message : "render failed", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false }); }
+      const hash = bytesSha256(bytes);
       const status = await options.transport.getStatus();
       const ready = status.reachable.support === "supported" && status.reachable.value && status.online.support === "supported" && status.online.value && !(status.paper.support === "supported" && status.paper.value === "empty");
       if (!ready) return reject(reply, job, { code: status.paper.support === "supported" && status.paper.value === "empty" ? "PAPER_OUT" : "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });

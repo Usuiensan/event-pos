@@ -4,7 +4,7 @@
 
 Goal 6時点で、`print_jobs`、`printer_operations`、`print_attempts`、POS内の`PersistentPrintQueue`、`HttpPrinterHostClient`、Windows RAW spooler probe、Linux RAW USB probeは存在した。一方で、PrinterHostの状態は単純な`ready/paper_out/offline/unknown`で、HTTP成功結果にadapter証跡・正規化statusがなく、POSの`GET /printer/status`も常にunknownだった。
 
-Goal 7ではPOSをキュー状態の唯一の正本に固定し、PrinterHost HTTPの`POST /api/v1/print-jobs`結果へ`jobId`、payload length/hash、`acceptedBytes`、`transportEvidence`、`statusObservation`、completion evidenceを含める。`jobId`再送はHostプロセス存続中に同じ結果または失敗を返し二重送信しない。Host再起動またはHTTP timeoutで結果を照会できない場合はPOSが`unknown`として隔離し、自動再送しない。
+Goal 7ではPOSをキュー状態の唯一の正本に固定し、PrinterHost HTTPの`POST /api/v1/print-jobs`結果へ`jobId`、payload length/hash、`acceptedBytes`、`transportEvidence`、`statusObservation`、completion evidenceを含める。`jobId`再送はHostプロセス存続中に同じ結果または失敗を返し二重送信しない。同じ`jobId`で`bytesSha256`、payload length、document typeまたはprinterが異なる要求は`JOB_ID_PAYLOAD_MISMATCH`として拒否する。HostはPOSの状態を非同期更新せず、証跡はこの応答を受けたPOS queueだけが保存する。Host再起動またはHTTP timeoutで結果を照会できない場合はPOSが`unknown`として隔離し、自動再送しない。
 
 `GET /api/v1/printer/status`はHostの能力付きobservationを返す。`reachable`、`online`、cover、paper、errorはそれぞれ`supported`、`unsupported`、`unknown`で表現し、未取得値を正常へ変換しない。POSの同名APIはPrinterHost設定時にこの値を中継し、未設定・到達不能時もunknownを返す。
 
@@ -12,7 +12,7 @@ Goal 7ではPOSをキュー状態の唯一の正本に固定し、PrinterHost HT
 
 POSは`printer_operations`の最小sequenceだけを処理する。attemptは`prepared`、`dispatch_started`、`transport_accepted`、`postcheck_completed`を別commitし、compiler/adapter/write hash、accepted bytes、transport evidence、status observationを保存する。`acceptedBytes === payloadLength`とhash一致は送信完了であり紙面完了ではない。
 
-0 bytes未送信をtransport証跡で証明した一時失敗だけを2/5/15秒、合計4 attemptまで再試行する。short write、timeout、Host到達不能、送信後終了は`failed/unknown`で止め、責任者が紙面を確認して再印刷を作成する。device faultは先頭jobをblockし、責任者resumeまで後続を追い越させない。再印刷は既存の取引・在庫・支払・現金台帳を変更しない。
+0 bytes未送信をtransport証跡で証明した一時失敗だけを2/5/15秒、合計4 attemptまで再試行する。short write、timeout、Host到達不能、送信後終了は`failed/unknown`で止め、責任者が紙面を確認して再印刷を作成する。device faultは再試行回数で解除せず先頭jobをblockし、責任者resumeまで後続を追い越させない。再印刷は既存の取引・在庫・支払・現金台帳を変更しない。
 
 ## OS別導入と復旧
 

@@ -54,6 +54,22 @@ describe("printer host", () => {
     expect(Array.from((transport.sent[0] ?? new Uint8Array()).slice(-5))).toEqual([0x0a, 0x0a, 0x0a, 0x1b, 0x69]);
   });
 
+  it("同時の同一jobIdを一回だけ送信し、異なるpayload hashの再利用を拒否する", async () => {
+    const transport = new FakeTransport();
+    const app = buildPrinterHost({ transport }); apps.push(app);
+    const [first, second] = await Promise.all([
+      app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-race" } }),
+      app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-race" } }),
+    ]);
+    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 201]);
+    expect(transport.sent).toHaveLength(1);
+
+    const mismatch = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-race", bytesSha256: "different-hash" } });
+    expect(mismatch.statusCode).toBe(409);
+    expect(mismatch.json()).toMatchObject({ failure: { code: "JOB_ID_PAYLOAD_MISMATCH", acceptedBytes: 0, notSentProven: true } });
+    expect(transport.sent).toHaveLength(1);
+  });
+
   it("状態不明と用紙切れをI/O前のdevice faultとして返す", async () => {
     for (const status of ["unknown", "paper_out"] as const) {
       const app = buildPrinterHost({ transport: new FakeTransport(undefined, status) }); apps.push(app);
