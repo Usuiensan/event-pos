@@ -127,6 +127,45 @@ describe("durable checkout API", () => {
     expect(overAmount.statusCode).toBe(422);
   });
 
+  it("同一の商品条件だけを同じ明細へ加算し、計算結果を更新する", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app, "register-line-merge");
+
+    draft = await addLine(app, draft, "00000001", 1);
+    const firstLineId = draft.lines[0].lineId;
+    draft = await addLine(app, draft, "00000001", 1);
+    expect(draft.lines).toHaveLength(1);
+    expect(draft.lines[0]).toMatchObject({ lineId: firstLineId, quantity: 2 });
+    expect(draft.calculation).toMatchObject({ subtotalYen: 220, discountTotalYen: 20, totalYen: 200 });
+
+    const discounted = await app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${firstLineId}`, headers: { "if-match": String(draft.version) }, payload: { manualDiscount: { kind: "amount", value: 1 } } });
+    draft = discounted.json();
+    draft = await addLine(app, draft, "00000001", 1);
+    expect(draft.lines.filter((line: any) => line.status === "active")).toHaveLength(2);
+
+    let optionDraft = await startDraft(app, "register-line-options");
+    const postOption = async (value: Record<string, unknown>) => {
+      const response = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${optionDraft.draftId}/lines`, headers: { "if-match": String(optionDraft.version) }, payload: { productCode: "00000001", productOptions: value } });
+      expect(response.statusCode).toBe(201); optionDraft = response.json();
+    };
+    await postOption({ size: "M", toppings: ["A", "B"] });
+    await postOption({ toppings: ["A", "B"], size: "M" });
+    await postOption({ size: "L", toppings: ["A", "B"] });
+    expect(optionDraft.lines).toHaveLength(2);
+    expect(optionDraft.lines[0]).toMatchObject({ quantity: 2, productOptions: { size: "M", toppings: ["A", "B"] } });
+    expect(optionDraft.lines[1]).toMatchObject({ quantity: 1, productOptions: { size: "L", toppings: ["A", "B"] } });
+
+    let priceDraft = await startDraft(app, "register-line-price");
+    priceDraft = await addLine(app, priceDraft, "00000001", 1);
+    db.prepare("UPDATE event_products SET price_incl_tax=120, tax_rate_bps=800, tax_category='inclusive_8' WHERE event_id=? AND product_code=?").run(catalog.eventId, "00000001");
+    priceDraft = await addLine(app, priceDraft, "00000001", 1);
+    expect(priceDraft.lines).toHaveLength(2);
+    expect(priceDraft.lines.map((line: any) => ({ priceInclTax: line.priceInclTax, taxRate: line.taxRate, taxCategory: line.taxCategory }))).toEqual([
+      { priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10" },
+      { priceInclTax: 120, taxRate: 8, taxCategory: "inclusive_8" },
+    ]);
+  });
+
   it("removes automatic and manual discounts only when their conditions or values are cleared", async () => {
     const { app } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app, "register-discount-removal"); draft = await addLine(app, draft, "00000001", 2);
@@ -252,6 +291,7 @@ describe("durable checkout API", () => {
     expect(completed.state).toBe("completed");
     const lineId = completed.lines[0].lineId;
     const attempts = await Promise.all([
+      app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(completed.version) }, payload: { productCode: "00000001" } }),
       app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) } }),
       app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) }, payload: { quantity: 2 } }),
       app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(completed.version) }, payload: { manualDiscount: { kind: "rate", value: 10 } } }),

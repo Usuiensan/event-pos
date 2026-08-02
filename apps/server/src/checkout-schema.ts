@@ -46,6 +46,10 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       draft_id TEXT NOT NULL,
       line_no INTEGER NOT NULL,
       product_id TEXT NOT NULL,
+      unit_price_incl_tax INTEGER,
+      tax_rate_bps INTEGER,
+      tax_category TEXT,
+      product_options_json TEXT NOT NULL DEFAULT '{}',
       quantity INTEGER NOT NULL CHECK(quantity > 0),
       source TEXT NOT NULL CHECK(source IN ('manual','scan','bundle','hold')),
       bundle_instance_id TEXT,
@@ -264,6 +268,15 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   addColumn(db, "transactions", "draft_id TEXT");
   addColumn(db, "transactions", "draft_version INTEGER");
   addColumn(db, "register_audio_settings", "system_error_volume INTEGER NOT NULL DEFAULT 100");
+  addColumn(db, "sale_draft_lines", "unit_price_incl_tax INTEGER");
+  addColumn(db, "sale_draft_lines", "tax_rate_bps INTEGER");
+  addColumn(db, "sale_draft_lines", "tax_category TEXT");
+  addColumn(db, "sale_draft_lines", "product_options_json TEXT NOT NULL DEFAULT '{}'");
+  db.exec(`UPDATE sale_draft_lines
+    SET unit_price_incl_tax = COALESCE(unit_price_incl_tax, (SELECT price_incl_tax FROM event_products WHERE product_id = sale_draft_lines.product_id)),
+        tax_rate_bps = COALESCE(tax_rate_bps, (SELECT tax_rate_bps FROM event_products WHERE product_id = sale_draft_lines.product_id)),
+        tax_category = COALESCE(tax_category, (SELECT tax_category FROM event_products WHERE product_id = sale_draft_lines.product_id))
+    WHERE unit_price_incl_tax IS NULL OR tax_rate_bps IS NULL OR tax_category IS NULL;`);
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_public_reference ON transactions(event_id, public_reference) WHERE public_reference IS NOT NULL;");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_print_jobs_original_receipt ON print_jobs(transaction_id) WHERE document_type = 'receipt';");
   db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());

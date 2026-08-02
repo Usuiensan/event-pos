@@ -15,7 +15,8 @@ import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 
 export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
-export type DraftLineDto = SaleCalculationLineInput & { productId: string; source: "manual" | "scan" | "bundle" | "hold"; bundleInstanceId?: string };
+export type ProductOptions = Record<string, unknown>;
+export type DraftLineDto = SaleCalculationLineInput & { productId: string; source: "manual" | "scan" | "bundle" | "hold"; bundleInstanceId?: string; productOptions?: ProductOptions };
 export type DraftPaymentDto = { paymentId: string; sequence: number; kind: PaymentKind; amountYen: number; tenderedYen?: number; changeYen?: number; referenceNote?: string };
 export type DraftAgeVerificationDto = { verificationId: string; minimumAge: 18 | 20; method: "appearance" | "id_visual" | "self_declaration"; result: "passed" | "failed"; confirmerId?: string; terminalId: string; verifiedAt: string };
 export type SaleDraftDto = {
@@ -87,14 +88,39 @@ function catalogFor(db: PosDatabase, eventId: string): EventCatalog {
 
 function emptyCalculation(): SaleCalculation { return { lines: [], discounts: [], taxSummaries: [], subtotalYen: 0, discountTotalYen: 0, taxTotalYen: 0, totalYen: 0 }; }
 
+function parseProductOptions(value: unknown): ProductOptions {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as ProductOptions : {};
+  } catch { return {}; }
+}
+
+function canonicalProductOptions(value: unknown): string {
+  if (value === undefined) return "{}";
+  const normalize = (candidate: unknown): unknown => {
+    if (candidate === null || typeof candidate === "string" || typeof candidate === "boolean") return candidate;
+    if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
+    if (Array.isArray(candidate)) return candidate.map(normalize);
+    if (candidate !== null && typeof candidate === "object" && Object.getPrototypeOf(candidate) === Object.prototype) {
+      return Object.fromEntries(Object.keys(candidate).sort().map((key) => [key, normalize((candidate as Record<string, unknown>)[key])]));
+    }
+    throw new CheckoutError(400, "INVALID_PRODUCT_OPTIONS", "商品オプションはJSONオブジェクトで指定してください");
+  };
+  const normalized = normalize(value);
+  if (normalized === null || typeof normalized !== "object" || Array.isArray(normalized)) throw new CheckoutError(400, "INVALID_PRODUCT_OPTIONS", "商品オプションはJSONオブジェクトで指定してください");
+  return JSON.stringify(normalized);
+}
+
 function readLines(db: PosDatabase, draftId: string): DraftLineDto[] {
-  const rows = db.prepare(`SELECT l.*, p.product_code, p.name, p.price_incl_tax, p.tax_rate_bps, p.tax_category
+  const rows = db.prepare(`SELECT l.*, p.product_code, p.name, p.price_incl_tax AS current_price_incl_tax, p.tax_rate_bps AS current_tax_rate_bps, p.tax_category AS current_tax_category
     FROM sale_draft_lines l JOIN event_products p ON p.product_id = l.product_id WHERE l.draft_id = ? ORDER BY l.line_no`).all(draftId) as Array<Record<string, unknown>>;
   return rows.map((row) => ({
     lineId: String(row.line_id), lineNo: Number(row.line_no), productId: String(row.product_id), productCode: String(row.product_code), name: String(row.name),
-    priceInclTax: Number(row.price_incl_tax), taxRate: Number(row.tax_rate_bps) / 100, taxCategory: row.tax_category as DraftLineDto["taxCategory"], quantity: Number(row.quantity),
+    priceInclTax: Number(row.unit_price_incl_tax ?? row.current_price_incl_tax), taxRate: Number(row.tax_rate_bps ?? row.current_tax_rate_bps) / 100, taxCategory: (row.tax_category ?? row.current_tax_category) as DraftLineDto["taxCategory"], quantity: Number(row.quantity),
     status: row.status as DraftLineDto["status"], source: row.source as DraftLineDto["source"],
     ...(row.bundle_instance_id ? { bundleInstanceId: String(row.bundle_instance_id) } : {}),
+    ...(row.product_options_json && row.product_options_json !== "{}" ? { productOptions: parseProductOptions(row.product_options_json) } : {}),
     ...(row.manual_discount_kind ? { manualDiscount: { kind: row.manual_discount_kind as ManualDiscountInput["kind"], value: Number(row.manual_discount_value) } } : {}),
   }));
 }
@@ -191,17 +217,36 @@ function productByCode(db: PosDatabase, eventId: string, productCode: string): R
   return row;
 }
 
-function insertLine(db: PosDatabase, draftId: string, productId: string, quantity: number, source: DraftLineDto["source"], bundleInstanceId: string | null, now: string): void {
+function insertLine(db: PosDatabase, draftId: string, product: Record<string, unknown>, quantity: number, source: DraftLineDto["source"], bundleInstanceId: string | null, productOptionsJson: string, now: string): void {
   if (!Number.isSafeInteger(quantity) || quantity < 1) throw new CheckoutError(400, "INVALID_QUANTITY", "数量は1以上の整数で指定してください");
   const next = db.prepare("SELECT COALESCE(MAX(line_no), 0) + 1 AS next FROM sale_draft_lines WHERE draft_id = ?").get(draftId) as { next: number };
-  db.prepare("INSERT INTO sale_draft_lines (line_id,draft_id,line_no,product_id,quantity,source,bundle_instance_id,status,created_at) VALUES (?,?,?,?,?,?,?,'active',?)").run(uuidV7(), draftId, next.next, productId, quantity, source, bundleInstanceId, now);
+  db.prepare(`INSERT INTO sale_draft_lines (line_id,draft_id,line_no,product_id,unit_price_incl_tax,tax_rate_bps,tax_category,product_options_json,quantity,source,bundle_instance_id,status,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,'active',?)`).run(uuidV7(), draftId, next.next, String(product.product_id), Number(product.price_incl_tax), Number(product.tax_rate_bps), String(product.tax_category), productOptionsJson, quantity, source, bundleInstanceId, now);
 }
 
-export function addDraftLine(db: PosDatabase, draftId: string, version: number, input: { productCode: string; quantity?: number; source?: "manual" | "scan" }): SaleDraftDto {
+function addToMatchingLine(db: PosDatabase, draftId: string, product: Record<string, unknown>, quantity: number, productOptionsJson: string): boolean {
+  if (!Number.isSafeInteger(quantity) || quantity < 1) throw new CheckoutError(400, "INVALID_QUANTITY", "数量は1以上の整数で指定してください");
+  const matching = db.prepare(`SELECT line_id, quantity FROM sale_draft_lines
+    WHERE draft_id=? AND status='active' AND bundle_instance_id IS NULL
+      AND product_id=? AND unit_price_incl_tax=? AND tax_rate_bps=? AND tax_category=?
+      AND manual_discount_kind IS NULL AND manual_discount_value IS NULL AND product_options_json=?
+    ORDER BY line_no LIMIT 1`).get(draftId, String(product.product_id), Number(product.price_incl_tax), Number(product.tax_rate_bps), String(product.tax_category), productOptionsJson) as { line_id: string; quantity: number } | undefined;
+  if (!matching) return false;
+  const nextQuantity = Number(matching.quantity) + quantity;
+  if (!Number.isSafeInteger(nextQuantity)) throw new CheckoutError(400, "INVALID_QUANTITY", "数量が上限を超えています");
+  db.prepare("UPDATE sale_draft_lines SET quantity=? WHERE line_id=?").run(nextQuantity, matching.line_id);
+  return true;
+}
+
+export function addDraftLine(db: PosDatabase, draftId: string, version: number, input: { productCode: string; quantity?: number; source?: "manual" | "scan"; productOptions?: ProductOptions }): SaleDraftDto {
   return immediate(db, () => {
     const row = draftRow(db, draftId); assertMutable(row, version);
     const product = productByCode(db, String(row.event_id), input.productCode);
-    insertLine(db, draftId, String(product.product_id), input.quantity ?? 1, input.source ?? "manual", null, new Date().toISOString());
+    const quantity = input.quantity ?? 1;
+    const productOptionsJson = canonicalProductOptions(input.productOptions);
+    if (!addToMatchingLine(db, draftId, product, quantity, productOptionsJson)) {
+      insertLine(db, draftId, product, quantity, input.source ?? "manual", null, productOptionsJson, new Date().toISOString());
+    }
     bump(db, draftId, version, "editing");
     return updateProjection(db, draftId);
   });
@@ -214,7 +259,7 @@ export function addDraftBundle(db: PosDatabase, draftId: string, version: number
     if (!entry?.components) throw new CheckoutError(404, "BUNDLE_NOT_FOUND", "セットが見つかりません");
     const products = entry.components.map((component) => ({ component, product: productByCode(db, String(row.event_id), component.productCode) }));
     const instance = uuidV7(); const now = new Date().toISOString();
-    for (const { component, product } of products) insertLine(db, draftId, String(product.product_id), component.quantity, "bundle", instance, now);
+    for (const { component, product } of products) insertLine(db, draftId, product, component.quantity, "bundle", instance, "{}", now);
     bump(db, draftId, version, "editing");
     return updateProjection(db, draftId);
   });

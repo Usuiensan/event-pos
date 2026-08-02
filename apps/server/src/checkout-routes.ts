@@ -81,7 +81,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
     try { return draftReply(reply, getSaleDraft(options.database, request.params.draftId)); } catch (error) { return sendError(reply, error); }
   });
 
-  app.post<{ Params: { draftId: string }; Body: { productCode: string; quantity?: number; source?: "manual" | "scan" } }>("/api/v1/sale-drafts/:draftId/lines", async (request, reply) => {
+  app.post<{ Params: { draftId: string }; Body: { productCode: string; quantity?: number; source?: "manual" | "scan"; productOptions?: Record<string, unknown> } }>("/api/v1/sale-drafts/:draftId/lines", async (request, reply) => {
     try { const draft = addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
