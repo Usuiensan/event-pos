@@ -1,0 +1,100 @@
+Aug 03 03:30:48 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:30:48 services systemd[1]: discord-printer-bot.service: Consumed 2min 20.407s CPU time, 625.8M memory peak.
+Aug 03 03:30:49 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:30:49 services npm[11926]: > discord-printer-bot@0.1.0 start
+Aug 03 03:30:49 services npm[11926]: > node src/index.js
+Aug 03 03:30:51 services npm[11949]: Logged in as TM-T70II#1255
+Aug 03 03:30:51 services npm[11949]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:30:51 services npm[11949]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:30:51 services npm[11949]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:30:51 services npm[11949]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:30:51 services npm[11949]: OPOS status: disabled
+Aug 03 03:30:51 services npm[11949]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:31:17 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:31:17 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:31:17 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:17 services systemd[1]: discord-printer-bot.service: Consumed 1.023s CPU time, 93.9M memory peak.
+Aug 03 03:31:17 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:18 services npm[12868]: > discord-printer-bot@0.1.0 start
+Aug 03 03:31:18 services npm[12868]: > node src/index.js
+Aug 03 03:31:19 services npm[12891]: Logged in as TM-T70II#1255
+Aug 03 03:31:19 services npm[12891]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:31:19 services npm[12891]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:31:19 services npm[12891]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:31:19 services npm[12891]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:31:19 services npm[12891]: OPOS status: disabled
+Aug 03 03:31:19 services npm[12891]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:31:43 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:31:43 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:31:43 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:43 services systemd[1]: discord-printer-bot.service: Consumed 1.005s CPU time, 91.1M memory peak.
+Aug 03 03:31:44 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:31:44 services npm[13813]: > discord-printer-bot@0.1.0 start
+Aug 03 03:31:44 services npm[13813]: > node src/index.js
+Aug 03 03:31:46 services npm[13830]: Logged in as TM-T70II#1255
+Aug 03 03:31:46 services npm[13830]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:31:46 services npm[13830]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:31:46 services npm[13830]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:31:46 services npm[13830]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:31:46 services npm[13830]: OPOS status: disabled
+Aug 03 03:31:46 services npm[13830]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:35:51 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:35:51 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:35:51 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:35:51 services systemd[1]: discord-printer-bot.service: Consumed 1.098s CPU time, 90.6M memory peak.
+Aug 03 03:35:52 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:35:52 services npm[14854]: > discord-printer-bot@0.1.0 start
+Aug 03 03:35:52 services npm[14854]: > node src/index.js
+Aug 03 03:35:54 services npm[14872]: Logged in as TM-T70II#1255
+Aug 03 03:35:54 services npm[14872]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:35:54 services npm[14872]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:35:54 services npm[14872]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:35:54 services npm[14872]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:35:54 services npm[14872]: OPOS status: disabled
+Aug 03 03:35:54 services npm[14872]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:36:49 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:36:54 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:36:59 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:36:59 services npm[14872]: Ignored own bot message 1533544159045095645 from TM-T70II#1255
+Aug 03 03:37:04 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:09 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:14 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:19 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:24 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:29 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:34 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:39 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:44 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:49 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:54 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:37:59 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:04 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:09 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:14 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:19 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:24 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:29 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:34 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:39 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:44 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:49 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:54 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:38:59 services npm[14872]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:39:04 services npm[14872]: Ignored own bot message 1533544684389929061 from TM-T70II#1255
+Aug 03 03:39:29 services npm[14872]: Queued message print 1533544789222363156 from 情報bot#3544; pending=1
+Aug 03 03:39:29 services npm[14872]: Starting message print 1533544789222363156; pending=1
+Aug 03 03:39:29 services npm[14872]: Linux USB printer status check failed: EBUSY: resource busy or locked, open '/dev/usb/lp0'
+Aug 03 03:39:29 services npm[14872]: Printer busy or not ready; retrying 1/7 in 5000ms: プリンタエラー: オフライン
+Aug 03 03:39:30 services npm[14872]: Ignored own bot message 1533544791567237130 from TM-T70II#1255
+Aug 03 03:39:36 services npm[14872]: Printed message 1533544789222363156 from 情報bot#3544
+Aug 03 03:39:36 services npm[14872]: Printer monitor paused for 5000ms after print completion
+Aug 03 03:39:36 services npm[14872]: Finished message print 1533544789222363156; pending=0
+Aug 03 03:39:54 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:09 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:24 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:24 services npm[14872]: Ignored own bot message 1533545018931941649 from TM-T70II#1255
+Aug 03 03:40:34 services systemd[1]: Stopping discord-printer-bot.service - Discord Printer Bot...
+Aug 03 03:40:34 services systemd[1]: discord-printer-bot.service: Deactivated successfully.
+Aug 03 03:40:34 services systemd[1]: Stopped discord-printer-bot.service - Discord Printer Bot.
+Aug 03 03:40:34 services systemd[1]: discord-printer-bot.service: Consumed 1.488s CPU time, 106.6M memory peak.
+Aug 03 03:40:36 services systemd[1]: Started discord-printer-bot.service - Discord Printer Bot.

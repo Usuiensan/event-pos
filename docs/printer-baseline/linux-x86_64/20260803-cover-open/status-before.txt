@@ -1,0 +1,23 @@
+* discord-printer-bot.service - Discord Printer Bot
+     Loaded: loaded (/etc/systemd/system/discord-printer-bot.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-08-03 03:35:52 JST; 4min 41s ago
+ Invocation: 9965411c8da9426da1dcc8f2d073612f
+   Main PID: 14854 (npm start)
+      Tasks: 23 (limit: 16932)
+     Memory: 81.6M (peak: 106.6M)
+        CPU: 1.477s
+     CGroup: /system.slice/discord-printer-bot.service
+             |-14854 "npm start"
+             |-14871 sh -c "node src/index.js"
+             `-14872 node src/index.js
+
+Aug 03 03:39:29 services npm[14872]: Linux USB printer status check failed: EBUSY: resource busy or locked, open '/dev/usb/lp0'
+Aug 03 03:39:29 services npm[14872]: Printer busy or not ready; retrying 1/7 in 5000ms: プリンタエラー: オフライン
+Aug 03 03:39:30 services npm[14872]: Ignored own bot message 1533544791567237130 from TM-T70II#1255
+Aug 03 03:39:36 services npm[14872]: Printed message 1533544789222363156 from 情報bot#3544
+Aug 03 03:39:36 services npm[14872]: Printer monitor paused for 5000ms after print completion
+Aug 03 03:39:36 services npm[14872]: Finished message print 1533544789222363156; pending=0
+Aug 03 03:39:54 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:09 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:24 services npm[14872]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:40:24 services npm[14872]: Ignored own bot message 1533545018931941649 from TM-T70II#1255

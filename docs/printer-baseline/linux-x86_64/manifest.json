@@ -16,6 +16,30 @@
       "directory": "20260803-0040",
       "result": "fixture v2 accepted 316 bytes; DLE EOT normal response; operator confirmed readable barcode HRI and all required paper elements",
       "status": "normal paper acceptance passed; fault states unknown"
+    },
+    {
+      "id": "L64-S01",
+      "directory": "20260803-cover-open",
+      "scenario": "cover open",
+      "result": "all DLE EOT requests timed out/EAGAIN; normalized unknown; no fixture bytes sent"
+    },
+    {
+      "id": "L64-S02",
+      "directory": "20260803-paper-out",
+      "scenario": "paper out",
+      "result": "all DLE EOT requests timed out/EAGAIN; normalized unknown; no fixture bytes sent"
+    },
+    {
+      "id": "L64-S03",
+      "directory": "20260803-usb-disconnected",
+      "scenario": "USB disconnected",
+      "result": "stale /dev/usb/lp0 node returned ENODEV; normalized unknown; no fixture bytes sent"
+    },
+    {
+      "id": "L64-S04",
+      "directory": "20260803-usb-reconnected",
+      "scenario": "USB reconnected",
+      "result": "DLE EOT returned 16/12/12/12 and normalized ready; bot service active/running"
     }
   ]
 }

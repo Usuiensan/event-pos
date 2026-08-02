@@ -12,6 +12,7 @@ const devicePath = process.env.PRINTER_DEVICE;
 const evidenceDir = process.env.PRINTER_EVIDENCE_DIR;
 const fixturePath = process.env.PRINTER_FIXTURE_PATH;
 const timeoutMs = Number(process.env.PRINTER_STATUS_TIMEOUT_MS ?? 1000);
+const statusOnly = process.env.PRINTER_STATUS_ONLY === "true";
 if (!devicePath || !evidenceDir || !fixturePath) throw new Error("PRINTER_DEVICE, PRINTER_EVIDENCE_DIR, and PRINTER_FIXTURE_PATH are required");
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -53,7 +54,7 @@ const bytes = await readFile(fixturePath);
 const writes = [];
 const statusBefore = await observation();
 let result = "unknown"; let errorMessage;
-try {
+if (!statusOnly) try {
   const handle = await open(devicePath, "w");
   let offset = 0;
   try {
@@ -72,10 +73,10 @@ const evidence = {
   environment: { platform: platform(), kernel: release(), architecture: arch(), osRelease: await readFile("/etc/os-release", "utf8") },
   fixture: { source: fixturePath, escposSha256: sha256(bytes), bytesLength: bytes.length },
   adapter: { name: "Linux RAW /dev/usb/lp*", devicePath, timeoutMs, mutex: "existing bot service stopped; no device holders before run", writeSha256: sha256(bytes) },
-  statusBefore, statusAfter, normalizedStatus: { before: normalize(statusBefore), after: normalize(statusAfter) }, writes, result, physicalPaperEvidenceId: null,
-  delivery: { transportAccepted: result === "completed", physicalPaperCompleted: null, automaticRetry: false, note: "送信可能性がある失敗は自動再送しない" },
+  statusOnly, statusBefore, statusAfter, normalizedStatus: { before: normalize(statusBefore), after: normalize(statusAfter) }, writes, result: statusOnly ? "status_observed" : result, physicalPaperEvidenceId: null,
+  delivery: { transportAccepted: statusOnly ? null : result === "completed", physicalPaperCompleted: null, automaticRetry: false, note: statusOnly ? "status-only: fixture bytes were not sent" : "送信可能性がある失敗は自動再送しない" },
   ...(errorMessage ? { errorMessage } : {}),
 };
 await writeFile(join(evidenceDir, "linux-raw-result.json"), `${JSON.stringify(evidence, null, 2)}\n`);
-console.log(JSON.stringify({ result, evidencePath: join(evidenceDir, "linux-raw-result.json"), bytesSha256: evidence.fixture.escposSha256 }));
-if (result !== "completed") process.exitCode = 1;
+console.log(JSON.stringify({ result: evidence.result, evidencePath: join(evidenceDir, "linux-raw-result.json"), bytesSha256: evidence.fixture.escposSha256 }));
+if (!statusOnly && result !== "completed") process.exitCode = 1;

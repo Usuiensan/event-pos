@@ -1,0 +1,23 @@
+* discord-printer-bot.service - Discord Printer Bot
+     Loaded: loaded (/etc/systemd/system/discord-printer-bot.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-08-03 03:44:21 JST; 48s ago
+ Invocation: 9cb6e355a60a47348a093a0c6492dd0d
+   Main PID: 19688 (npm start)
+      Tasks: 23 (limit: 16932)
+     Memory: 52.7M (peak: 95.6M)
+        CPU: 1.005s
+     CGroup: /system.slice/discord-printer-bot.service
+             |-19688 "npm start"
+             |-19705 sh -c "node src/index.js"
+             `-19706 node src/index.js
+
+Aug 03 03:44:22 services npm[19706]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:44:22 services npm[19706]: OPOS status: disabled
+Aug 03 03:44:22 services npm[19706]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:44:22 services npm[19706]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:44:27 services npm[19706]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:44:32 services npm[19706]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:44:33 services npm[19706]: Ignored own bot message 1533546061518606486 from TM-T70II#1255
+Aug 03 03:44:37 services npm[19706]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:44:42 services npm[19706]: Linux USB printer status check failed: ENODEV: no such device, open '/dev/usb/lp0'
+Aug 03 03:44:48 services npm[19706]: Ignored own bot message 1533546124810653827 from TM-T70II#1255

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "executedAt": "2026-08-02T18:41:40.563Z",
+  "environment": {
+    "platform": "linux",
+    "kernel": "7.0.14-4-pve",
+    "architecture": "x64",
+    "osRelease": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nDEBIAN_VERSION_FULL=13.5\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n"
+  },
+  "fixture": {
+    "source": "/tmp/event-pos-goal6-20260803-v2/fixture.bin",
+    "escposSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695",
+    "bytesLength": 316
+  },
+  "adapter": {
+    "name": "Linux RAW /dev/usb/lp*",
+    "devicePath": "/dev/usb/lp0",
+    "timeoutMs": 1000,
+    "mutex": "existing bot service stopped; no device holders before run",
+    "writeSha256": "f0ff616649668fb7972837ab1134a1996e437ce2a5b43f0d60b4cd7af9ddc695"
+  },
+  "statusOnly": true,
+  "statusBefore": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "statusAfter": [
+    {
+      "requestHex": "100401",
+      "responseHex": "16",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100402",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100403",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    },
+    {
+      "requestHex": "100404",
+      "responseHex": "12",
+      "normalized": "unknown",
+      "timeoutMs": 1000
+    }
+  ],
+  "normalizedStatus": {
+    "before": "ready",
+    "after": "ready"
+  },
+  "writes": [],
+  "result": "status_observed",
+  "physicalPaperEvidenceId": null,
+  "delivery": {
+    "transportAccepted": null,
+    "physicalPaperCompleted": null,
+    "automaticRetry": false,
+    "note": "status-only: fixture bytes were not sent"
+  }
+}

@@ -14,6 +14,8 @@ Windows候補は同梱のWinspool RAW `WritePrinter`、EPSON driver/API、OPOS�
 
 2026-08-03にDebian 13 x86_64 LXCの`/dev/usb/lp0`へ同じ313 bytesを一回送信した。既存`discord-printer-bot` serviceを停止し、device holder不在を確認してから実行し、終了後にserviceが`active/running`へ復帰した。DLE EOT `10 04 01`〜`04`のraw responseは送信前後とも`16/12/12/12`で、Epson公式のbit定義に照らして正常時のonline/paper-present状態と一致する。ただしcover/paper-out/error/切断時の値は未測定のため`unknown`である。[DLE EOT公式仕様](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_eot.html) と [TM-T70II対応command一覧](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/tmt70ii.html)を参照。
 
+同じDebian LXCでcover open、紙切れ、USB切断・再接続を実測した。cover openと紙切れではDLE EOTがtimeout/EAGAINとなり、個別状態へ推測せず`unknown`とした。USB切断後は`/dev/usb/lp0` nodeが残ってもopenが`ENODEV`になり、再接続後はDLE EOT `16/12/12/12`と`ready`へ復帰した。各status-only probeはfixture bytesを送らず、bot停止・device holder不在・service復帰を記録している。
+
 ## ADR-P002 状態取得
 
 現時点の全方式は`unknown`である。Windows print queueの`Normal`、Linuxのwrite成功、DLE EOT応答なしを`ready`へ変換しない。各方式のreachable/online/cover/paper/recoverable/fatal errorは [能力表](../printer-baseline/capability-matrix.md) に `supported` / `unsupported` / `unknown` とraw値の両方を記録する。

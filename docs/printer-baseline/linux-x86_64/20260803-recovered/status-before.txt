@@ -1,0 +1,23 @@
+* discord-printer-bot.service - Discord Printer Bot
+     Loaded: loaded (/etc/systemd/system/discord-printer-bot.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2026-08-03 03:42:43 JST; 1min 0s ago
+ Invocation: 79c4f2087fa04225b4cb0ae13e78c20a
+   Main PID: 17781 (npm start)
+      Tasks: 23 (limit: 16932)
+     Memory: 47.8M (peak: 89.5M)
+        CPU: 1.181s
+     CGroup: /system.slice/discord-printer-bot.service
+             |-17781 "npm start"
+             |-17798 sh -c "node src/index.js"
+             `-17799 node src/index.js
+
+Aug 03 03:42:44 services npm[17799]: Watching channels 1513044471275589752, 1529832431765426197
+Aug 03 03:42:44 services npm[17799]: Watched channel resolved: 印刷 (1513044471275589752, type=0)
+Aug 03 03:42:44 services npm[17799]: Watched channel resolved: プライベート印刷 (1529832431765426197, type=0)
+Aug 03 03:42:44 services npm[17799]: Printer: EPSON TM-T70II Receipt
+Aug 03 03:42:44 services npm[17799]: OPOS status: disabled
+Aug 03 03:42:44 services npm[17799]: Printer monitor: enabled (5000ms, 3 consecutive failures)
+Aug 03 03:42:54 services npm[17799]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:43:09 services npm[17799]: Linux USB printer status check failed: ESC/POS status response timed out for DLE EOT 1
+Aug 03 03:43:22 services npm[17799]: Ignored own bot message 1533545763345530984 from TM-T70II#1255
+Aug 03 03:43:25 services npm[17799]: Ignored own bot message 1533545776876355665 from TM-T70II#1255
