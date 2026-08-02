@@ -18,7 +18,9 @@
 
 ## 現在の実機preflight
 
-Windows x64ではbuild済みPrinterHostを`windows-spooler`で起動できたが、TM-T70IIは現在この端末へUSB接続されていない。2026-08-03 06:17 JSTのqueue rawは`PrinterStatus=4096`、physical EPSON USB controllerは不在で、Hostは`reachable=false`、online/cover/paper/errorを`unknown`とした。証跡は`windows/20260803-goal7.1-offline/windows-status-result.json`に保存した。印刷jobは送っていない。
+Windows x64は2026-08-03 06:17 JST時点ではUSB未接続で、Hostが`reachable=false`とした証跡を`windows/20260803-goal7.1-offline/windows-status-result.json`へ保存した。その後TM-T70IIを再接続し、06:41 JSTにbuild済みPrinterHostをWindows launcherから実backendで起動、`reachable=true`を確認した。online/cover/paper/errorはWinspool RAWで取得不能のため`unknown`のままとした。
+
+`windows/20260803-064002-goal7.1-pos/`ではPOS経由の開局と現金会計初回を実機送信し、jobId、payload hash、acceptedBytes、spooler job ID、Hostログ、操作者紙面判定を保存した。ただし再印刷riskの明示承認が得られず安全停止し、中間計・精算は未送信である。また紙面から営業日がUTC由来で前日になった不具合を検出してローカル日付へ修正した。このpartial runは不合格証跡であり、Windows Acceptedへ数えない。
 
 Linux x86_64の既存証跡機は、この作業端末のSSH/DNS設定から`services`を解決できず、release配置、systemd起動、POS統合印刷を実行していない。
 

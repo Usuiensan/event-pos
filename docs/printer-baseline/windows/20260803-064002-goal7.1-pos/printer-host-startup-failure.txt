@@ -1,0 +1,8 @@
+Join-Path : 引数が空の文字列であるため、パラメーター 'Path' にバインドできません。
+発生場所 C:\private\event-pos\deploy\windows\start-printer-host.ps1:3 文字:41
++   [string]$EnvironmentFile = (Join-Path $PSScriptRoot 'printer-host.e ...
++                                         ~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Join-Path]、ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorEmptyStringNotAllowed,Microsoft.PowerShell.Commands.Join 
+   PathCommand
+ 
