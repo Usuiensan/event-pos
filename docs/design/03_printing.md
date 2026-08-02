@@ -82,11 +82,11 @@ body:
 
 - draft作成時に `template_key` と次versionを採番する。
 - validateは構文、変数、コマンド、引数、最大幅、初期化、末尾責務を検査する。
-- previewはcanonical IR、PNG、警告一覧を返す。
+- previewはcanonical IR、IR/bytes hash、警告一覧、人間が読める印字内容を返す。PNG previewはGoal 5では未実装とし、紙面Human Reviewの代替にしない。
 - activateは検証結果のsource SHA-256一致を必須にする。
 - active版は更新せず、新versionを作る。
 - print jobにtemplate key/version/source hash、ReceiptSnapshot、canonical IR/hashを保存する。
-- 画像assetと配布fontは不変blob/hashでtemplate版へ紐付ける。source hashはasset、font、renderer、finishing policyの各version/hashを含む。
+- 画像assetは不変blob/hashでtemplate版へ紐付ける。template source hashとは別にasset manifest、font、renderer、finishing policyの各ID/version/hashをjobへ保存し、全境界が一致する場合だけ旧版を再生成する。
 - 長期再現用としてcanonical IR、最終ESC/POS payload hash、画像化したラスタassetをjobへ保存する。
 
 ## 4. 中間表現
@@ -235,3 +235,28 @@ Linux adapterとfake adapterは同じcontract testを通す。Windowsでも純�
 - cut/drawerではコマンドbytes、設定、物理結果
 
 Linux実機では、IR hashとbytes hashを自動保存し、紙面は人間が取引番号、全文、配置、文字化け、カットを確認する。x86_64とARM64でbytesが一致することも自動試験する。
+
+## 9. 2026-08-02 Goal 5実装差分と固定値
+
+Goal 5では `packages/receipt-template`、`packages/receipt-ir`、`packages/escpos` を追加し、POSサーバーとPrinterHostからOS非依存の純粋変換を利用する。`discord-printer-bot` は読取り専用のcharacterization資料に留め、package依存やruntime importにはしていない。
+
+固定値は次のとおり。
+
+- template/ReceiptDocument schema version: `1`
+- 内容幅: `384 dots`、物理上限: `416 dots`
+- renderer: `event-pos-escpos-v1`
+- font: `tm-t70ii-cp932` version `1`、hash `builtin-tm-t70ii-cp932-v1`
+- finishing policy: `receipt-partial-cut` version `1`
+- production末尾: template内のfeed 3行とpartial cut。worker/PrinterHostはfeed/cutを追加しない
+- canonical IR: 1行1commandの `!command <canonical JSON>`、LF改行、末尾LF。未知command、余分な引数、非canonical表現を拒否する
+- CP932非対応文字はGoal 5では暗黙置換せずrender errorにする。将来画像化する場合はfont/rasterのID・version・hash固定が必要
+
+SQLite migrationは旧 `queued/accepted/printing/completed/failed/unknown` をそれぞれ `pending/sending/sending/completed/failed/failed` へ写し、旧`unknown`だけ `delivery_certainty=unknown` とする。`printer_operations.state` がFIFO判定の正本で、`print_jobs.state` はAPI/UI用投影として同じtransaction内で更新する。単一POS server process内のdrainを直列化し、最小sequenceだけを処理する。lease列は将来の複数process arbiter用に予約し、Goal 5では使用しない。
+
+attemptは `prepared` をcommitした後、I/O直前に `dispatch_started` とcompiler/adapter/write hashを別commitする。全bytes受理後に `transport_accepted`、現在は追加の実機postcheckがないため直後に `postcheck_completed` を記録する。`completed` の証拠はtransport受理までであり、UIは「送信完了（紙面完了は未確認）」と表示する。
+
+0 byte未送信が証明され、かつfailureがtransient/retryableと明示された場合だけ2秒、5秒、15秒で再試行する。short write、timeout、応答不明、`dispatch_started` 後のprocess終了は `failed/unknown` とし自動再送しない。`prepared` 中断は起動時にpendingへ戻す。device faultは先頭をblockし、Goal 5では責任者のresumeで解除する。実status観測はGoal 6/7へ残し、`GET /printer/status` は能力を推測せず`unknown`を返す。
+
+PrinterHostは同一process内で同じ`jobId`の成功・失敗結果を保持し、HTTP再送を二重dispatchしない。POS serverは起動時にSQLiteの未完了jobを再走査する。既存`disaster-notification`はsourceとrenderer版が付いた承認済みbase64 ESC/POS payloadだけを無変換で通す互換境界を維持する。
+
+Docker composeはPOS serverだけを起動する。`PRINTER_HOST_URL`を与えた環境でのみ別processのPrinterHostへ接続する。実USB、udev、systemd、実status、実カット、実紙面はGoal 6/7のHuman/Real受入であり、ADR-P009はProposedのままとする。

@@ -207,3 +207,25 @@
 自動試験の正本は `apps/server/src/realtime.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/audio-settings.test.ts`、`apps/register-web/src/realtime-client.test.ts`、`apps/register-web/src/state-version.test.ts`、`apps/register-web/src/age-skip.test.ts`、`apps/register-web/src/error-dialog.test.tsx` である。リポジトリにPlaywright依存がないため、スタッフ画面と顧客画面はin-app browserの別tabで実動確認した。別browser contextを使う自動E2Eは未完了として残す。
 
 Goal 4全体、R18、音の聞き取り、画面視認性を自動試験だけで完了扱いにしない。実会場に近いspeakerと騒音下で3音量・誤操作MP3・C5連続ブザーを確認し、customer端末の電源断/再接続、遅延・低帯域、R18対面手順、会計済み操作のHuman Reviewを実施するまでH/Rは未完了である。
+
+## 10. 2026-08-02 Goal 5 レシート・永続印刷キュー
+
+対象commitは `2123830`、`99835a9`、`9a45179`。自動試験の正本は `packages/receipt-ir/src/index.test.ts`、`packages/receipt-template/src/index.test.ts`、`packages/escpos/src/index.test.ts`、`apps/printer-host/src/app.test.ts`、`apps/server/src/print-queue.test.ts`、`apps/server/src/printing-schema.test.ts`、`apps/server/src/printing-routes.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/print-status.test.ts` である。
+
+| 受入項目 | 実装・自動試験証拠 | 判定 |
+| --- | --- | --- |
+| PR-02 | 4件同時triggerでもactive dispatchを1件に限定し、operation sequenceどおりのjob ID、完了状態、compiler/adapter/write hash、accepted bytesを照合 | A合格。4台実レジと実機連続紙面のH/Rは未実施 |
+| PR-05 | 再印刷前後でtransaction、transaction line、payment、tax summary、inventory movement、cash movement件数を照合し、元jobも不変で新reprint jobだけ追加 | A合格 |
+| PR-08 | template/IR/ESC/POSを独立packageへ分離し、template v2有効化前後で旧取引・旧jobを変更せず旧版再生成。全workspace typecheck/test/buildを実施 | A合格。依存境界の総合Rは未実施 |
+| PR-09 | 未知node/変数、raw/drawer/buzzer/full cut、不正引数、幅超過、finish欠落/複数、source SHA不一致をunit/API試験で拒否 | A合格 |
+| PR-10 | 同じsnapshotから同じASTを生成し、canonical IR、CP932、日本語、U+00A5、画像、QR、バーコード、feed、partial cutのgolden hashを固定。template更新後も旧jobのIR/hash/bytesを一致確認 | A合格。紙面・文字化け・配置・cutのH/Rは未実施 |
+| PR-11 | original/reprint jobへtemplate key/version/source hash、asset manifest、font/renderer/finishing policy版、snapshot、IR/hash、bytes/hashを保存し、再印刷がsource版を使うことを照合 | A合格 |
+| queue failure境界 | 0 byteかつretryableだけを2/5/15秒、最大4 attempt。short write、timeout、host応答不明、dispatch後crashはunknownで再送せず、prepared中断だけ復元。retry_wait/device faultのhead追越し禁止 | 合格 |
+| PrinterHost冪等性 | 同じjobIdのHTTP再送を2回受けてもFakeTransport dispatchは1回。canonical IRから得たbytesを追加feed/cutなしで完全一致送信 | 合格 |
+| migration/再起動 | 旧6状態をGoal 5状態へmigrationし、起動時にSQLiteの未完了jobを回収。会計確定後のPrinterHost失敗でも売上・支払・在庫・現金・監査を保持 | 合格 |
+| UI状態 | 待機、送信中、送信完了、失敗、再試行待ち、結果不明、取消を対応し、`unknown`と通常失敗を別class/文言にするunit試験。実ブラウザーで送信中→紫色の「結果不明（紙面を確認）」遷移、受付番号、再印刷確認modalの3値・理由・承認欄を確認 | A合格。通常失敗を含む残り状態の視認性Hは未完了 |
+| Docker | 初回buildで新packageのruntime copy漏れを検出・修正後、`docker compose up -d --build --wait`成功。`event-pos-pos-1` healthy、live/readyとtemplate一覧を確認 | 合格 |
+
+2026-08-02時点の `pnpm check` は型検査、118件の自動試験、全workspace buildに成功した。Windows上のgoldenと同じ9件のreceipt IR/template/ESC/POS変換試験をDocker Linux build stageでも実行し、hashを含めて一致を確認した。これはOS非依存bytesの証拠であり、TM-T70II紙面一致の証拠ではない。
+
+Human Reviewは未完了である。template preview APIの人間可読内容、結果不明表示、再印刷確認画面は確認済みだが、通常失敗・再試行待ち・取消を含む全状態の視認性とレイアウト総合判定は残る。Goal 6/7ではTM-T70IIの日本語・円記号・幅・実feed・部分cut、USB切断/再接続、紙切れ/カバー/open/offline/status能力、udev/systemd、x86_64/ARM64、既存Debian基準紙面との差分を記録する。ADR-P009はProposedのままである。
