@@ -23,7 +23,7 @@ export const demoCatalog: EventCatalog = {
   eventId: "demo-event-large",
   products,
   quickEntries: [{ id: "book-pair", label: "新刊 小説A+B", components: [{ productCode: "T0000121", quantity: 1 }, { productCode: "T0000122", quantity: 1 }], tabId: "books" }, { id: "adult-new", label: "R18新刊 小説A", productCode: "T0000141", quantity: 1, tabId: "adult" }],
-  staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者" }, { responsibleNumber: "002", displayName: "売り子A" }],
+  staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者", permissions: ["catalog_import", "refund", "reprint"] }, { responsibleNumber: "002", displayName: "売り子A", permissions: [] }],
   productTabs: groups.map(({ id, label, color }) => ({ id, label, color })),
   autoDiscountRules: [{ id: "book-pair-discount", label: "新刊小説2冊値引き", requiredProducts: [{ productCode: "T0000121", quantity: 1 }, { productCode: "T0000122", quantity: 1 }], discountYen: 100, priority: 10 }],
 };

@@ -10,8 +10,10 @@ describe("event catalog JSON", () => {
     expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [{ ...sample.products[0], priceInclTax: -1 }] }))).toThrow("整数");
   });
   it("validates responsible number mappings", () => {
+    expect(importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "担当者", permissions: ["refund"] }] })).staffMembers?.[0]?.permissions).toEqual(["refund"]);
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "", displayName: "名無し" }] }))).toThrow("3桁");
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "001", displayName: "A" }, { responsibleNumber: "001", displayName: "B" }] }))).toThrow("重複");
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "" }] }))).toThrow("displayName");
+    expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "担当者", permissions: ["admin"] }] }))).toThrow("permissions");
   });
 });
