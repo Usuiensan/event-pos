@@ -2,7 +2,7 @@
 
 ## 位置づけ
 
-本設計は `即売会向けPOSレジ_要件定義_v0.6.md` を実装へ引き渡せる粒度に具体化する。v0.6はLinux本番方針を反映し、v0.5以前は履歴として保持する。
+本設計は `即売会向けPOSレジ_要件定義_v0.6.md` を実装へ引き渡せる粒度に具体化する。現在のv0.6はADR-P010に従い、Windows/Linux双方を同格の本番対応プロファイルとする。v0.5以前は履歴として保持する。
 
 未確定の業務判断、USBライブラリー、プリンター状態、キャッシュドロアー実機挙動は推測しない。該当箇所は `05_pending-adrs.md` の決定ゲートを通過するまで実装または本番受入を完了扱いにしない。
 
@@ -19,11 +19,12 @@
 | `07_traceability-review.md` | 要件追跡、相互レビュー結果、完了監査 |
 | `08_adr-decisions-2026-07-24.md` | 利用者判断、AI推奨案、要件v0.5との差分、会計CSV調査 |
 | `09_barcode-namespace-proposal.md` | 伝票・取り置き・商品コードのバーコード名前空間案 |
-| `10_adr-linux-production-host-2026-08-02.md` | Windows本番方針を置き換えるLinux本番ホストADR |
+| `10_adr-linux-production-host-2026-08-02.md` | Linuxだけを初期本番対象としたSuperseded ADR |
 | `11_adr-print-host-process-boundary-2026-08-02.md` | POS本体とプリンターホストの責務・通信境界ADR |
 | `12_adr-disaster-print-integration-2026-08-02.md` | kishou_server/Discord防災通知とPOS printer-host共用印刷ADR |
-| `13_windows-surface-temporary-deployment-2026-08-02.md` | Surface上のDocker POSとWindows printer-hostの一時運用構成 |
+| `13_windows-surface-temporary-deployment-2026-08-02.md` | Surface上のDocker POSとWindows printer-hostの配備プロファイル |
 | `14_deferred-goals.md` | 後続Goalへ分離した在庫・印刷・OS・バックアップ・総合受入項目 |
+| `15_adr-windows-linux-printer-parity-2026-08-02.md` | Windows/Linuxを同格の本番対応とするADR-P010 |
 
 ## 固定した技術方針
 
@@ -33,11 +34,11 @@
 - 確定済み取引、在庫移動、監査記録は上書き・削除せず、取消・訂正を追加記録する。
 - プリンター状態を推測せず、取得不能は `unknown` としてAPIと画面へ返す。
 - 実機へ送信開始後にプロセスが落ちたジョブは自動再送しない。二重印刷防止を優先し、人間が紙面確認後に明示的に再印刷する。
-- 本番は64bit Linuxとし、OS・CPU差は `PrinterTransport`、service管理、配布成果物に閉じ込める。
+- Windows x64と64bit Linuxを同格の本番対応とし、OS・CPU差は`PrinterTransport`、service管理、配布成果物に閉じ込める。
 
 ## 実装開始ゲート
 
-フェーズ1は未確定ADRを保留したまま開始できる。2026-08-02以降の本番OS判断は `10_adr-linux-production-host-2026-08-02.md` を正とする。次の機能は対応ADRが決まるまで開始しない。
+フェーズ1は未確定ADRを保留したまま開始できる。本番OS対応方針はADR-P010 `15_adr-windows-linux-printer-parity-2026-08-02.md`を正とする。次の機能は対応ADRが決まるまで開始しない。
 
 - OS実機USB送信: ADR-P001
 - 実機状態表示: ADR-P002

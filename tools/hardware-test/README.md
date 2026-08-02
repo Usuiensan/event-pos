@@ -1,19 +1,21 @@
-# Linuxプリンター実機試験ツール
+# Windows/Linuxプリンター実機試験ツール
 
 TM-T70IIへ固定fixtureを送信し、送信方式、状態取得、障害復旧を比較するCLIをここへ実装する。
 
 初期比較対象:
 
+- Windows RAW spooler、EPSON driver/API、OPOS
+- Windows native printer-hostのportable/Service運用
 - `/dev/usb/lp*`への直接送信
 - 双方向statusが必要な場合のlibusb等
 - Debian既存環境の出力bytes・紙面・systemd・USB設定
-- x86_64 LinuxとARM64 Linux
+- Windows x64、Linux x86_64/ARM64
 
 実機を接続するまで、送信方式や取得可能なstatusを確定扱いにしない。印刷成功とstatus取得失敗を別々に記録する。
 
 ## printer-host CLI
 
-Linux実機で次を実行すると、固定fixtureをRAWデバイスへ1回送信し、結果とbytes SHA-256をJSONへ保存する。
+現在のCLIはLinux RAWデバイス用の雛形である。Goal 6でWindows/Linux共通fixtureとOS別probeへ拡張し、結果とbytes SHA-256を同じschemaのJSONへ保存する。
 
 ```sh
 PRINTER_DEVICE=/dev/usb/lp0 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii \
@@ -24,7 +26,7 @@ PRINTER_DEVICE=/dev/usb/lp0 PRINTER_EVIDENCE_DIR=./evidence/tm-t70ii \
 
 ## Goal 6 実機試験手順
 
-試験はLinux端末上で、プリンターを接続した状態から行う。`/dev/usb/lp0`の番号は固定せず、まず実際のデバイス名と権限を記録する。
+試験はWindows x64とLinux x86_64/ARM64の双方で行う。Linuxでは`/dev/usb/lp0`の番号を固定せず、まず実際のデバイス名と権限を記録する。Windowsではprinter名、driver/version、port、spooler/OPOS状態を記録する。
 
 ```sh
 uname -a
@@ -55,4 +57,4 @@ JSONの`result`、`statusBefore`、`statusAfter`、`bytesSha256`、`bytesLength`
 
 紙切れ、カバー開放、USB切断を各1回実施し、取得できた値を`ready`、`paper_out`、`offline`、`unknown`のいずれかで記録する。取得できない機種・接続方式は`unknown`のままADR-P002へ記載し、正常扱いに補正しない。
 
-証跡には、試験日時、機種、OS、CPUアーキテクチャ、device path、systemd unit、入力fixtureのhash、結果JSON、紙面写真、操作と判定者を紐付ける。
+証跡には、試験日時、機種、OS、CPUアーキテクチャ、device/spooler、Windows Serviceまたはsystemd unit、入力fixtureのhash、結果JSON、紙面写真、操作と判定者を紐付ける。Windows/Linuxのどちらか一方だけではGoal 6を完了扱いにしない。

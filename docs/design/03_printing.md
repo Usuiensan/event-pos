@@ -28,7 +28,7 @@ ReceiptSnapshot
 1. ESC/POS builder、文字コード、画像ラスタ、QR/バーコード、カットのgolden testを固定する。
 2. Discord messageやbot configへの依存を除き、`packages/escpos` と `packages/receipt-ir` へ分離する。
 3. POSが使用するコマンドallowlistと引数範囲を明文化する。
-4. 同じIRから同じbytesが出ることをWindows開発環境とLinux CI/本番環境の共通テストで保証する。
+4. 同じIRから同じbytesが出ることをWindows x64とLinux x86_64/ARM64の共通テストで保証し、両OSの実機紙面を比較する。
 5. TM-T70II実機で文字、円記号、画像、紙送り、部分カットを確認する。
 
 既存実装の知見として、次を設計制約にする。
@@ -206,11 +206,11 @@ adapterが部分writeを内部継続してよいのは、同一接続内の未�
 
 ## 7. OSアダプター
 
-### Windows（開発・将来候補）
+### Windows（本番対応）
 
-- 初期本番のUSB送信には使用しない。将来対応する場合は別ADRで選定する。
-- Windows spoolerを使う場合、job ID、spooler job ID、bytes hashを証跡にする。
-- OPOSを状態取得だけに使う場合は、印刷との排他・Claim timeoutを測定する。
+- RAW spooler、EPSON driver/API、必要に応じOPOSを実測し、採用方式をADR-P001へ記録する。
+- job ID、spooler job ID、bytes hash、acceptedBytes、driver結果を証跡にする。
+- OPOSまたは別方式で状態を取得する場合は、印刷との排他・Claim timeout・切断後復旧を測定する。
 - Windows serviceは専用アカウントで動かし、UIセッションを必要としない。
 
 ### Linux（本番）
@@ -220,7 +220,7 @@ adapterが部分writeを内部継続してよいのは、同一接続内の未�
 - service user、group、device permissionを導入手順で検証する。
 - read/write双方向可否とDLE EOT応答を実機能力表へ記録する。
 
-Linux adapterとfake adapterは同じcontract testを通す。Windowsでも純粋な業務・ESC/POS試験を実行できるようにするが、実機status能力差は推測で埋めず、`unsupported/unknown` として表現する。
+Windows adapter、Linux adapter、fake adapterは同じcontract testを通す。OSごとの実機status能力差は推測で埋めず、`supported/unsupported/unknown`として能力表へ記録する。片方だけの成功でPrinterTransport全体を完了扱いにしない。
 
 ## 8. 実機試験証跡
 
@@ -234,7 +234,7 @@ Linux adapterとfake adapterは同じcontract testを通す。Windowsでも純�
 - 紙面写真またはscan、担当者判定
 - cut/drawerではコマンドbytes、設定、物理結果
 
-Linux実機では、IR hashとbytes hashを自動保存し、紙面は人間が取引番号、全文、配置、文字化け、カットを確認する。x86_64とARM64でbytesが一致することも自動試験する。
+Windows/Linux実機では、IR hashとbytes hashを自動保存し、紙面は人間が取引番号、全文、配置、文字化け、カットを確認する。Windows x64、Linux x86_64/ARM64でbytesが一致し、同じ紙面・動作になることを自動試験と実機レビューで確認する。
 
 ## 9. 2026-08-02 Goal 5実装差分と固定値
 

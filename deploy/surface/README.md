@@ -1,6 +1,6 @@
-# Surface一時運用ランブック
+# Windows Surface本番対応ランブック
 
-対象はDocker Desktopが動くWindows Surfaceと、WindowsへUSB接続した`EPSON TM-T70II Receipt`です。
+対象はDocker Desktopが動くWindows Surfaceと、WindowsへUSB接続した`EPSON TM-T70II Receipt`です。ADR-P010に基づき、Linuxと同じ必須機能・障害復旧・紙面受入を満たす本番対応プロファイルとして扱います。
 
 ## 初回準備
 

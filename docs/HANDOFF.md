@@ -2,7 +2,7 @@
 
 更新日: 2026-08-02
 
-この文書は、別PCや本番Linux機へ作業を引き継いだときに、Codexの会話履歴が参照できなくても作業を再開できるようにするための正本である。
+この文書は、別PCやWindows/Linux本番機へ作業を引き継いだときに、Codexの会話履歴が参照できなくても作業を再開できるようにするための正本である。
 
 ## 1. リポジトリ
 
@@ -23,9 +23,9 @@
 - 売上、税込価格、税率、値引き、返品、在庫、取り置き、R18確認を扱う。
 - 管理端末、レジ端末、カスタマーディスプレイを会場LANで接続する。
 - レシートはEPSON TM-T70IIへ印刷する。
-- 本番構成では64bit Linux機をPOS server兼プリンターホストとする。
-- Debian、Ubuntu、Raspberry Pi OS等を候補とし、現在TM-T70IIが接続されているDiscord bot用Debian環境を初期実測基準とする。
-- Windows PCは開発・管理・ブラウザークライアントとして継続利用できる。
+- Windows x64と64bit Linuxを同格の本番対応プロファイルとする。
+- Windows PC/Surface、Debian、Ubuntu、Raspberry Pi OS等を候補とし、現在TM-T70IIが接続されているDiscord bot用Debian環境を初期実測基準とする。
+- 個別eventの採用機はP006で選べるが、もう一方を機能縮小版にはしない。
 
 ## 3. 技術方針
 
@@ -35,13 +35,13 @@
 - SQLite
 - DB、USB、時刻、ID採番はport越しに注入する。
 - ESC/POS生成はOS非依存の純粋処理にする。
-- 本番対象PrinterTransportはLinux。
+- 本番対象PrinterTransportはWindows/Linuxの双方。
 - プリンター状態を推測しない。取得不能は `unknown`。
 - プリンターへ送信開始後に結果不明となったjobは自動再送せず、人間が紙面を確認して再印刷する。
 - 内部IDはUUIDv7。
 - 確定済み取引、在庫移動、監査記録は上書き・削除せず、訂正イベントを追記する。
 
-詳細は `docs/design/01_architecture.md` から `10_adr-linux-production-host-2026-08-02.md` を参照する。
+詳細は`docs/design/01_architecture.md`とADR-P010 `15_adr-windows-linux-printer-parity-2026-08-02.md`を参照する。
 
 ## 4. 受付番号
 
@@ -76,7 +76,7 @@ S NNNNNN C
 - `PS13`: POS発行の商品ラベル
 - 完全な128bit UUIDの10進表現は最大39桁となり、58mm紙のCode 128には長すぎるため採用しない。
 - DBの正本はUUIDv7、バーコードはDB一意制約を持つscanner専用alternate tokenとする。
-- Code 128のmodule幅、quiet zone、100回連続読取りは本番候補Linux、TM-T70II、使用予定scannerで確定する。
+- Code 128のmodule幅、quiet zone、100回連続読取りはWindows/Linux双方、TM-T70II、使用予定scannerで確定する。
 
 ## 6. 主な業務判断
 
@@ -99,17 +99,17 @@ S NNNNNN C
 
 ## 7. プリンター方針
 
-- 本番プリンターホスト: 即売会へ持ち込む64bit Linux機
-- 候補: Debian/Ubuntu x86_64・ARM64、Raspberry Pi OS 64bit
+- 本番対応プリンターホスト: Windows x64と64bit Linuxの双方
+- 候補: Windows PC/Surface、Debian/Ubuntu x86_64・ARM64、Raspberry Pi OS 64bit
 - 現在TM-T70IIはDiscord botのDebian環境へUSB接続されており、ここからPOS用probeを開始できる。
-- `/dev/usb/lp*`直接送信と、必要な双方向status方式を比較する。
-- 同一fixtureのESC/POS bytes、SHA-256、紙面、USB・udev・systemd設定、障害時ログを保存する。
-- 送信、排他、紙切れ、カバー開、USB切断、再接続、部分カットをLinuxで測定する。
-- Linuxでの実測が終わるまでADR-P001/P002をAcceptedにしない。
+- WindowsのRAW spooler/EPSON/OPOSと、Linuxの`/dev/usb/lp*`/必要な双方向status方式を比較する。
+- 同一fixtureのESC/POS bytes、SHA-256、紙面、USB・driver・Windows Service・udev・systemd設定、障害時ログを保存する。
+- 送信、排他、紙切れ、カバー開、USB切断、再接続、部分カット、service/OS再起動をWindows/Linux双方で測定する。
+- 両OSでの実測が終わるまでADR-P001/P002をAcceptedにしない。
 - Raspberry Pi採用時はmicroSD単独を正本DB保存先にせず、USB SSD等を使用する。
 - キャッシュドロアーは型番・pin・pulse・連続駆動制限が判明するまで実機駆動しない。
 
-比較資料は `docs/printer-baseline/`、probeは `tools/hardware-test/`、Linux導入手順は `deploy/linux/` に置く。
+比較資料は`docs/printer-baseline/`、probeは`tools/hardware-test/`、Linux導入手順は`deploy/linux/`、Windows導入手順は`deploy/surface/`に置く。
 
 ## 8. 別PCでの再開手順
 
@@ -182,8 +182,8 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 
 1. 返品、取り置き、締め、CSV、backup/restoreなど、今回の会計確定範囲外を各Goalで実装する。
 2. 60会計/分を15分継続する900件負荷と10端末試験をGoal 9で実施する。
-3. 既存DebianとTM-T70IIでPOS用printer probeを実行し、紙面、cut、status、USB切断・再接続、udev/systemdを証拠化する。
-4. 本番候補Linuxの永続diskとbackup/restoreを確定し、P001/P002/P006を判断する。
+3. 既存Debian、Windows x64、Linux x86_64/ARM64でPOS用printer probeを実行し、紙面、cut、status、USB切断・再接続、Windows Service、udev/systemdを証拠化する。
+4. Windows/Linux候補の永続diskとbackup/restoreを確定し、P001/P002/P006を判断する。
 5. AC-18を含むA+R項目の視認性と、46件の総合受入を人間レビュー込みで完了する。
 
 ## 12. Goal 4 音声・顧客画面・R18・会計済みlock
@@ -244,8 +244,8 @@ Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘�
 未完了・Goal 6/7への引継ぎ:
 
 1. TM-T70II実機で日本語、U+00A5、32桁幅、画像、QR、バーコード、3行feed、partial cut、紙面配置を確認する。
-2. Linux実USB/RAW、udev、systemd、安定device名、権限、USB切断/再接続、paper out、cover open、offline、status取得能力を証拠化する。
-3. x86_64/ARM64と既存Debian基準紙面を比較し、compiler/adapter/write hash、acceptedBytes、写真/scanを保存する。
+2. WindowsのRAW spooler/EPSON/OPOS/Serviceと、Linuxの実USB/RAW、udev、systemd、安定device名、権限、USB切断/再接続、paper out、cover open、offline、status取得能力を証拠化する。
+3. Windows x64、Linux x86_64/ARM64と既存Debian基準紙面を比較し、compiler/adapter/write hash、acceptedBytes、写真/scanを保存する。
 4. 通常失敗、再試行待ち、取消を含む全印刷状態とtemplate layoutのHuman Reviewを完了する。結果不明表示と再印刷確認画面はGoal 5で確認済み。
 5. composeはPOS serverだけを起動する。実PrinterHostは`PRINTER_HOST_URL`を設定した別processとしてGoal 6/7で運用化する。
 

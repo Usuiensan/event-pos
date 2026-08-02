@@ -1,8 +1,8 @@
-# Windows Surface一時運用構成
+# Windows Surface本番運用プロファイル
 
 ## 推奨構成
 
-親族のSurfaceを即売会で一時利用する場合は、POSサーバーとWindowsプリンターホストを分離する。
+Surfaceを即売会で利用する場合は、POSサーバーとWindowsプリンターホストを分離する。この構成は一時的な機能縮小版ではなく、ADR-P010に基づくWindows本番対応プロファイルの一つである。
 
 ```text
 Surface
@@ -23,7 +23,7 @@ POSコンテナからUSBプリンターを直接扱わない。Windowsのプリ�
 - POS DBはDocker volumeへ保存し、Surface終了時にexport bundleを取得できる。
 - プリンター切断がPOSコンテナを停止させない。
 
-## 一時運用の起動順
+## 運用の起動順
 
 1. Surfaceを有線または専用LANへ接続し、スリープを無効化する。
 2. Docker Desktopを起動し、POSコンテナをloopbackまたは専用LANアドレスへbindする。
@@ -39,11 +39,12 @@ POSコンテナからUSBプリンターを直接扱わない。Windowsのプリ�
 - Surface上のDocker Desktopが使えない場合は、Node.js 24のPOSサーバーをWindowsネイティブ起動するフォールバックを用意する。DBとHTTP契約は共通にする。
 - Docker volumeを唯一のバックアップとみなさず、営業終了時にSQLite backup/export bundleを別媒体へ保存する。
 
-## 実装課題
+## 本番受入までの実装課題
 
 - `apps/printer-host`へWindows spooler transportを追加し、既存`discord-printer-bot/tools/rawprint.ps1`相当のRAW送信を共通`PrinterTransport`へ実装する。
 - Docker Compose、`.env.example`、Surface向け起動runbookを追加する。
 - Windows printer-hostとPOSコンテナ間のHTTP接続、再起動、ジョブ状態、会計レシートと防災通知の混線なしを試験する。
+- 紙切れ、カバー開、USB切断、送信途中停止、Windows再起動、service復旧、同一jobId再送、実紙面をLinuxと同じ受入条件で試験する。
 
 ## リポジトリ内の起動ファイル
 

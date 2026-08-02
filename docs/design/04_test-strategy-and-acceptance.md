@@ -5,7 +5,7 @@
 受入条件には次のタグを複数付けられる。複合タグは全証跡がそろうまで未完了とする。
 
 - `A`: 自動試験。単体、DB/API統合、ブラウザーE2E、並行・負荷、障害注入、goldenを含む。
-- `H`: 実機試験。TM-T70II、USB、本番候補Linux、キャッシュドロアー、紙面を使う。既存Debian環境を最初の実測基準にする。
+- `H`: 実機試験。TM-T70II、Windows x64、Linux x86_64/ARM64、USB、キャッシュドロアー、紙面を使う。既存Debian環境を最初の実測基準にする。
 - `R`: 人間レビュー。表示・紙面・操作・プライバシー・運用・設計境界を確認する。
 
 各証跡には受入ID、実行日時、OS/機器、commit、設定、入力fixture、期待値、実測値、ログ/画像、判定者を記録する。
@@ -20,12 +20,12 @@
 | API contract | schema、認証、権限、エラーcode、版競合 |
 | Browser E2E | レジ/顧客/管理、キーボード、音声+表示、切断再接続 |
 | Print golden | snapshot→AST→IR→bytes/hash、旧版再現、禁止コマンド |
-| Adapter contract | fake/Linuxが同じport契約を満たす。WindowsではUSB非依存の業務・生成試験を実行する |
+| Adapter contract | fake/Windows/Linuxが同じport契約、acceptedBytes、certainty、status capabilityを満たす |
 | Load/concurrency | 10端末、60会計/分、連打、同一商品の同時販売 |
 | Fault injection | DB/USB切断、送信前後crash、service再起動、lease回収 |
 | Privacy scan | DB/log/CSV/receipt/backupに禁止された身分証情報がない |
 
-CIはunit、property、DB、API、browser、golden、fake adapterを必須にし、Windows x64とLinux x86_64/ARM64で実行する。実機suiteは環境ラベル付き手動ジョブとし、リリース候補ごとに本番対象Linuxで実行する。
+CIはunit、property、DB、API、browser、golden、fake adapterとOS adapter contractを必須にし、Windows x64とLinux x86_64/ARM64で実行する。実機suiteは環境ラベル付き手動ジョブとし、リリース候補ごとにWindowsとLinuxの双方で実行する。
 
 ## 3. 18.1 会計・同時処理
 
@@ -58,16 +58,16 @@ CIはunit、property、DB、API、browser、golden、fake adapterを必須にし
 
 | ID | 受入条件（要約） | 分類 | 必須証跡 |
 | --- | --- | --- | --- |
-| PR-01 | 本番Linuxから同じ内容をTM-T70IIへ印刷 | A+H+R | IR/bytes hash、Linux実機、既存Debian基準紙面との比較 |
+| PR-01 | Windows/Linux双方から同じ内容をTM-T70IIへ印刷 | A+H+R | IR/bytes hash、両OS実機、既存Debian基準紙面との比較 |
 | PR-02 | 4レジ同時印刷でも混線しない | A+H+R | 並行queue、実機連続印刷、取引番号照合 |
-| PR-03 | 紙切れ/カバー/USB切断を検出またはunknown表示 | A+H+R | 障害注入、Linux実機能力表、表示レビュー |
+| PR-03 | 紙切れ/カバー/USB切断を検出またはunknown表示 | A+H+R | 障害注入、Windows/Linux別実機能力表、表示レビュー |
 | PR-04 | 復旧後に対象取引だけ再印刷 | A+H | failure→reprint統合、現物結果3値、自己/別人承認、実機 |
 | PR-05 | 再印刷で売上を再計上しない | A | 取引/支払/在庫不変、jobのみ追加 |
 | PR-06 | カット・ドロアーが設定どおり | A+H+R | bytes、実機動作、ADR-P003との照合 |
-| PR-07 | template→Discord IR→既存変換→実機印刷 | A+H+R | 既存変換器characterization互換、golden、TM-T70II、紙面 |
+| PR-07 | template→Discord IR→既存変換→実機印刷 | A+H+R | 既存変換器characterization互換、golden、両OSのTM-T70II、紙面 |
 | PR-08 | デザイン変更が計算/売上/USB層へ非影響 | A+R | 回帰、依存境界レビュー |
 | PR-09 | 構文/変数/command/引数エラーを有効化前検出 | A | validator unit/API/E2E |
-| PR-10 | 同じ取引+版から同じIR/印字を再現 | A+H+R | hash反復、比較印刷、紙面 |
+| PR-10 | 同じ取引+版から同じIR/印字を再現 | A+H+R | hash反復、Windows/Linux比較印刷、紙面 |
 | PR-11 | jobへtemplate ID/versionを保存し再印刷参照 | A | DB統合、更新後の旧版再印刷 |
 
 `PR-01` と `PR-10` はbytes一致だけで紙面一致と判定しない。フォント、printer設定、物理出力をH/Rで確認する。

@@ -2,7 +2,7 @@
 
 ## 運用ルール
 
-- 状態は `Accepted`、`Proposed`、`Research`、`Pending decision` を使用する。
+- 状態は `Accepted`、`Proposed`、`Research`、`Pending decision`、`Superseded` を使用する。
 - 「仮の本番既定値」で穴埋めしない。
 - 各ADRは候補、実測、影響、決定者、決定日を追記し、別の正式ADRを `Accepted` として発行する。
 - ブロック対象の受入条件は、ADR決定と必要な再試験まで完了にしない。
@@ -11,27 +11,28 @@
 
 | ADR | 状態 | 補足 |
 | --- | --- | --- |
-| P001〜P003、P006 | Pending decision | 本番プリンターホストは64bit Linuxに変更。通信方式・状態取得・周辺機器・具体的ハードウェアは実機証拠待ち |
+| P001〜P003、P006 | Pending decision | Windows/Linux双方の通信方式・状態取得・周辺機器・具体的ハードウェアは実機証拠待ち |
 | P004 | Accepted | 100%上限、承認・理由機能を当面実装しない。要件改訂が必要 |
 | P005 | Accepted | 特定会計ソフト非依存のcanonical bundleを随時出力。製品別adapterは将来追加 |
 | D007〜D019 | Accepted | 詳細および要件差分は決定記録を参照 |
 | D020 | Accepted | 伝票・取り置き共通受付番号と商品バーコード名前空間。09を参照 |
-| P007 | Accepted | 本番server兼プリンターホストを64bit Linuxへ変更。10を参照 |
+| P007 | Superseded | Linuxだけを初期本番対象とした決定。P010により置換 |
+| P010 | Accepted | Windows x64と64bit Linuxを同格の本番対応プロファイルとする。15を参照 |
 
 ## 要件19章のADR
 
-### ADR-P001 Linux USB通信方式
+### ADR-P001 Windows/Linuxプリンター通信方式
 
-- 決定済み: 即売会本番のserver兼プリンターホストは64bit Linuxとする。Debian、Ubuntu、Raspberry Pi OS等を候補とし、Windowsは開発・管理端末に限定できる。
-- 決めること: `/dev/usb/lp*`またはlibusb等の送信・status方式、driver、x86_64/ARM64配布、ライセンス、timeout、排他、再接続。
-- 必要証拠: 既存Debianと本番候補Linuxで同一ESC/POS bytes送信、install再現、競合・切断・再接続、udev安定名、systemd復旧を試験する。
+- 決定済み: Windows x64と64bit Linuxを同格の本番対応プロファイルとし、同じ印刷job契約とESC/POS bytesを使う。
+- 決めること: WindowsのRAW spooler/EPSON/OPOS方式、Linuxの`/dev/usb/lp*`/libusb方式、driver、配布、ライセンス、timeout、排他、再接続。
+- 必要証拠: Windows x64、既存Debian、Linux x86_64/ARM64で同一ESC/POS bytes送信、install再現、競合・切断・再接続、Windows Service、udev/systemd復旧を試験する。
 - ブロック: OS adapter、PR-01〜04、PR-06、PR-07。
 - 決定まで可能: `PrinterTransport`、fake adapter、contract test。
 
-### ADR-P002 USBクラスと状態取得保証範囲
+### ADR-P002 OS別状態取得保証範囲
 
 - 決めること: OS/接続方式ごとのreachable、online、cover、paper、recoverable/fatal errorの `supported/unsupported/unknown` 能力表。
-- 必要証拠: Linuxで紙切れ、カバー開、USB切断、再接続を実測しraw responseを保存する。印刷成功とstatus取得失敗を別結果として記録する。
+- 必要証拠: Windows/Linux双方で紙切れ、カバー開、USB切断、再接続を実測しraw responseを保存する。印刷成功とstatus取得失敗を別結果として記録する。
 - ブロック: 状態監視正式実装、PR-03、PR-04。
 - 決定まで可能: normalized status型、unknown UI、fake fault injection。
 
@@ -62,10 +63,10 @@
 
 ### ADR-P006 本番ハードウェア構成
 
-- 決定済み: 即売会本番は64bit Linux機をPOS server兼プリンターホストとする。
-- 決めること: Raspberry Pi等ARM64機またはx86_64小型PC、distribution/version、USB SSD等storage、router、UPS、予備server/printer/cable、復旧時間目標。
+- 決定済み: Windows x64と64bit Linuxのどちらも本番運用可能にし、eventごとの採用機を証拠から選択する。
+- 決めること: Windows x64機、Raspberry Pi等ARM64機またはx86_64小型PC、OS/version、USB SSD等storage、router、UPS、予備server/printer/cable、復旧時間目標。
 - 原則: Raspberry Piを採用する場合はmicroSD単独を正本DBの保存先にせず、USB SSD等を使用する。
-- 必要証拠: BOM、消費電力、LAN/停電/交換訓練、本番相当負荷。
+- 必要証拠: Windows/Linux双方のBOM、消費電力、LAN/停電/交換訓練、本番相当負荷。
 - ブロック: 総合性能保証、障害訓練、PR-01〜04、CL-10の最終受入。
 - 決定まで可能: 開発PC上の自動試験、配布scriptの雛形。
 

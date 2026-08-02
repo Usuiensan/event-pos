@@ -1,8 +1,11 @@
 # ADR-P007 Linux本番サーバー・プリンターホスト方針
 
-- 状態: `Accepted`
+- 状態: `Superseded`
 - 決定日: 2026-08-02
 - Supersedes: 2026-07-24に記録したWindows本番プリンターホスト方針
+- Superseded by: ADR-P010 `15_adr-windows-linux-printer-parity-2026-08-02.md`
+
+この文書はLinuxだけを初期本番対象とした時点の履歴である。現在の正本はADR-P010であり、Windows x64と64bit Linuxの双方を同格の本番対応・実機受入対象とする。
 
 ## 決定
 

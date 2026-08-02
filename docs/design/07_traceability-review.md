@@ -125,7 +125,7 @@
 - P001〜P003/P006の実機・本番構成決定
 - D020バーコード名前空間はAccepted。残件は使用予定scanner・58 mm実機読取り結果
 - P004/P005/D010による要件差分は `docs/requirements/即売会向けPOSレジ_要件定義_v0.5.md` へ反映済み
-- 本番候補LinuxのUSB・status実測能力表。既存Debian環境を初期基準にする
+- Windows/Linux双方のUSB/spooler・status実測能力表。既存Debian環境を初期基準にする
 - drawer型番/pulse
 - 税/値引き/返品の業務判断
 - 本番hardwareと復旧目標
@@ -156,11 +156,11 @@
 | 最終保留 | 実機・本番構成P001〜P003/P006、およびD020のscanner・58 mm実機読取りがPending |
 | 追加提案 | D020で伝票・取り置き・商品・ISDNを分離するCode 128名前空間を提案 |
 
-## 7. 2026-08-02 Linux本番方針更新
+## 7. 2026-08-02 Linux本番方針更新（Superseded）
 
-- Windows本番ホスト方針を `10_adr-linux-production-host-2026-08-02.md` で置き換えた。
-- 要件v0.6、Architecture、Printing、受入、Pending ADR、Goal、引継ぎ文書をLinux本番へ更新した。
-- Windowsは開発・管理端末として残し、本番USB・障害復旧・性能受入は64bit Linuxで行う。
+- Windows本番ホスト方針を`10_adr-linux-production-host-2026-08-02.md`で置き換えたが、このLinux単独方針は後のADR-P010によりSupersededとなった。
+- 当時は要件v0.6、Architecture、Printing、受入、Pending ADR、Goal、引継ぎ文書をLinux本番へ更新した。
+- 現在の正本は11章とADR-P010であり、Windows/Linux双方を本番USB・障害復旧・性能受入対象とする。
 - x86_64とARM64の双方を自動試験対象とし、採用ハードウェアはP006の実測後に確定する。
 
 ## 8. 2026-08-02 会計確定実装の受入証跡
@@ -228,4 +228,12 @@ Goal 4全体、R18、音の聞き取り、画面視認性を自動試験だけ�
 
 2026-08-02時点の `pnpm check` は型検査、118件の自動試験、全workspace buildに成功した。Windows上のgoldenと同じ9件のreceipt IR/template/ESC/POS変換試験をDocker Linux build stageでも実行し、hashを含めて一致を確認した。これはOS非依存bytesの証拠であり、TM-T70II紙面一致の証拠ではない。
 
-Human Reviewは未完了である。template preview APIの人間可読内容、結果不明表示、再印刷確認画面は確認済みだが、通常失敗・再試行待ち・取消を含む全状態の視認性とレイアウト総合判定は残る。Goal 6/7ではTM-T70IIの日本語・円記号・幅・実feed・部分cut、USB切断/再接続、紙切れ/カバー/open/offline/status能力、udev/systemd、x86_64/ARM64、既存Debian基準紙面との差分を記録する。ADR-P009はProposedのままである。
+Human Reviewは未完了である。template preview APIの人間可読内容、結果不明表示、再印刷確認画面は確認済みだが、通常失敗・再試行待ち・取消を含む全状態の視認性とレイアウト総合判定は残る。Goal 6/7ではWindows x64とLinux x86_64/ARM64について、TM-T70IIの日本語・円記号・幅・実feed・部分cut、USB切断/再接続、紙切れ/カバー/open/offline/status能力、Windows Service、udev/systemd、既存Debian基準紙面との差分を記録する。ADR-P009はProposedのままである。
+
+## 11. 2026-08-02 Windows/Linux同格対応への訂正
+
+- 利用者判断により、Linuxだけを初期本番対象としたADR-P007をSupersededとし、ADR-P010をAcceptedとした。
+- Windows x64と64bit Linuxは同格の本番対応プロファイルであり、個別eventの機材選択によってもう一方の正式サポートを廃止しない。
+- 要件v0.6、Architecture、Printing、受入台帳、Pending ADR、Goal 6/7/9、引継ぎ、継続promptを両OS受入へ更新した。
+- PR-01/03/04/06/07/10とCL-10は、Windows/Linux双方のA/H/R証跡がそろうまでOS対応全体を完了扱いにしない。
+- WindowsのRAW spooler/EPSON/OPOS/ServiceとLinuxのRAW/libusb/udev/systemdはOS別に実測し、同じjob契約、ESC/POS bytes、紙面、certainty、復旧結果へ収束させる。

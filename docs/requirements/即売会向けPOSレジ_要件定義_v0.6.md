@@ -3,7 +3,7 @@
 - 文書版: v0.6
 - 更新日: 2026年8月2日
 - 変更元: v0.5
-- 主な更新: 本番server・プリンターホストを64bit Linuxへ変更し、x86_64/ARM64候補とLinux実機検証計画を統合
+- 主な更新: Windows x64と64bit Linuxを同格の本番対応プロファイルとし、両OSのTM-T70II実機受入計画を統合
 - 対象: 即売会で使用するローカルWeb型POS
 - 対象プリンター: EPSON TM-T70II（58 mm仕様）
 - 印字言語: 日本語
@@ -22,12 +22,12 @@
 | 最大顧客画面数 | 4台 |
 | 最大同時接続数 | 約10接続（レジ4、顧客画面4、管理端末2） |
 | 会計処理量 | 通常10件/分、最大60件/分 |
-| 本番サーバー | 即売会へ持ち込む64bit Linux機 |
-| 業務コード | Windows開発環境/Linux本番環境で共通。OS固有処理はprinter portとservice管理に限定 |
+| 本番サーバー | Windows x64または64bit Linux。eventごとの採用機はADR-P006で確定 |
+| 業務コード | Windows/Linuxで共通。OS固有処理はprinter portとservice管理に限定 |
 | 操作端末 | iPad横画面およびPC横ウィンドウを優先 |
 | 本番通信 | ローカルCAによるHTTPS |
 | プリンター | EPSON TM-T70IIを1台共有 |
-| プリンター接続 | Linuxで実測後にADR-P001で確定 |
+| プリンター接続 | Windows/Linux双方で実測後にADR-P001でOS別に確定 |
 | 内部ID | UUIDv7 |
 | 受付番号 | 取引・取り置き共通の `SNNN-NNNC` |
 | 商品・価格・在庫 | event別 |
@@ -59,11 +59,13 @@
 
 ### 3.3 OSとハードウェア
 
-本番サーバー兼プリンターホストは64bit Linux機とする。Debian、Ubuntu、Raspberry Pi OS等を候補とし、業務ロジック、データベース構造、Web UIおよび自動試験はWindows開発環境とLinux本番環境で共通にする。OS固有処理を`PrinterTransport`とservice管理の外へ漏らさない。
+Windows x64と64bit Linuxを同格の本番対応プロファイルとする。Windowsはnative processまたはWindows ServiceからRAW spooler/検証済みEPSON方式を使い、LinuxはDebian、Ubuntu、Raspberry Pi OS等から検証済みUSB方式を使う。業務ロジック、データベース構造、Web UI、印刷job契約、ESC/POS bytesおよび自動試験を共通にし、OS固有処理を`PrinterTransport`とservice管理の外へ漏らさない。
+
+両OSでTM-T70IIへの全bytes送信、状態取得、排他、切断・再接続、service/OS再起動、結果不明処理、部分カットおよび同一紙面を受入する。片方だけで成功した機能を製品全体の完了とはみなさず、取得できない能力はOS別に`unsupported`または`unknown`として明示する。
 
 現在TM-T70IIが接続されているDebian上の`discord-printer-bot`は初期実測基準であり、本製品のsubmodule、package依存または実行時依存にしない。Linux USB送信を含む移植コードは移植元commitとファイルを記録し、このリポジトリへ試験とともに取り込む。
 
-本番Linux機のCPUアーキテクチャ、distribution/version、storage、router、UPS、予備機材、復旧時間目標はADR-P006の実機・運用証拠により確定する。Raspberry Piを採用する場合、microSD単独を正本DB保存先にしない。
+eventごとの本番機、OS/version、CPU、storage、router、UPS、予備機材、復旧時間目標はADR-P006の実機・運用証拠により確定する。ただし個別eventで一方を採用しても、もう一方の正式サポートと回帰受入を廃止しない。Raspberry Piを採用する場合、microSD単独を正本DB保存先にしない。
 
 ## 4. 性能・同時実行
 
@@ -200,11 +202,11 @@ TM-T70IIの58 mm仕様、最大416 dotを物理上限、384 dotを標準内容�
 
 プリンター状態を推測しない。取得不能は`unknown`とする。送信開始後に結果不明となったoperationは自動再送せず、人間が紙面を確認して明示的に再印刷する。
 
-Linuxの送信方式、状態能力、排他、再接続および部分カットはADR-P001/P002の実測後に確定する。既存Debianの出力、USB・systemd運用を初期基準とする。
+WindowsとLinuxの送信方式、状態能力、排他、再接続および部分カットはADR-P001/P002の実測後にOS別に確定する。既存Debianの出力、USB・systemd運用を初期基準とし、Windows x64のRAW spooler、EPSON driver/OPOS等、service/portable運用と相互比較する。
 
 キャッシュドロアーはレシートtemplateから分離した専用device operationとする。型番、pin、pulse、安全制限をADR-P003で確定するまで実機駆動しない。
 
-既存DebianでDiscord bot serviceを停止し、USBが使用中でないことを確認してからPOS用probeを実行する。distribution、CPU、driver、USB device、udev、systemd、送信bytes、raw response、ログおよび紙面結果を保存する。
+既存DebianでDiscord bot serviceを停止し、USBが使用中でないことを確認してからPOS用probeを実行する。Windows/Linux双方についてOS、CPU、driver、USB/spooler device、udevまたはWindows printer設定、service、送信bytes、raw response、ログおよび紙面結果を保存する。
 
 ## 13. 取消・返品・返金
 
@@ -277,12 +279,12 @@ iPad横画面、PC横ウィンドウ、スマートフォンの順に最適化�
 
 | ADR | 未確定事項 | ブロックする範囲 |
 | --- | --- | --- |
-| P001 | Linuxのdriver、RAW/USB方式、timeout、排他、再接続、x86_64/ARM64配布 | 本番PrinterTransport、PR-01〜04/06/07 |
-| P002 | 接続、online、cover、paper、errorの取得能力 | 正式状態監視、PR-03/04 |
+| P001 | Windows/Linux別のdriver、RAW/USB方式、timeout、排他、再接続、x64/x86_64/ARM64配布 | 本番PrinterTransport、PR-01〜04/06/07 |
+| P002 | Windows/Linux別の接続、online、cover、paper、errorの取得能力 | 正式状態監視、PR-03/04 |
 | P003 | drawer型番、pin、pulse、安全制限 | 実機drawer、PR-06 |
-| P006 | 本番Linux機、distribution、storage、router、UPS、予備機、復旧目標 | 総合性能・障害訓練、CL-10最終受入 |
+| P006 | eventで採用するWindows/Linux機、OS、storage、router、UPS、予備機、復旧目標 | 総合性能・障害訓練、CL-10最終受入 |
 
-未確定値を仮の本番既定値で埋めない。P001/P002は本番候補LinuxとTM-T70IIの実測結果、P003は製品仕様と安全な実機結果、P006はx86_64/ARM64候補のBOMと本番相当訓練を保存してから決定する。
+未確定値を仮の本番既定値で埋めない。P001/P002はWindows x64とLinux x86_64/ARM64のTM-T70II実測結果、P003は製品仕様と安全な実機結果、P006は両OS候補のBOMと本番相当訓練を保存してから決定する。
 
 Code 128のmodule幅、高さ、quiet zoneおよび連続100回読取りは、使用予定scannerと58 mm実機で確定する。
 

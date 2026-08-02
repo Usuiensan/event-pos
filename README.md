@@ -4,12 +4,12 @@
 
 ## 現在の段階
 
-要件・設計をLinux本番運用へ更新し、既存Debian環境とTM-T70IIを使った実機検証および実装を開始する段階。
+Goal 5までの会計・レシート・永続印刷キューを実装済みで、Windows/Linux双方からTM-T70IIを完全運用できる実機検証とOS adapter実装へ進む段階。
 
-- 本番サーバー兼プリンターホスト: Debian、Ubuntu、Raspberry Pi OS等の64bit Linux
+- 本番対応プリンターホスト: Windows x64、およびDebian・Ubuntu・Raspberry Pi OS等の64bit Linux
 - レシートプリンター: EPSON TM-T70II
 - 初期実機基準: `discord-printer-bot` が稼働する既存Debian環境
-- 開発・管理端末: Windows PCを継続利用可能
+- OS受入方針: Windows/Linuxの両方で送信、状態取得、障害復旧、紙面を受入する
 - 内部ID: UUIDv7
 - 取引・取り置き共通受付番号: 営業セッション1桁＋連番6桁＋Damm検査数字
 - 通常表示: `SNNN-NNNC`
@@ -22,9 +22,10 @@ docs/design/             ADR、アーキテクチャ、データ、印刷、試�
 docs/HANDOFF.md          別PCへ移るためのプロジェクト知識の正本
 docs/CODEX_CONTINUATION_PROMPT.md  新しいCodexタスクの開始文
 docs/printer-baseline/   Debian環境のbytes・設定・紙面比較資料
-tools/hardware-test/     Linux/TM-T70II実機検証ツール
+tools/hardware-test/     Windows/Linux/TM-T70II実機検証ツール
 deploy/linux/            systemd、udev、導入・更新・復旧手順
-.github/workflows/       Linux CI（型チェック、テスト、build）
+deploy/surface/          Windows native printer-host、導入・更新・復旧手順
+.github/workflows/       CI（型チェック、テスト、build）
 ```
 
 ## リポジトリ境界
@@ -35,7 +36,7 @@ deploy/linux/            systemd、udev、導入・更新・復旧手順
 
 ## 開発コマンド
 
-Node.js 24以上とpnpm 11を使用する。SQLiteはNode.jsの`node:sqlite`を使うため、Windows開発環境とLinux CIで同じ実行条件にする。
+Node.js 24以上とpnpm 11を使用する。SQLiteはNode.jsの`node:sqlite`を使うため、Windows/Linuxで同じ実行条件にする。
 
 ```powershell
 pnpm install
@@ -83,8 +84,8 @@ pnpm --filter @event-pos/register-web dev
 
 ## 次の作業
 
-1. 既存Debian環境のプリンター出力、ESC/POS bytes、USB・systemd・udev設定を保存する。
-2. `/dev/usb/lp*`方式と必要な双方向status方式を、同じLinuxホスト上で比較する。
-3. USB切断、再接続、紙切れ、カバー開、排他、部分カットを測定する。
-4. ADR-P001/P002を確定してLinux PrinterTransportを実装する。
-5. x86_64 LinuxとARM64候補で自動試験・負荷試験を行い、ADR-P006で本番機を確定する。
+1. 既存Debianの基準bytes・紙面・USB/systemd/udev証拠を保存する。
+2. Windows x64ではRAW spoolerと必要なEPSON/OPOS状態取得、Linuxでは`/dev/usb/lp*`と必要な双方向方式を実測する。
+3. 両OSでUSB切断、再接続、紙切れ、カバー開、排他、部分カット、service再起動を測定する。
+4. ADR-P001/P002をOS別の能力表付きで確定し、Windows/Linux PrinterTransportを同じ契約へ実装する。
+5. Windows x64、Linux x86_64/ARM64の全プロファイルで自動・実機・運用受入を完了する。

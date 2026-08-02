@@ -1,6 +1,6 @@
-# Linux配布
+# Linux本番対応プロファイル
 
-本番Linux機への導入、systemd unit、udev、更新、backup、復旧手順をここへ配置する。
+Windowsと同格にサポートするLinux本番機への導入、systemd unit、udev、更新、backup、復旧手順をここへ配置する。
 
 ## 対象候補
 

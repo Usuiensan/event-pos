@@ -13,13 +13,15 @@ C:\private\event-pos の開発を引き継いでください。
 - docs/design/05_pending-adrs.md
 - docs/design/06_phase-goals.md
 - docs/design/09_barcode-namespace-proposal.md
-- docs/design/10_adr-linux-production-host-2026-08-02.md
+- docs/design/15_adr-windows-linux-printer-parity-2026-08-02.md
 
 このリポジトリは、C:\private\discord-printer-bot から分離した即売会向けPOSです。
 Discord botを実行時依存にしないでください。
 
-本番プリンターホストは64bit Linux機です。Windowsは開発・管理端末として使用できます。
-TM-T70IIは現在Debian上のDiscord botにつながっているため、POS用Linux実機試験ではDiscord bot service停止、USB排他、device、udev、systemd状態を明示的に確認してください。
+Windows x64と64bit Linuxは同格の本番対応プロファイルです。片方だけのUSB送信、状態取得、障害復旧、紙面確認でプリンター対応を完了扱いにしないでください。
+TM-T70IIは現在Debian上のDiscord botにつながっているため、POS用実機試験ではDiscord bot service停止とUSB排他を確認し、このDebian紙面をWindows/Linux共通fixtureの比較基準にしてください。
+
+次の作業がGoal 6なら`docs/GOAL6_PRINTER_PARITY_PROMPT.md`を実行条件の正本にしてください。
 
 まずgit status、現在のbranch、直近commit、未確定ADRを確認し、docs/HANDOFF.mdの「次の作業」と現状との差分を報告してください。
 ユーザーの既存変更を保持し、force-pushは本当に必要か再考してください。
