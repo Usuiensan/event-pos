@@ -27,16 +27,16 @@ Linux x86_64の既存証跡機は、この作業端末のSSH/DNS設定から`ser
 POS serverとPrinterHostを起動し、statusと`DRAWER_ENABLED=false`を確認後、次のrunnerを使える。これは実機へ5枚送るため`--run`を必須とする。
 
 ```powershell
-node tools/hardware-test/run-goal7-pos-acceptance.mjs --run --pos-url http://127.0.0.1:3000 --output docs/printer-baseline/windows/<run-id>
+node tools/hardware-test/run-goal7-pos-acceptance.mjs --run --operator <操作者ID> --manager <責任者ID> --pos-url http://127.0.0.1:3000 --output docs/printer-baseline/windows/<run-id>
 ```
 
-Linuxでは同じcommandのoutput先を`linux-x86_64/<run-id>`にする。生成される`operator-paper-review.json`は全項目が未確認であり、紙面を見た操作者だけが判定を更新する。
+Linuxでは同じcommandのoutput先を`linux-x86_64/<run-id>`にする。runnerは各jobの終端後に紙面結果を対話入力し、入力ごとに`operator-paper-review.json`とtransport証跡を逐次保存する。初回レシートを`printed`または`indeterminate`と判定した場合は、重複riskを理解した責任者が`REPRINT`と入力するまで再印刷jobを作らない。`not_printed`もtransport結果から推測せず、紙面を見た操作者が判定する。
 
 各OSで別run directoryを作り、次の5枚を同じ順で実POS APIから送る。
 
-1. 現金会計の初回レシート
-2. 同取引の明示再印刷
-3. 開局レシート
+1. 開局レシート
+2. 現金会計の初回レシート
+3. 同取引の明示再印刷
 4. 中間計レシート
 5. 精算レシート
 

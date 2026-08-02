@@ -18,8 +18,8 @@ Goal 7の正式adapter・POS queue/status API/UI統合はこの表の対象外�
 
 | 要件 | Windows x64 | Linux x86_64 | 現在の根拠と残件 |
 | --- | --- | --- | --- |
-| build済みHost・常駐起動 | A: standalone smoke、portable/WinSW定義、実backendのoffline statusまで確認 / H,R: Service無人起動未実施 | A: systemd/udev/env定義 / H,R: 対象機へ未配置 | 起動・停止・再起動・ログrunbookは実装。両OSのservice実演が必要 |
-| POS FIFO統合 | A: 初回、再印刷、開局、中間計、精算の5jobを実HTTP HostへFIFO送信 | A: OS非依存経路は同一 / H,R: Linux実transport未実施 | compiler/adapter/write hashとacceptedBytesの自動一致は確認。両OSのHostログ・紙面が必要 |
+| build済みHost・常駐起動 | A: standalone smoke、production-only portable deploy smoke、portable/WinSW定義、実backendのoffline statusまで確認 / H,R: Service無人起動未実施 | A: systemd/udev/env定義 / H,R: 対象機へ未配置 | 起動・停止・再起動・ログrunbookは実装。両OSのservice実演が必要 |
+| POS FIFO統合 | A: 初回、再印刷、開局、中間計、精算の5jobを実HTTP HostへFIFO送信 | A: OS非依存経路は同一 / H,R: Linux実transport未実施 | compiler/adapter/write hashとacceptedBytesの自動一致は確認。実機runnerは紙面確認を逐次保存し、初回確認前の再印刷を禁止。両OSのHostログ・紙面が必要 |
 | 再起動・切断・結果不明 | A: queue/Host試験でunknown・自動再送禁止を確認 / H,R: 実Service/USB未実施 | A: 同じqueue契約 / H,R: 実systemd/USB未実施 | 既存Goal 6 probeだけでGoal 7.1完了にはしない |
 | 紙面5種 | 未実施（USB controller不在） | 未実施（対象機へ到達不能） | jobId/hash/acceptedBytes/hostログと紙面判定をOS別に保存する |
 

@@ -50,7 +50,7 @@ describe("POSから本番PrinterHostまでの統合", () => {
     const saleResponse = await pos.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "production-path-sale" }, payload: { version: draft.version } });
     expect(saleResponse.statusCode, saleResponse.body).toBe(201);
     const sale = saleResponse.json();
-    const reprintResponse = await pos.inject({ method: "POST", url: `/api/v1/transactions/${sale.transactionId}/reprints`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { sourcePrintJobId: sale.printJobId, reason: "統合試験", physicalOutcome: "printed", riskAccepted: true, approval: { approverId: "manager-1", approvedAt: "2026-08-03T00:00:00.000Z" } } });
+    const reprintResponse = await pos.inject({ method: "POST", url: `/api/v1/transactions/${sale.transactionId}/reprints`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { sourcePrintJobId: sale.printJobId, reason: "統合試験", physicalOutcome: "not_printed", riskAccepted: false } });
     expect(reprintResponse.statusCode, reprintResponse.body).toBe(201);
     expect((await pos.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-production/checks/interim", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(201);
     expect((await pos.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-production/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000 } })).statusCode).toBe(201);

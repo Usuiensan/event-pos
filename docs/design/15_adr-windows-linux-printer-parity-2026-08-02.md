@@ -36,6 +36,6 @@ ADR-P006は個別eventへ持ち込むサーバー、storage、router、UPS、予
 
 ## Goal 7.1時点の適用状況（2026-08-03）
 
-workspace packageの本番exportを`dist`へ統一し、build済みPrinterHostの単独起動、Windows portable/WinSW、Linux systemd/udev、POS永続FIFOからHTTP Hostまでの共通経路を実装した。自動試験では初回・再印刷・開局・中間計・精算を1件ずつsequence順に送り、hashとacceptedBytesを保存できる。
+workspace packageの本番exportを`dist`へ統一し、build済みPrinterHostの単独起動、production dependencyだけのportable deploy、Windows portable/WinSW、Linux systemd/udev、POS永続FIFOからHTTP Hostまでの共通経路を実装した。自動試験では初回・再印刷・開局・中間計・精算を1件ずつsequence順に送り、hashとacceptedBytesを保存できる。実機runnerはtransport結果から紙面を推測せず、初回紙面の操作者判定を保存してからだけ明示再印刷を作る。
 
 ただし、Windows実機はUSB未接続、Linux実機はこの作業端末から到達不能であり、両OSの正式service、POS経由の5紙面、再起動・USB再接続ログは未取得である。ADR-P010の完了判定は満たしていない。P001/P002は方式とunknown境界の候補を実装できる段階、P003/P006は証拠不足で、詳細は`docs/printer-baseline/goal7.1-status.md`を正本とする。
