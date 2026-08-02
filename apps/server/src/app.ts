@@ -51,7 +51,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(503).send({ status: "not_ready", database: "error" });
     }
   });
-  app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1 }));
+  app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1, drawerEnabled: options.drawerEnabled ?? false }));
   app.post<{ Body: { errorId?: string; content?: string } }>("/api/v1/error-reports", async (request, reply) => {
     const errorId = request.body?.errorId;
     const content = request.body?.content;

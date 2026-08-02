@@ -134,7 +134,7 @@ export function reopenCashSession(db: PosDatabase, sessionId: string, reason: st
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
 }
 
-export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
+export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { printJobId: string } {
   const session = db.prepare("SELECT event_id, business_date, cashbox_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(check.sessionId) as { event_id: string; business_date: string; cashbox_id: string; state: string; opening_yen: number | null } | undefined;
   if (!session) throw new Error("cash session not found");
   if (session.state !== "open") throw new Error("cash session is closed");
@@ -146,15 +146,15 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck {
     if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
     if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'cash_check', ?, ?, ?)").run(session.event_id, check.kind, check.sessionId, JSON.stringify(check), check.createdAt);
-    enqueueCashCheckReceipt(db, session, check);
+    const printJobId = enqueueCashCheckReceipt(db, session, check);
     db.exec("COMMIT;");
+    return { ...check, printJobId };
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
-  return check;
 }
 
 function yen(value: number): string { return `¥${value.toLocaleString("ja-JP")}`; }
 
-function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; business_date: string; cashbox_id: string }, check: CashCheck): void {
+function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; business_date: string; cashbox_id: string }, check: CashCheck): string {
   const labels = { opening: "開局", interim: "中間計", closing: "精算" } as const;
   const lines = check.counted.map((item) => ({ kind: "row" as const, left: `${item.denomination.toLocaleString("ja-JP")}円 × ${item.quantity}`, right: yen(item.denomination * item.quantity) }));
   const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [
@@ -168,6 +168,7 @@ function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; b
     .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v1", bytesSha256(bytes), canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
   const sequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
   db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, jobId, check.createdAt, check.createdAt, check.createdAt);
+  return jobId;
 }
 
 export type CashMovement = { sessionId: string; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string; createdAt: string };

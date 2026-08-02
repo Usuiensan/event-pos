@@ -24,6 +24,14 @@ Linux x86_64の既存証跡機は、この作業端末のSSH/DNS設定から`ser
 
 ## 必須実機run
 
+POS serverとPrinterHostを起動し、statusと`DRAWER_ENABLED=false`を確認後、次のrunnerを使える。これは実機へ5枚送るため`--run`を必須とする。
+
+```powershell
+node tools/hardware-test/run-goal7-pos-acceptance.mjs --run --pos-url http://127.0.0.1:3000 --output docs/printer-baseline/windows/<run-id>
+```
+
+Linuxでは同じcommandのoutput先を`linux-x86_64/<run-id>`にする。生成される`operator-paper-review.json`は全項目が未確認であり、紙面を見た操作者だけが判定を更新する。
+
 各OSで別run directoryを作り、次の5枚を同じ順で実POS APIから送る。
 
 1. 現金会計の初回レシート
