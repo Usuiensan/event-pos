@@ -23,6 +23,13 @@ describe("server-side sale calculation", () => {
     expect(sale.totalYen).toBe(305);
   });
 
+  it("allows a 100% manual discount after an automatic discount without going negative", () => {
+    const rules = [{ id: "pair", label: "2個値引", requiredProducts: [{ productCode: "00000001", quantity: 2 }], discountYen: 20 }];
+    const sale = calculateSale([line({ quantity: 2, manualDiscount: { kind: "rate", value: 100 } })], rules);
+    expect(sale.discounts).toMatchObject([{ kind: "auto", amountYen: 20 }, { kind: "manual", amountYen: 200 }]);
+    expect(sale.totalYen).toBe(0);
+  });
+
   it("rounds tax once per rate after integer discount allocation", () => {
     const sale = calculateSale([
       line({ lineId: "ten", lineNo: 1, priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", manualDiscount: { kind: "amount", value: 1 } }),

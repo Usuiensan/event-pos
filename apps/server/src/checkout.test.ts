@@ -127,6 +127,21 @@ describe("durable checkout API", () => {
     expect(overAmount.statusCode).toBe(422);
   });
 
+  it("removes automatic and manual discounts only when their conditions or values are cleared", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app, "register-discount-removal"); draft = await addLine(app, draft, "00000001", 2);
+    expect(draft.calculation.discounts).toMatchObject([{ kind: "auto", amountYen: 20 }]);
+    const lineId = draft.lines[0].lineId;
+    const quantityChanged = await app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(draft.version) }, payload: { quantity: 1 } });
+    draft = quantityChanged.json(); expect(draft.calculation.discounts).toEqual([]);
+    const discounted = await app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(draft.version) }, payload: { manualDiscount: { kind: "rate", value: 100 } } });
+    draft = discounted.json(); expect(draft.calculation.totalYen).toBe(0);
+    const preserved = await app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(draft.version) }, payload: { quantity: 2 } });
+    draft = preserved.json(); expect(draft.calculation.totalYen).toBe(0);
+    const cleared = await app.inject({ method: "PATCH", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${lineId}`, headers: { "if-match": String(draft.version) }, payload: { manualDiscount: null } });
+    expect(cleared.json().calculation.totalYen).toBe(200);
+  });
+
   it("adds every bundle component or rolls the whole request back", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app);

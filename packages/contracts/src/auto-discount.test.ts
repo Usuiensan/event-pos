@@ -14,4 +14,13 @@ describe("automatic discount", () => {
     ]);
     expect(result).toEqual([{ ruleId: "ac", label: "A+C", discountYen: 200, applications: 1 }]);
   });
+
+  it("selects the same rule by id when competing discounts have the same amount", () => {
+    const rules = [
+      { id: "b-rule", label: "B規則", requiredProducts: [{ productCode: "A", quantity: 1 }], discountYen: 100 },
+      { id: "a-rule", label: "A規則", requiredProducts: [{ productCode: "A", quantity: 1 }], discountYen: 100 },
+    ];
+    expect(calculateAutoDiscounts(new Map([["A", 1]]), rules)).toEqual([{ ruleId: "a-rule", label: "A規則", discountYen: 100, applications: 1 }]);
+    expect(calculateAutoDiscounts(new Map([["A", 1]]), [...rules].reverse())).toEqual([{ ruleId: "a-rule", label: "A規則", discountYen: 100, applications: 1 }]);
+  });
 });

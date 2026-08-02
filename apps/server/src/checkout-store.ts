@@ -224,7 +224,8 @@ export function updateDraftLine(db: PosDatabase, draftId: string, lineId: string
     if (line.status === "canceled") throw new CheckoutError(409, "DRAFT_LINE_CANCELED", "取消済み明細は変更できません");
     if (input.quantity !== undefined && (!Number.isSafeInteger(input.quantity) || input.quantity < 1)) throw new CheckoutError(400, "INVALID_QUANTITY", "数量は1以上の整数で指定してください");
     if (input.manualDiscount !== undefined && input.manualDiscount !== null && (!Number.isSafeInteger(input.manualDiscount.value) || input.manualDiscount.value < 0 || (input.manualDiscount.kind === "rate" && input.manualDiscount.value > 100))) throw new CheckoutError(422, "INVALID_MANUAL_DISCOUNT", "任意値引きが不正です");
-    db.prepare(`UPDATE sale_draft_lines SET quantity=COALESCE(?,quantity), manual_discount_kind=?, manual_discount_value=? WHERE line_id=?`).run(input.quantity ?? null, input.manualDiscount?.kind ?? null, input.manualDiscount?.value ?? null, lineId);
+    if (input.quantity !== undefined) db.prepare("UPDATE sale_draft_lines SET quantity=? WHERE line_id=?").run(input.quantity, lineId);
+    if (input.manualDiscount !== undefined) db.prepare("UPDATE sale_draft_lines SET manual_discount_kind=?, manual_discount_value=? WHERE line_id=?").run(input.manualDiscount?.kind ?? null, input.manualDiscount?.value ?? null, lineId);
     const candidate = readLines(db, draftId);
     try { calculateDraft(db, String(row.event_id), candidate); } catch (error) { throw new CheckoutError(422, error instanceof Error && "code" in error ? String((error as { code: string }).code) : "INVALID_DISCOUNT", error instanceof Error ? error.message : "値引きが不正です"); }
     bump(db, draftId, version, "editing");

@@ -121,7 +121,7 @@ export function calculateSale(inputLines: readonly SaleCalculationLineInput[], r
     const manual = line.manualDiscount;
     if (!manual) continue;
     if (!Number.isSafeInteger(manual.value) || manual.value < 0 || (manual.kind === "rate" && manual.value > 100)) throw new SaleCalculationError("INVALID_MANUAL_DISCOUNT", manual.kind === "rate" ? "値引率は0～100％で指定してください" : "値引額は0以上の整数で指定してください");
-    const requested = manual.kind === "rate" ? line.grossYen - Math.floor(line.grossYen * (100 - manual.value) / 100) : manual.value * line.quantity;
+    const requested = manual.kind === "rate" ? line.netYen - Math.floor(line.netYen * (100 - manual.value) / 100) : manual.value * line.quantity;
     if (requested > line.netYen) throw new SaleCalculationError("DISCOUNT_EXCEEDS_TARGET", "値引額が対象額を超えています");
     line.discountYen += requested;
     line.netYen -= requested;
