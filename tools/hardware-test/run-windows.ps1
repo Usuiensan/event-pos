@@ -6,13 +6,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$env:PRINTER_EVIDENCE_DIR = $EvidenceDir
+$repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+if ([IO.Path]::IsPathRooted($EvidenceDir)) {
+  $evidencePath = [IO.Path]::GetFullPath($EvidenceDir)
+} else {
+  $evidencePath = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $EvidenceDir))
+}
+New-Item -ItemType Directory -Force -Path $evidencePath | Out-Null
+$env:PRINTER_EVIDENCE_DIR = $evidencePath
 pnpm --filter @event-pos/printer-host hardware-test
 if ($Run) {
   # The common CLI deliberately has no Windows direct-send mode. The bundled Winspool adapter
   # is run below so the result remains bounded to the fixed fixture.bin.
-  $fixture = Join-Path $EvidenceDir 'fixture.bin'
-  $manifest = Get-Content -Raw (Join-Path $EvidenceDir 'fixture-manifest.json') | ConvertFrom-Json
+  $fixture = Join-Path $evidencePath 'fixture.bin'
+  $manifest = Get-Content -Raw (Join-Path $evidencePath 'fixture-manifest.json') | ConvertFrom-Json
   $script = Join-Path $PSScriptRoot '..\..\apps\printer-host\scripts\windows-raw-spooler.ps1'
   $raw = & $script -PrinterName $PrinterName -Path $fixture -DocumentName 'event-pos TM-T70II parity probe' | ConvertFrom-Json
   $printer = Get-Printer -Name $PrinterName | Select-Object Name, DriverName, PortName, PrinterStatus, WorkOffline
@@ -26,5 +33,5 @@ if ($Run) {
     statusBefore = 'unknown'; statusAfter = 'unknown'; statusRequests = @(@{ mechanism = 'Get-Printer coarse queue observation'; raw = $printer; normalized = 'unknown'; reason = 'queue state alone is not device-ready proof' })
     delivery = @{ transportAccepted = ($raw.writeComplete -and $raw.acceptedBytes -eq (Get-Item $fixture).Length); physicalPaperCompleted = $null; automaticRetry = $false; shortWriteHandling = 'no automatic retry; delivery certainty remains unknown' }
     physicalPaperEvidenceId = $null
-  } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $EvidenceDir 'windows-spooler-result.json')
+  } | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $evidencePath 'windows-spooler-result.json')
 }
