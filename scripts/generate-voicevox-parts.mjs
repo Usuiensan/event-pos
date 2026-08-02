@@ -12,13 +12,14 @@ const speakers = (process.env.VOICEVOX_SPEAKERS ?? process.env.VOICEVOX_SPEAKER 
 const fastSpeedScale = Number(process.env.VOICEVOX_FAST_SPEED_SCALE ?? 1.45);
 const guideSpeedScale = Number(process.env.VOICEVOX_GUIDE_SPEED_SCALE ?? 1.35);
 const moraLengthScale = Number(process.env.VOICEVOX_MORA_LENGTH_SCALE ?? 0.84);
+const requestedParts = new Set((process.env.VOICEVOX_PARTS ?? "").split(",").map((value) => value.trim()).filter(Boolean));
 const parts = {
   "えん": "yen",
   "ぜろえん": "zeroen",
   "合計金額は": "subtotal-prefix",
   "です": "desu",
   "レシートをお受け取りください": "receipt",
-  "おつりをおたしかめください": "change",
+  "お釣りを必ずお確かめください": "change",
   "じゅう": "ju", "ひゃく": "hyaku", "せん": "sen", "まん": "man",
   "いち": "ichi", "に": "ni", "さん": "san", "よん": "yon", "ご": "go", "ろく": "roku", "なな": "nana", "はち": "hachi", "きゅう": "kyu",
   "にじゅう": "nijuu", "さんじゅう": "sanjuu", "よんじゅう": "yonjuu", "ごじゅう": "gojuu", "ろくじゅう": "rokujuu", "ななじゅう": "nanajuu", "はちじゅう": "hachijuu", "きゅうじゅう": "kyuujuu",
@@ -71,11 +72,13 @@ for (const speaker of speakers) {
   await fs.mkdir(outDir, { recursive: true });
   await fs.mkdir(yenDir, { recursive: true });
   for (const [text, file] of Object.entries(parts)) {
+    if (requestedParts.size > 0 && !requestedParts.has(file)) continue;
     const fast = !["subtotal-prefix", "receipt", "change"].includes(file);
     await writeMp3(path.join(outDir, `${file}.mp3`), await synthesize(text, speaker, fast));
     console.log(`[${speaker}] ${text} -> ${file}.mp3`);
   }
   for (const [text, file] of Object.entries(yenParts)) {
+    if (requestedParts.size > 0 && !requestedParts.has(file)) continue;
     const isThousandYen = file === "sen-en";
     await writeMp3(path.join(yenDir, `${file}.mp3`), await synthesize(text, speaker, !isThousandYen, isThousandYen ? 1.3 : undefined));
     console.log(`[${speaker}] ${text} -> yen/${file}.mp3`);
