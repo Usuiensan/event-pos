@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 2,
+  "runId": "68999f95-c791-47ea-922c-2da7c9822536",
+  "warning": "transport受理は紙面完了ではありません。各判定は紙面を見た操作者の入力です",
+  "jobs": [
+    {
+      "kind": "opening",
+      "jobId": "ed593bb2-eef1-4e2b-b214-234d0090d600",
+      "paperOutcome": "printed",
+      "paperPhotoId": "paper-opening-original.jpg",
+      "evidenceId": "paper-opening-original.jpg",
+      "photoSha256": "7916eb51b3787c5652fa2e7d63d5380b26ee2d1f6903507a1db5fb8adf53d617",
+      "fullText": "ok",
+      "layout": "ok",
+      "mojibake": "none",
+      "partialCut": "ok",
+      "notes": "ok",
+      "operator": "goal7-operator",
+      "reviewedAt": "2026-08-02T22:05:18.498Z"
+    },
+    {
+      "kind": "original",
+      "jobId": "019fc482-8f45-7960-a43f-a499dec98d8a",
+      "paperOutcome": "printed",
+      "paperPhotoId": "paper-opening-original.jpg",
+      "evidenceId": "paper-opening-original.jpg",
+      "photoSha256": "7916eb51b3787c5652fa2e7d63d5380b26ee2d1f6903507a1db5fb8adf53d617",
+      "fullText": "ok",
+      "layout": "ok",
+      "mojibake": "none",
+      "partialCut": "ok",
+      "notes": null,
+      "operator": "goal7-operator",
+      "reviewedAt": "2026-08-02T22:05:41.635Z"
+    },
+    {
+      "kind": "reprint",
+      "jobId": "019fc48d-4577-7529-a087-adbd6932bb14",
+      "paperOutcome": "printed",
+      "paperPhotoId": "\"C:\\Users\\miwam\\Downloads\\スクリーンショット 2026-08-03 071743.png\"",
+      "evidenceId": "\"C:\\Users\\miwam\\Downloads\\スクリーンショット 2026-08-03 071743.png\"",
+      "fullText": "ok",
+      "layout": "ok",
+      "mojibake": "none",
+      "partialCut": "ok",
+      "notes": null,
+      "operator": "goal7-operator",
+      "reviewedAt": "2026-08-02T22:18:02.687Z"
+    },
+    {
+      "kind": "interim",
+      "jobId": "66594c51-b7b7-4c02-b16a-3ff0732df5b7",
+      "paperOutcome": "printed",
+      "paperPhotoId": "ok",
+      "evidenceId": "ok",
+      "fullText": "ok",
+      "layout": "ok",
+      "mojibake": "none",
+      "partialCut": "ok",
+      "notes": null,
+      "operator": "goal7-operator",
+      "reviewedAt": "2026-08-02T22:18:19.616Z"
+    },
+    {
+      "kind": "closing",
+      "jobId": "992d5259-5120-4527-a835-fd905065a9ea",
+      "paperOutcome": "printed",
+      "paperPhotoId": "ok",
+      "evidenceId": "ok",
+      "fullText": "ok",
+      "layout": "ok",
+      "mojibake": "none",
+      "partialCut": "ok",
+      "notes": null,
+      "operator": "goal7-operator",
+      "reviewedAt": "2026-08-02T22:18:36.527Z"
+    }
+  ]
+}
