@@ -35,3 +35,9 @@ POS_BASE_URL=http://127.0.0.1:3000
 The supplied udev file is a commented template. Confirm vendor/product identifiers before enabling a rule. Status probing that cannot be verified is reported as `unknown`; it must not be treated as ready or paper-out.
 
 For recovery, stop the service before reconnecting USB, verify the device node and group permissions, start the service, then query the job state. A job that was transmitting when the host disappeared remains `unknown` and is not automatically resent.
+
+## BC-415M-B(6C) drawer (hardware pending)
+
+The Linux Host uses the same drawer job as Windows: only `ESC p 0 2 20` (`1b 70 00 02 14`, pin 2, ON 4 ms/OFF 40 ms) is accepted. It is queued before a cash-sale receipt, and a manager's `替` action creates the same FIFO operation. Reprints never create a drawer operation.
+
+When the drawer arrives, first stop `discord-printer-bot.service` and prove that no other process holds the USB device. Connect the drawer's 6-pin modular cable only to the TM-T70II DK connector (never a telephone jack). Set the stable udev alias as `PRINTER_DEVICE`, start `event-pos-printer-host`, then submit exactly one drawer job. Save the Host response, `journalctl -u event-pos-printer-host`, device permissions, payload hash `dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de`, and the operator's physical-open result under `docs/printer-baseline/linux-x86_64/`. A full write is not proof that the drawer opened.
