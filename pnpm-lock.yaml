@@ -88,6 +88,9 @@ importers:
         specifier: ^5.6.1
         version: 5.11.0
     devDependencies:
+      '@event-pos/printer-host':
+        specifier: workspace:*
+        version: link:../printer-host
       '@types/node':
         specifier: ^24.3.0
         version: 24.13.3
