@@ -101,3 +101,11 @@ cash checkと成果物生成のtransaction境界を分離する。cash check確�
 - UIの4状態、保存先、hash、失敗理由、再生成可否をunit testと実ブラウザーで確認する。
 
 暗号化event archive、保持期限後削除、未実装の返品・取り置き・締めissue全体は本機能だけで完了扱いにしない。Goal 8の残件として別証拠を必要とする。
+
+## 8. 2026-08-03 実装結果
+
+- schema version 6の`backup_artifacts`、cash check確定時のpending登録、起動時の中断回収、単一worker claimを実装した。
+- `VACUUM INTO`のsnapshotだけをExcel・manifestの入力にし、ExcelJSで10シートを生成後、別readerで読戻してから同一filesystem上のrenameで公開する。
+- Windowsの長い最終保存先でも生成途中のパス長を抑えるため、artifact root直下の短いstaging名を使う。最終保存規則と上書き禁止は4章どおりである。
+- 自動試験は中間計・精算、xlsx読戻し、別DB復元、logical hash、容量不足、再起動中断、冪等再生成、二重worker claimを検証した。
+- 実ブラウザーでは生成待ち、生成中、成功、失敗の色・文言、保存先・3 hash、責任者再生成から新成果物成功までを確認した。

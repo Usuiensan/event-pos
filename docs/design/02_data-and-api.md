@@ -140,10 +140,13 @@ register modeではcashboxにregister IDを必須、shared modeではNULLとし�
 | `printer_observations` | observed_at, transport, normalized_status_json, raw_status_json |
 | `audit_events` | event_id, actor_id, approver_id, terminal_id, action, subject_type/id, before_json, after_json, reason, occurred_at |
 | `export_jobs` | kind, schema_version, export_id, event_id, range_from/to, requested_by, state, path, manifest_sha256, completed_at |
+| `backup_artifacts` | artifact_id, event/business date/cashbox/cash session, source cash check, trigger, retry元, 冪等request key, pending/generating/completed/failed, 3パス/3 SHA-256, logical hash, 件数/合計, error。中間計・精算自動成果物の状態正本 |
 
 初回jobはtransaction ID・kind=`original`を一意、再印刷は `(transaction_id,reprint_no)` を一意にする。`audit_events` はaction別にallowlistした業務snapshotをcanonical JSONで保存し、PIN/session/身分証情報を除外する。`audit_events`、`inventory_movements`、確定取引群にUPDATE/DELETEを発行するrepositoryを実装しない。DB保守はアプリ停止・バックアップ・別手順とする。
 
 canonical export bundleは運用中でもevent、business day、日時範囲を指定して随時作成できる。UTF-8 BOM付きRFC 4180 CSVで取引、明細、値引配賦、税率別集計、支払、返品・取消、在庫移動、無料配布、取り置き、現金台帳、締めを別ファイルにし、`manifest.json` へschema version、export ID、抽出条件、生成日時、行数、各SHA-256を保存する。金額は整数円、時刻はUTC ISO 8601、コード類は文字列、税率はbasis pointsとする。exportは正本を変更せず何度でも再生成でき、製品別会計adapterは将来別packageとして追加する。
+
+中間計・精算直後の自動成果物は、この随時CSV exportとは別にADR-P005の2026-08-03追補を適用する。cash check確定transaction内では`backup_artifacts=pending`と監査までを保存し、commit後に一貫SQLite snapshot、単一`.xlsx`、manifestを生成する。生成失敗はcash checkをrollbackせず`failed`へ記録し、責任者再生成は旧行・旧ファイルを上書きせず新artifact IDへ追記する。保存・列・検証契約は`17_goal8-backup-excel.md`を正本とする。
 
 ## 3. ユースケースのトランザクション境界
 
@@ -233,6 +236,9 @@ canonical export bundleは運用中でもevent、business day、日時範囲を�
 | POST | `/cash-sessions/{id}/movements` | 入金・出金 |
 | POST | `/closings` | 締め |
 | POST | `/closings/{id}/reopen` | 承認付き再開 |
+| GET | `/backup-artifacts?eventId=&businessDate=&cashboxId=` | 自動成果物の状態、保存先、hash、失敗理由を一覧取得 |
+| GET | `/backup-artifacts/{artifactId}` | 成果物1件の件数、合計、path、hash、再生成可否を取得 |
+| POST | `/backup-artifacts/{artifactId}/regenerate` | failed成果物を責任者が新artifact IDで再生成。Idempotency-Key必須 |
 | GET/POST/PATCH | `/admin/products`, `/admin/discount-rules` | マスター管理 |
 | POST | `/exports` | event/business day/日時範囲を指定してcanonical CSV bundle作成 |
 

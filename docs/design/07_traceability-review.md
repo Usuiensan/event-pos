@@ -237,3 +237,22 @@ Human Reviewは未完了である。template preview APIの人間可読内容、
 - 要件v0.6、Architecture、Printing、受入台帳、Pending ADR、Goal 6/7/9、引継ぎ、継続promptを両OS受入へ更新した。
 - PR-01/03/04/06/07/10とCL-10は、Windows/Linux双方のA/H/R証跡がそろうまでOS対応全体を完了扱いにしない。
 - WindowsのRAW spooler/EPSON/OPOS/ServiceとLinuxのRAW/libusb/udev/systemdはOS別に実測し、同じjob契約、ESC/POS bytes、紙面、certainty、復旧結果へ収束させる。
+
+## 12. 2026-08-03 Goal 8 自動バックアップ・単一Excel成果物
+
+対象commitは設計`0ab56bf`、生成基盤・API`3e68808`、画面`e7dc997`。自動試験の正本は`apps/server/src/backup-artifacts.test.ts`、`apps/register-web/src/backup-artifact-status.test.ts`、`apps/register-web/src/checkout-api.test.ts`である。
+
+| 対象 | 実装・試験証拠 | 判定 |
+| --- | --- | --- |
+| 確定境界 | interim/closingのcash check、監査、印刷operation、成果物pendingを同一transactionで確定し、ファイルI/Oをcommit後へ分離 | 合格 |
+| 一貫snapshot | WALのファイルコピーを使わず`VACUUM INTO`でsnapshotを作り、そのDBだけからxlsx・manifest・logical hashを生成 | 合格 |
+| 成果物対応 | artifact IDをSQLite、xlsx、manifest、保存directory、DB行へ共通化し、公開後の3 SHA-256を再計算 | 合格 |
+| Excel | 売上、売上明細、支払、税、在庫移動、現金台帳、点検締め、印刷Operation、監査、概要の10シート。Unicode、UTC日時、整数円、filter、freeze paneを別readerで照合 | A/H合格 |
+| restore | backupを別パスでopenし、売上・支払・在庫・現金・監査・印刷job/operationの件数・合計・logical hashと`integrity_check=ok`を元DBと比較 | 合格 |
+| 障害・再実行 | ENOSPCでもclosing確定を保持。起動時の生成中断回収、failedから新ID再生成、同一key再送、二重worker claim、上書き禁止を自動試験 | 合格 |
+| UI | 実ブラウザーで生成待ち、生成中、成功、失敗を色・文言で確認。成功の保存先・3 hash、失敗理由、責任者再生成から新ID成功まで実行 | A/H合格 |
+| 監査 | requested/completed/failedへ生成者、契機、成果物ID、hashまたは失敗結果を保存。再生成要求も別auditとして追記 | 合格 |
+
+2026-08-03時点の`pnpm check`は全workspaceのbuild・typecheck、147件の自動試験、built/deployed PrinterHost smokeに成功した。xlsxは自動読戻しに加え、実生成ファイルの10シートをartifact rendererで描画して列見出し・日本語・金額・hash/JSON列を確認した。実ブラウザーのad hoc静的配信では既存の`sw.js` 404だけがconsoleへ残り、成果物API・画面操作のerrorはなかった。
+
+今回の機能証拠だけでGoal 8全体を完了扱いにしない。暗号化event archive、保持期限後の削除runbook、本番Windows ACL/空き容量監視、未実装の返品・取り置き・締めissue、CL-01〜10の総合R証拠は残る。
