@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exportEventCatalog, importEventCatalog } from "./catalog.js";
 
-const sample = { eventId: "event-1", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale" as const }], quickEntries: [{ id: "set-1", label: "新刊セット", components: [{ productCode: "A001", quantity: 2 }] }], staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者" }] };
+const sample = { eventId: "event-1", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, saleState: "on_sale" as const, thumbnailUrl: "/products/a001.webp" }], quickEntries: [{ id: "set-1", label: "新刊セット", components: [{ productCode: "A001", quantity: 2 }] }], staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者" }] };
 
 describe("event catalog JSON", () => {
   it("imports and exports event-scoped products and sets", () => expect(importEventCatalog(exportEventCatalog(sample))).toEqual(sample));
