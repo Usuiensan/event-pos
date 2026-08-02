@@ -10,6 +10,8 @@ Windows候補は同梱のWinspool RAW `WritePrinter`、EPSON driver/API、OPOS�
 
 採用は未決定。各候補で同じ`fixture.bin`を送り、partial write、別process占有、切断/再接続、service無人起動、OS再起動後復旧、紙面を比較する。`acceptedBytes`がbytes長と一致しても物理完了とは扱わない。送信可能性のある失敗は自動再送しない。
 
+2026-08-02にWindows x64で同梱Winspool RAWを1回実測した。spooler job ID 3は313 bytesを受理し、fixture SHA-256は`cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d`である。これは紙面を観測していないため、方式採用・紙面合格・障害復旧の根拠にはならない。raw JSONは`docs/printer-baseline/windows/20260802-2303/`に保存する。
+
 ## ADR-P002 状態取得
 
 現時点の全方式は`unknown`である。Windows print queueの`Normal`、Linuxのwrite成功、DLE EOT応答なしを`ready`へ変換しない。各方式のreachable/online/cover/paper/recoverable/fatal errorは [能力表](../printer-baseline/capability-matrix.md) に `supported` / `unsupported` / `unknown` とraw値の両方を記録する。

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "mode": "run",
+  "fixture": {
+    "fixtureId": "tm-t70ii-parity-v1",
+    "fixtureVersion": 1,
+    "canonicalIrSha256": "0937291e0b1e4f663973b24eae9c9fc2b94a82386e2a041dccfb13e98a88a12f",
+    "escposSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "bytesLength": 313,
+    "compiler": "event-pos-escpos-v1",
+    "adapterSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d",
+    "writeSha256": "cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d"
+  },
+  "executedAt": "2026-08-02T23:02:06.1136193+09:00",
+  "environment": {
+    "platform": "Windows",
+    "architecture": "AMD64",
+    "os": {
+      "Caption": "Microsoft Windows 11 Pro",
+      "Version": "10.0.26200",
+      "BuildNumber": "26200"
+    }
+  },
+  "adapter": {
+    "mutex": "hardware probe process only; PrinterHost mutex is not exercised",
+    "timeoutMs": null,
+    "driver": {
+      "Name": "EPSON TM-T70II Receipt5",
+      "MajorVersion": 3,
+      "Manufacturer": "EPSON"
+    },
+    "printer": {
+      "Name": "EPSON TM-T70II Receipt",
+      "DriverName": "EPSON TM-T70II Receipt5",
+      "PortName": "ESDPRT001",
+      "PrinterStatus": 4096,
+      "WorkOffline": null
+    },
+    "spoolerJobId": 3,
+    "name": "Winspool RAW WritePrinter"
+  },
+  "writes": [
+    {
+      "bytesWritten": 313,
+      "offset": 0,
+      "errno": null
+    }
+  ],
+  "statusBefore": "unknown",
+  "statusAfter": "unknown",
+  "statusRequests": [
+    {
+      "raw": {
+        "Name": "EPSON TM-T70II Receipt",
+        "DriverName": "EPSON TM-T70II Receipt5",
+        "PortName": "ESDPRT001",
+        "PrinterStatus": 4096,
+        "WorkOffline": null
+      },
+      "mechanism": "Get-Printer coarse queue observation",
+      "normalized": "unknown",
+      "reason": "queue state alone is not device-ready proof"
+    }
+  ],
+  "delivery": {
+    "automaticRetry": false,
+    "transportAccepted": true,
+    "physicalPaperCompleted": null
+  },
+  "physicalPaperEvidenceId": null
+}

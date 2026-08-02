@@ -4,7 +4,7 @@
 
 | OS / architecture | 方式 | reachable | online | cover | paper | recoverable error | fatal error | 証跡 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | Winspool RAW `WritePrinter` | unknown | unknown | unknown | unknown | unknown | unknown | `windows/manifest.json` を作成後に更新 |
+| Windows x64 | Winspool RAW `WritePrinter` | unknown | unknown | unknown | unknown | unknown | unknown | spooler job 3が313 bytesを受理、device-level status/紙面は未確認 |
 | Windows x64 | EPSON driver/API | unknown | unknown | unknown | unknown | unknown | unknown | 未測定 |
 | Windows x64 | OPOS | unknown | unknown | unknown | unknown | unknown | unknown | 未測定 |
 | Linux x86_64 | `/dev/usb/lp*` | unknown | unknown | unknown | unknown | unknown | unknown | `linux-x86_64/manifest.json` を作成後に更新 |

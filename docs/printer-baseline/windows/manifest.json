@@ -1,8 +1,15 @@
 {
   "schemaVersion": 1,
-  "evidenceState": "template-not-measured",
+  "evidenceState": "partially-measured",
   "platform": "Windows x64",
   "fixture": { "manifest": "../fixture-manifest.json", "sameBytesRequired": true },
   "required": ["os/kernel/architecture", "printer/driver/version/port", "spooler job ID", "write offsets/acceptedBytes/errno", "raw status/API response", "normalized status", "mutex/claim timeout", "paper evidence ID"],
-  "results": []
+  "results": [
+    {
+      "id": "W-01",
+      "directory": "20260802-2303",
+      "result": "transport accepted: 313 bytes; physical paper not observed by the recorder",
+      "status": "unknown"
+    }
+  ]
 }
