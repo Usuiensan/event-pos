@@ -96,3 +96,17 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .customer-age-prompt { position: fixed; inset: 0; z-index: 20; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3rem; margin: 0; padding: 4vh 4vw; background: #fffde7; font-size: clamp(2.5rem, 6vw, 5rem); text-align: center; }
 .customer-age-prompt > strong { flex: 0 0 auto; }
 .customer-age-skip { background: #f97316 !important; color: white; }
+.customer-welcome { align-content: center; gap: .7rem; padding: 2rem; box-sizing: border-box; text-align: center; }
+.customer-welcome img { display: block; max-width: min(70vw, 760px); max-height: 48vh; margin: 0 auto .5rem; border-radius: 1rem; object-fit: contain; }
+.customer-welcome strong { color: #111827; font-size: clamp(2rem, 5vw, 4rem); }
+.customer-welcome span { color: #1d4ed8; font-size: clamp(1.4rem, 3vw, 2.5rem); font-weight: 700; }
+.customer-welcome p { white-space: pre-line; font-size: clamp(1.5rem, 3.5vw, 3rem); line-height: 1.45; }
+
+/* POS画面の形状は角丸に統一する。表の連続行以外は同じ丸みを使う。 */
+.pos-screen button { border-radius: .7rem; }
+.register-header, .detail-panel, .mini-cart, .staff-bottom, .checkout-summary, .cash-popup,
+.payment-entry, .business-menu, .line-menu, .price-change-modal, .error-modal, .modal,
+.payment-amount, .discount-display { border-radius: .8rem; }
+.detail-panel, .mini-cart, .checkout-summary, .payment-entry, .price-change-modal, .modal { overflow: hidden; }
+.subtotal-large { margin: .35rem; height: calc(100% - .7rem); border-radius: .7rem; }
+.payment-keypad > button { border-radius: .7rem; }

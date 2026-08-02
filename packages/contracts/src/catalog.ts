@@ -14,6 +14,7 @@ export type ProductDefinition = {
 export type ProductTab = { id: string; label: string; color?: string };
 export type StaffPermission = "catalog_import" | "refund" | "reprint";
 export type StaffMember = { responsibleNumber: string; displayName: string; permissions?: StaffPermission[] };
+export type CustomerWelcome = { message?: string; circleName?: string; space?: string; imageUrl?: string };
 
 export type QuickEntry = {
   id: string;
@@ -24,7 +25,7 @@ export type QuickEntry = {
   tabId?: string;
 };
 
-export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[] };
+export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[]; customerWelcome?: CustomerWelcome };
 
 function fail(message: string): never { throw new Error(message); }
 
@@ -81,7 +82,17 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   const productTabs = value.productTabs?.map((raw, index) => { const tab = raw as Partial<ProductTab>; if (typeof tab.id !== "string" || !tab.id.trim() || typeof tab.label !== "string" || !tab.label.trim()) fail(`productTabs[${index}]のid/labelが必要です`); if (tab.color !== undefined && typeof tab.color !== "string") fail(`productTabs[${index}].colorが不正です`); return { id: tab.id, label: tab.label, ...(tab.color ? { color: tab.color } : {}) }; });
   const staffMembers = value.staffMembers?.map((raw, index) => { const member = raw as Partial<StaffMember>; if (typeof member.responsibleNumber !== "string" || !/^\d{3}$/.test(member.responsibleNumber)) fail(`staffMembers[${index}].responsibleNumberは3桁の数字です`); if (typeof member.displayName !== "string" || !member.displayName.trim()) fail(`staffMembers[${index}].displayNameが必要です`); const allowedPermissions: StaffPermission[] = ["catalog_import", "refund", "reprint"]; if (member.permissions !== undefined && (!Array.isArray(member.permissions) || member.permissions.some((permission) => !allowedPermissions.includes(permission)))) fail(`staffMembers[${index}].permissionsが不正です`); return { responsibleNumber: member.responsibleNumber, displayName: member.displayName.trim(), ...(member.permissions ? { permissions: [...new Set(member.permissions)] } : {}) }; });
   if (staffMembers) { const numbers = new Set<string>(); for (const member of staffMembers) if (numbers.has(member.responsibleNumber)) fail(`責任者番号が重複しています: ${member.responsibleNumber}`); else numbers.add(member.responsibleNumber); }
-  return { eventId: value.eventId, products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}) };
+  let customerWelcome: CustomerWelcome | undefined;
+  if (value.customerWelcome !== undefined) {
+    if (!value.customerWelcome || typeof value.customerWelcome !== "object" || Array.isArray(value.customerWelcome)) fail("customerWelcomeはJSONオブジェクトで指定してください");
+    customerWelcome = {};
+    for (const key of ["message", "circleName", "space", "imageUrl"] as const) {
+      const field = value.customerWelcome[key];
+      if (field !== undefined && typeof field !== "string") fail(`customerWelcome.${key}は文字列で指定してください`);
+      if (typeof field === "string" && field.trim()) customerWelcome[key] = field.trim();
+    }
+  }
+  return { eventId: value.eventId, products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}), ...(customerWelcome ? { customerWelcome } : {}) };
 }
 
 export function importEventCatalog(json: string): EventCatalog { try { return validateEventCatalog(JSON.parse(json)); } catch (error) { throw new Error(error instanceof Error ? error.message : "JSONが不正です"); } }

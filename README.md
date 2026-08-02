@@ -64,6 +64,23 @@ pnpm --filter @event-pos/register-web dev
 
 店員側画面は、`staffMembers`に存在しない番号、空欄、3桁でない番号でのサインオンを拒否する。
 
+### 顧客画面の登録待ち表示
+
+商品が未登録の顧客画面には、`customerWelcome`でサークル名、配置、案内文、画像を設定できる。`message`は改行を含められ、`imageUrl`にはブラウザから参照できる画像URLまたは配信パスを指定する。
+
+```json
+{
+  "customerWelcome": {
+    "circleName": "サークル名",
+    "space": "東A-01a",
+    "message": "いらっしゃいませ\n新刊を頒布しています",
+    "imageUrl": "/welcome.png"
+  }
+}
+```
+
+各項目は省略可能で、`message`が未設定の場合は「いらっしゃいませ」を表示する。
+
 ## 次の作業
 
 1. 既存Debian環境のプリンター出力、ESC/POS bytes、USB・systemd・udev設定を保存する。

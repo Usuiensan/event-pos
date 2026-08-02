@@ -16,4 +16,9 @@ describe("event catalog JSON", () => {
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "" }] }))).toThrow("displayName");
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "担当者", permissions: ["admin"] }] }))).toThrow("permissions");
   });
+  it("imports customer welcome content", () => {
+    const customerWelcome = { message: "新刊を頒布中です", circleName: "サークル名", space: "東A-01a", imageUrl: "/welcome.png" };
+    expect(importEventCatalog(JSON.stringify({ ...sample, customerWelcome })).customerWelcome).toEqual(customerWelcome);
+    expect(() => importEventCatalog(JSON.stringify({ ...sample, customerWelcome: { message: 123 } }))).toThrow("customerWelcome.message");
+  });
 });
