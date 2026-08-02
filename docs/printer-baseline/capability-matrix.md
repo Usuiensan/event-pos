@@ -4,7 +4,7 @@
 
 | OS / architecture | 方式 | reachable | online | cover | paper | recoverable error | fatal error | 証跡 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Windows x64 | Winspool RAW `WritePrinter` | unknown | unknown | unknown（cover openでもqueue raw `0`/USB PnP `OK`） | unknown | unknown | unknown | spooler job 3が313 bytesを受理。Linux側接続中はqueue raw `4096`、Windows再接続後とcover open時はUSB PnP `OK`/queue raw `0`だが、いずれも`unknown`のまま保存 |
+| Windows x64 | Winspool RAW `WritePrinter` | unknown | unknown | unknown（cover openでもqueue raw `0`/USB PnP `OK`） | unknown（紙切れでもqueue raw `0`/USB PnP `OK`） | unknown | unknown | spooler job 3が313 bytesを受理。Linux側接続中はqueue raw `4096`、Windows再接続後・cover open・paper outはUSB PnP `OK`/queue raw `0`だが、いずれも`unknown`のまま保存 |
 | Windows x64 | EPSON driver/API | unknown | unknown | unknown | unknown | unknown | unknown | 未測定 |
 | Windows x64 | OPOS | unknown | unknown | unknown | unknown | unknown | unknown | OPOS for .NET/T70II componentは導入済み、logical device未設定のためOpen/Claim未実施 |
 | Linux x86_64 | `/dev/usb/lp*` | supported | supported（正常時） | unknown（開時はDLE EOT応答不能） | unknown（紙切れ時はDLE EOT応答不能、near-endは`1e`で観測） | unknown | unknown | 正常DLE EOT `16/12/12/12`、切断時`ENODEV`、再接続後ready復帰 |
