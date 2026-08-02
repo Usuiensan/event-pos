@@ -36,6 +36,14 @@ function counts(db: PosDatabase): Record<string, number> {
 }
 
 describe("receipt template and reprint routes", () => {
+  it("drawer未受入時は手動駆動APIも拒否する", async () => {
+    const { app, db } = makeApp();
+    const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("DRAWER_NOT_ACCEPTED");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
+  });
+
   it("会計時にPIIを含まないimmutable snapshotと全version/hashを保存する", async () => {
     const { app, db } = makeApp(); const sale = await finalizeSale(app);
     const row = db.prepare("SELECT * FROM print_jobs WHERE job_id=?").get(sale.printJobId) as Record<string, unknown>;

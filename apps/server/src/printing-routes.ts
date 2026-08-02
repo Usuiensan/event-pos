@@ -42,8 +42,9 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   return getPrintJob(db, jobId)!;
 }
 
-export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation> }): void {
+export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation>; drawerEnabled?: boolean }): void {
   app.post("/api/v1/device-jobs/drawer", async (request, reply) => {
+    if (!options.drawerEnabled) return error(reply, 409, "DRAWER_NOT_ACCEPTED", "ドロアー実機受入が完了するまで駆動できません");
     const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
     if (!actorId || role !== "manager") return error(reply, role ? 403 : 401, "DRAWER_MANAGER_REQUIRED", "責任者権限が必要です");
     const now = new Date().toISOString(); const jobId = uuidV7();
