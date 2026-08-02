@@ -18,7 +18,7 @@ describe("receipt template", () => {
 
   it("同じsnapshotから同じASTと人間向けpreviewを生成する", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot));
-    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊 x1");
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊");
   });
 
   it("未知node・変数・幅超過・finish欠落/複数を有効化前に拒否する", () => {

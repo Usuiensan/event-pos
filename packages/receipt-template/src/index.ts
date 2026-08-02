@@ -79,7 +79,7 @@ const COLLECTION_VARIABLES: Record<string, Set<string>> = {
   taxSummaries: new Set(["taxRateBps", "taxableNetFormatted", "taxFormatted"]),
   payments: new Set(["methodName", "amountFormatted", "tenderedFormatted", "changeFormatted"]),
 };
-const CONDITIONS = new Set(["isReprint", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange"]);
+const CONDITIONS = new Set(["isReprint", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange", "quantityOne", "quantityMoreThanOne"]);
 const NODE_NAMES = new Set(["reset", "text", "row", "align", "emphasis", "size", "rule", "feed", "image", "qr", "finish", "each", "if"]);
 const VARIABLE_RE = /\{\{\s*([A-Za-z][A-Za-z0-9]*)\s*\}\}/g;
 
@@ -233,7 +233,12 @@ function compileNodes(rawNodes: unknown[], snapshot: ReceiptSnapshot, global: Re
       }
       case "finish": { const value = node.finish as Record<string, unknown>; output.push({ kind: "feed", lines: Number(value.feedLines) }, { kind: "cut", mode: value.cutMode as CutMode }); break; }
       case "each": for (const item of collection(snapshot, String(node.each))) compileNodes(node.body as unknown[], snapshot, global, item, output); break;
-      case "if": if (Boolean(global[String(node.if)])) compileNodes(node.body as unknown[], snapshot, global, local, output); break;
+      case "if": {
+        const condition = String(node.if);
+        const result = condition === "quantityMoreThanOne" ? Number(local.quantity) > 1 : condition === "quantityOne" ? Number(local.quantity) === 1 : Boolean(global[condition]);
+        if (result) compileNodes(node.body as unknown[], snapshot, global, local, output);
+        break;
+      }
     }
   }
 }
@@ -297,7 +302,13 @@ body:
   - rule: single
   - each: lines
     body:
-      - row: { left: "{{name}} x{{quantity}}", right: "{{netFormatted}}" }
+      - if: quantityOne
+        body:
+          - row: { left: "{{name}}", right: "{{netFormatted}}" }
+      - if: quantityMoreThanOne
+        body:
+          - text: "{{name}}"
+          - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - row: { left: "値引", right: "{{discountTotalFormatted}}" }
   - row: { left: "税", right: "{{taxTotalFormatted}}" }
