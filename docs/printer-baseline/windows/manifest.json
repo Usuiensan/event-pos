@@ -14,7 +14,7 @@
     {
       "id": "W-02",
       "directory": "20260803-0001",
-      "result": "transport accepted: 313 bytes; paper photo confirms visual layout and partial cut; QR/Code128 scan not recorded",
+      "result": "transport accepted: 313 bytes; paper photo confirms visual layout and partial cut; operator confirmed QR/Code128 scan",
       "status": "unknown"
     }
   ]

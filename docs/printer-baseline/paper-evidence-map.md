@@ -3,7 +3,7 @@
 | 試験ID | OS/方式 | fixture SHA-256 | 紙面写真/scan ID | QR実読取り | Code 128実読取り | 日本語・円・32桁 | feed/cut | 判定 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | W-01 | Windows x64 Winspool RAW | `cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d` | 未取得 | 未確認 | 未確認 | 未確認 | 未確認 | OS/spooler受理済み、紙面未判定 |
-| W-02 | Windows x64 Winspool RAW | `cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d` | `windows/20260803-0001/paper-W-01.jpg` | 可視確認、実読取り未記録 | 可視確認、実読取り未記録 | 写真確認済み | 写真確認済み | 物理紙面完了。スキャン結果と障害試験は未実施 |
+| W-02 | Windows x64 Winspool RAW | `cb0fd1c71fe171d075167d967b099d4a6c26eb71aabcbf2b1ae9ccf88f3dac0d` | `windows/20260803-0001/paper-W-01.jpg` | 操作者スマホ実読取りOK | 操作者スマホ実読取りOK | 写真確認済み | 写真確認済み | 正常紙面受入完了。状態・障害試験は未実施 |
 | L64-01 | Linux x86_64 | 未生成 | 未取得 | 未取得 | 未取得 | 未取得 | 未取得 | 未実施 |
 | LA64-01 | Linux ARM64 | 未生成 | 未取得 | 未取得 | 未取得 | 未取得 | 未取得 | 未実施 |
 

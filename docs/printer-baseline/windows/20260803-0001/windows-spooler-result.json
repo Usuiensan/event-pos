@@ -81,7 +81,7 @@
       "code128Visible": "pass",
       "feedAndPartialCut": "pass"
     },
-    "machineRead": { "qr": "not-yet-recorded", "code128": "not-yet-recorded" },
-    "reviewLimit": "写真での視認結果。QR/Code128のデコーダー実読取りは別証跡が必要"
+    "machineRead": { "qr": "pass", "code128": "pass" },
+    "reviewLimit": "写真の視認と操作者によるスマホ実読取り。状態・障害復旧は別証跡が必要"
   }
 }
