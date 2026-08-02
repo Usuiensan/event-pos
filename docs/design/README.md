@@ -23,6 +23,7 @@
 | `11_adr-print-host-process-boundary-2026-08-02.md` | POS本体とプリンターホストの責務・通信境界ADR |
 | `12_adr-disaster-print-integration-2026-08-02.md` | kishou_server/Discord防災通知とPOS printer-host共用印刷ADR |
 | `13_windows-surface-temporary-deployment-2026-08-02.md` | Surface上のDocker POSとWindows printer-hostの一時運用構成 |
+| `14_deferred-goals.md` | 後続Goalへ分離した在庫・印刷・OS・バックアップ・総合受入項目 |
 
 ## 固定した技術方針
 
