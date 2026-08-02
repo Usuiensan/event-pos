@@ -133,6 +133,17 @@
 
 会計ソフト名、勘定科目、部門、税区分、日次集約方式は、製品導入時に変換adapter側で決める。POS正本とcanonical exportの実装をブロックしない。
 
+#### 2026-08-03 Goal 8追補: 中間計・精算時のcanonical Excel成果物
+
+- 状態: `Accepted`（利用者指定、2026-08-03）
+- 中間計と精算の確定直後に作る標準成果物は、複数CSVではなく単一のOffice Open XML `.xlsx` ブックとする。
+- 売上、明細、支払、税、在庫移動、現金台帳、点検/締め、印刷operation、監査を用途別シートへ分ける。
+- SQLite正本、復旧用SQLite snapshot、閲覧・変換用Excel、検証用manifestの役割を分離し、Excelを唯一の正本にしない。
+- DB backup、Excel、manifestを一つの成果物IDへ紐づけ、UIから状態、保存先、hash、失敗理由、再生成可否を確認できるようにする。
+- 生成失敗はcash check確定失敗ではない。確定済みデータとfailed成果物記録を保持し、責任者が旧成果物を上書きせず再生成する。
+- P005の会計ソフト非依存、正本DBを出力済みflagで変更しない、金額は整数円、日時はUTC、内部UUIDを保持する原則は維持する。CSV固有のBOM/RFC 4180要件はこの自動成果物には適用しない。
+- 詳細設計は `17_goal8-backup-excel.md` を正本とする。
+
 ## 4. Accepted: 推奨案の採用
 
 ### ADR-D013 自動値引きの重複

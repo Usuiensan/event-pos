@@ -25,6 +25,7 @@
 | `13_windows-surface-temporary-deployment-2026-08-02.md` | Surface上のDocker POSとWindows printer-hostの配備プロファイル |
 | `14_deferred-goals.md` | 後続Goalへ分離した在庫・印刷・OS・バックアップ・総合受入項目 |
 | `15_adr-windows-linux-printer-parity-2026-08-02.md` | Windows/Linuxを同格の本番対応とするADR-P010 |
+| `17_goal8-backup-excel.md` | 中間計・精算時のSQLite snapshot、単一Excel帳票、manifest、再生成設計 |
 
 ## 固定した技術方針
 
