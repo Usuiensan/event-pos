@@ -20,7 +20,7 @@ export type PrinterStatusObservation = {
 export type PrintJob = {
   jobId: string;
   operationId?: string;
-  kind?: "original" | "reprint" | "closing" | "test";
+  kind?: "original" | "reprint" | "opening" | "interim" | "closing" | "test" | "drawer";
   sourceJobId?: string;
   reprintNo?: number;
   transactionId: string;
@@ -51,7 +51,7 @@ export type PrintJob = {
   errorMessage?: string;
 };
 
-export type PrintJobRequest = Pick<PrintJob, "jobId" | "transactionId" | "printerId" | "documentType" | "payload" | "createdAt" | "source" | "sourceEventId" | "rendererVersion" | "bytesSha256" | "canonicalIr" | "irSha256" | "expectedBytesLength" | "templateKey" | "templateVersion" | "templateSourceSha256" | "assets" | "fontId" | "fontVersion" | "fontSha256" | "finishingPolicyId" | "finishingPolicyVersion">;
+export type PrintJobRequest = Pick<PrintJob, "jobId" | "transactionId" | "printerId" | "documentType" | "kind" | "payload" | "createdAt" | "source" | "sourceEventId" | "rendererVersion" | "bytesSha256" | "canonicalIr" | "irSha256" | "expectedBytesLength" | "templateKey" | "templateVersion" | "templateSourceSha256" | "assets" | "fontId" | "fontVersion" | "fontSha256" | "finishingPolicyId" | "finishingPolicyVersion">;
 export type PrintJobStateUpdate = { state: PrintJobState; deliveryCertainty?: DeliveryCertainty; completionEvidence?: PrintJob["completionEvidence"]; errorMessage?: string };
 
 export type PrinterDispatchResult = {

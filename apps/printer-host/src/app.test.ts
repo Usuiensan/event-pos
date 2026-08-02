@@ -41,6 +41,16 @@ const job: PrintJob = {
 };
 
 describe("printer host", () => {
+  it("reachable実測済みなら未対応sensorをunknownのままRAW送信できる", async () => {
+    const transport = new FakeTransport();
+    transport.getStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "RAWでは未取得" }, coverOpen: { support: "unknown", reason: "RAWでは未取得" }, paper: { support: "unknown", reason: "RAWでは未取得" }, error: { support: "unknown", reason: "RAWでは未取得" }, raw: null });
+    const app = buildPrinterHost({ transport });
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "reachable-only" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ completionEvidence: "transport_accepted" });
+    await app.close();
+  });
+
   it("canonical IRを決定的に変換し、同じjobIdを1回だけ送信する", async () => {
     const transport = new FakeTransport();
     const app = buildPrinterHost({ transport }); apps.push(app);
@@ -100,5 +110,12 @@ describe("printer host", () => {
     const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-external", documentType: "disaster-notification", payload: { escposBase64: Buffer.from(raw).toString("base64") }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: raw.length, bytesSha256: bytesSha256(raw), source: "kishou_server", sourceEventId: "eq-1", rendererVersion: "kishou-escpos-v1" } });
     expect(response.json()).toMatchObject({ jobId: "job-external", acceptedBytes: raw.length });
     expect(Array.from(transport.sent[0] ?? [])).toEqual(Array.from(raw));
+  });
+
+  it("固定済みのBC-415M用2番pin pulseだけをdrawer jobとして送信する", async () => {
+    const transport = new FakeTransport(); const app = buildPrinterHost({ transport }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "drawer-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 4, offMs: 40 }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: 5, bytesSha256: "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", rendererVersion: "event-pos-drawer-v1" } });
+    expect(response.statusCode).toBe(201);
+    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
   });
 });

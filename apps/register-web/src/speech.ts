@@ -4,26 +4,28 @@ export const OPERATION_ERROR_SOUND_URL = "/audio/operation-error.mp3?v=operation
 export const SYSTEM_ERROR_FREQUENCY_HZ = 523.25;
 
 const prepared: Record<string, string> = {
-  "円": "/audio/yen.wav", "えん": "/audio/yen.wav", "じゅう": "/audio/ju.wav", "ひゃく": "/audio/hyaku.wav", "せん": "/audio/sen.wav", "まん": "/audio/man.wav",
-  "いち": "/audio/ichi.wav", "に": "/audio/ni.wav", "さん": "/audio/san.wav", "よん": "/audio/yon.wav", "ご": "/audio/go.wav", "ろく": "/audio/roku.wav", "なな": "/audio/nana.wav", "はち": "/audio/hachi.wav", "きゅう": "/audio/kyu.wav",
-  "ぜろえん": "/audio/zeroen.wav",
-  "にじゅう": "/audio/nijuu.wav", "さんじゅう": "/audio/sanjuu.wav", "よんじゅう": "/audio/yonjuu.wav", "ごじゅう": "/audio/gojuu.wav", "ろくじゅう": "/audio/rokujuu.wav", "ななじゅう": "/audio/nanajuu.wav", "はちじゅう": "/audio/hachijuu.wav", "きゅうじゅう": "/audio/kyuujuu.wav",
-  "にせん": "/audio/nisen.wav", "さんぜん": "/audio/sanzen.wav", "よんせん": "/audio/yonsen.wav", "ごせん": "/audio/gosen.wav", "ろくせん": "/audio/rokusen.wav", "ななせん": "/audio/nanasen.wav", "はっせん": "/audio/hassen.wav", "きゅうせん": "/audio/kyuusen.wav",
-  "にひゃく": "/audio/nihyaku.wav", "さんびゃく": "/audio/sanbyaku.wav", "よんひゃく": "/audio/yonhyaku.wav", "ごひゃく": "/audio/gohyaku.wav", "ろっぴゃく": "/audio/roppyaku.wav", "ななひゃく": "/audio/nanahyaku.wav", "はっぴゃく": "/audio/happyaku.wav", "きゅうひゃく": "/audio/kyuuhyaku.wav",
-  "レシートをお受け取りください": "/audio/receipt.wav",
-  "お釣りを、必ずお確かめください。レシートをお受け取りください": "/audio/change-receipt.wav",
-  "年齢確認が必要です": "/audio/age-required.wav",
-  "身分証明書の提示をお願いする場合がございます": "/audio/id-request.wav",
-  "緊急情報を受信しました": "/audio/emergency-alert.wav",
-  "合計金額は": "/audio/subtotal-prefix.wav", "です": "/audio/desu.wav",
+  "円": "yen.mp3", "えん": "yen.mp3", "じゅう": "ju.mp3", "ひゃく": "hyaku.mp3", "せん": "sen.mp3", "まん": "man.mp3",
+  "いち": "ichi.mp3", "に": "ni.mp3", "さん": "san.mp3", "よん": "yon.mp3", "ご": "go.mp3", "ろく": "roku.mp3", "なな": "nana.mp3", "はち": "hachi.mp3", "きゅう": "kyu.mp3",
+  "ぜろえん": "zeroen.mp3",
+  "にじゅう": "nijuu.mp3", "さんじゅう": "sanjuu.mp3", "よんじゅう": "yonjuu.mp3", "ごじゅう": "gojuu.mp3", "ろくじゅう": "rokujuu.mp3", "ななじゅう": "nanajuu.mp3", "はちじゅう": "hachijuu.mp3", "きゅうじゅう": "kyuujuu.mp3",
+  "にせん": "nisen.mp3", "さんぜん": "sanzen.mp3", "よんせん": "yonsen.mp3", "ごせん": "gosen.mp3", "ろくせん": "rokusen.mp3", "ななせん": "nanasen.mp3", "はっせん": "hassen.mp3", "きゅうせん": "kyuusen.mp3",
+  "にひゃく": "nihyaku.mp3", "さんびゃく": "sanbyaku.mp3", "よんひゃく": "yonhyaku.mp3", "ごひゃく": "gohyaku.mp3", "ろっぴゃく": "roppyaku.mp3", "ななひゃく": "nanahyaku.mp3", "はっぴゃく": "happyaku.mp3", "きゅうひゃく": "kyuuhyaku.mp3",
+  "レシートをお受け取りください": "receipt.mp3",
+  "お釣りを、必ずお確かめください。レシートをお受け取りください": "change-receipt.mp3",
+  "年齢確認が必要です": "age-required.mp3",
+  "身分証明書の提示をお願いする場合がございます": "id-request.mp3",
+  "緊急情報を受信しました": "emergency-alert.mp3",
+  "合計金額は": "subtotal-prefix.mp3", "です": "desu.mp3",
 };
 const yenParts: Record<string, string> = {
-  "ぜろえん": "zeroen.wav", "いちえん": "ichi-en.wav", "にえん": "ni-en.wav", "さんえん": "san-en.wav", "よんえん": "yon-en.wav", "ごえん": "go-en.wav", "ろくえん": "roku-en.wav", "ななえん": "nana-en.wav", "はちえん": "hachi-en.wav", "きゅうえん": "kyu-en.wav",
-  "じゅうえん": "ju-en.wav", "にじゅうえん": "nijuu-en.wav", "さんじゅうえん": "sanjuu-en.wav", "よんじゅうえん": "yonjuu-en.wav", "ごじゅうえん": "gojuu-en.wav", "ろくじゅうえん": "rokujuu-en.wav", "ななじゅうえん": "nanajuu-en.wav", "はちじゅうえん": "hachijuu-en.wav", "きゅうじゅうえん": "kyuujuu-en.wav",
-  "ひゃくえん": "hyaku-en.wav", "にひゃくえん": "nihyaku-en.wav", "さんびゃくえん": "sanbyaku-en.wav", "よんひゃくえん": "yonhyaku-en.wav", "ごひゃくえん": "gohyaku-en.wav", "ろっぴゃくえん": "roppyaku-en.wav", "ななひゃくえん": "nanahyaku-en.wav", "はっぴゃくえん": "happyaku-en.wav", "きゅうひゃくえん": "kyuuhyaku-en.wav",
-  "せんえん": "sen-en.wav", "にせんえん": "nisen-en.wav", "さんぜんえん": "sanzen-en.wav", "よんせんえん": "yonsen-en.wav", "ごせんえん": "gosen-en.wav", "ろくせんえん": "rokusen-en.wav", "ななせんえん": "nanasen-en.wav", "はっせんえん": "hassen-en.wav", "きゅうせんえん": "kyuusen-en.wav",
+  "ぜろえん": "zeroen.mp3", "いちえん": "ichi-en.mp3", "にえん": "ni-en.mp3", "さんえん": "san-en.mp3", "よんえん": "yon-en.mp3", "ごえん": "go-en.mp3", "ろくえん": "roku-en.mp3", "ななえん": "nana-en.mp3", "はちえん": "hachi-en.mp3", "きゅうえん": "kyu-en.mp3",
+  "じゅうえん": "ju-en.mp3", "にじゅうえん": "nijuu-en.mp3", "さんじゅうえん": "sanjuu-en.mp3", "よんじゅうえん": "yonjuu-en.mp3", "ごじゅうえん": "gojuu-en.mp3", "ろくじゅうえん": "rokujuu-en.mp3", "ななじゅうえん": "nanajuu-en.mp3", "はちじゅうえん": "hachijuu-en.mp3", "きゅうじゅうえん": "kyuujuu-en.mp3",
+  "ひゃくえん": "hyaku-en.mp3", "にひゃくえん": "nihyaku-en.mp3", "さんびゃくえん": "sanbyaku-en.mp3", "よんひゃくえん": "yonhyaku-en.mp3", "ごひゃくえん": "gohyaku-en.mp3", "ろっぴゃくえん": "roppyaku-en.mp3", "ななひゃくえん": "nanahyaku-en.mp3", "はっぴゃくえん": "happyaku-en.mp3", "きゅうひゃくえん": "kyuuhyaku-en.mp3",
+  "せんえん": "sen-en.mp3", "にせんえん": "nisen-en.mp3", "さんぜんえん": "sanzen-en.mp3", "よんせんえん": "yonsen-en.mp3", "ごせんえん": "gosen-en.mp3", "ろくせんえん": "rokusen-en.mp3", "ななせんえん": "nanasen-en.mp3", "はっせんえん": "hassen-en.mp3", "きゅうせんえん": "kyuusen-en.mp3",
 };
-const audioRevision = "voice-parts-v9-emergency-alert";
+const audioRevision = "voice-parts-v11-speed-1.25-short-gap";
+// 各MP3の末尾に含まれる無音を完全に連結せず、次の音声を少し早めに開始して間を短くする。
+const partOverlapSeconds = 0.06;
 const decodedAudio = new Map<string, Promise<AudioBuffer>>();
 let sharedAudioContext: AudioContext | null = null;
 let alarmOscillator: OscillatorNode | null = null;
@@ -49,9 +51,9 @@ function loadAudioBuffer(url: string): Promise<AudioBuffer> {
 
 function preloadSpeaker(speakerId: number): void {
   if (!getAudioContext()) return;
-  const filenames = new Set([...Object.values(prepared).map((value) => value.split("/").at(-1)!.replace(".wav", ".mp3")), ...Object.values(yenParts).map((value) => value.replace(".wav", ".mp3"))]);
+  const filenames = new Set([...Object.values(prepared), ...Object.values(yenParts)]);
   for (const filename of filenames) {
-    const directory = Object.values(yenParts).some((value) => value.replace(".wav", ".mp3") === filename) ? "yen" : "speaker";
+    const directory = Object.values(yenParts).includes(filename) ? "yen" : "speaker";
     const url = `/audio/${directory}/${speakerId}/${filename}?v=${audioRevision}`;
     void loadAudioBuffer(url).catch(() => { decodedAudio.delete(url); });
   }
@@ -76,10 +78,9 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
     const yenFile = yenParts[yenPart!];
     const bodyParts = yenFile ? parts.slice(0, yenIndex - 1) : parts;
     for (const part of bodyParts) if (prepared[part]) {
-      const genericPath = prepared[part];
-      urls.push(`/audio/speaker/${speakerId}/${genericPath.split("/").at(-1)?.replace(".wav", ".mp3")}?v=${audioRevision}`);
+      urls.push(`/audio/speaker/${speakerId}/${prepared[part]}?v=${audioRevision}`);
     } else { fallback(text, volume); return; }
-    if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile.replace(".wav", ".mp3")}?v=${audioRevision}`);
+    if (yenFile) urls.push(`/audio/yen/${speakerId}/${yenFile}?v=${audioRevision}`);
     if (yenFile && suffixOffset) urls.push(`/audio/speaker/${speakerId}/desu.mp3?v=${audioRevision}`);
     const context = getAudioContext();
     if (urls.length && context) {
@@ -96,7 +97,7 @@ export function createSpeechPlayer(options: { speakerId?: number } = {}): Speech
           source.connect(gain);
           gain.connect(context.destination);
           source.start(startAt);
-          startAt += buffer.duration;
+          startAt += Math.max(0, buffer.duration - partOverlapSeconds);
           return source;
         });
         active = sources;
@@ -145,7 +146,7 @@ export function previewSystemErrorSound(volume = 100, durationMs = 1_500): void 
   window.setTimeout(() => { if (alarmOscillator === previewAlarm) stopOperationSound(); }, durationMs);
 }
 export function stopOperationSound(): void { if (!alarmOscillator) return; const oscillator = alarmOscillator; alarmOscillator = null; try { oscillator.stop(); } catch { /* already stopped */ } oscillator.disconnect(); }
-function fallback(text: string, volume: number): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.8; utterance.volume = Math.max(0, Math.min(100, volume)) / 100; window.speechSynthesis.speak(utterance); }
+function fallback(text: string, volume: number): void { if (typeof window === "undefined" || !("speechSynthesis" in window)) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = "ja-JP"; utterance.rate = 1.25; utterance.volume = Math.max(0, Math.min(100, volume)) / 100; window.speechSynthesis.speak(utterance); }
 export function speakProductPrice(player: SpeechPlayer, speech: string): void { player.speak(speech); }
 export function speakSubtotal(player: SpeechPlayer, speech: string): void { player.speak(`${speech} です`); }
 export function speakReceiptReady(player: SpeechPlayer): void { player.speak("レシートをお受け取りください"); }

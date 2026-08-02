@@ -23,6 +23,13 @@ export class TransportSendError extends Error {
 }
 
 export function renderEscPos(job: PrintJob): Uint8Array {
+  if (job.documentType === "drawer") {
+    const payload = job.payload as { pin?: unknown; onMs?: unknown; offMs?: unknown };
+    // BC-415M-B(6C) is a 6-pin modular drawer.  TM-T70II's documented
+    // default drawer output is pin 2; ESC p values are in 2 ms units.
+    if (payload?.pin !== 2 || payload.onMs !== 4 || payload.offMs !== 40) throw new Error("approved drawer pulse is required");
+    return Uint8Array.from([0x1b, 0x70, 0x00, 0x02, 0x14]);
+  }
   if (job.documentType === "receipt") {
     if (!job.canonicalIr || !job.bytesSha256 || !job.irSha256 || !job.expectedBytesLength || !job.rendererVersion || !job.templateKey || !job.templateVersion || !job.templateSourceSha256 || !job.fontId || !job.fontVersion || !job.fontSha256 || !job.finishingPolicyId || !job.finishingPolicyVersion) throw new Error("receipt version metadata is required");
     const bytes = canonicalIrToEscPos(job.canonicalIr, job.assets ?? []);

@@ -1,0 +1,17 @@
+<service>
+  <id>EventPosPrinterHost</id>
+  <name>event-pos PrinterHost</name>
+  <description>TM-T70IIへevent-posの永続印刷ジョブを送信します。</description>
+  <executable>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</executable>
+  <arguments>-NoProfile -ExecutionPolicy Bypass -File "%BASE%\start-printer-host.ps1" -EnvironmentFile "%BASE%\printer-host.env"</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <stoptimeout>15 sec</stoptimeout>
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="15 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>10</keepFiles>
+  </log>
+</service>

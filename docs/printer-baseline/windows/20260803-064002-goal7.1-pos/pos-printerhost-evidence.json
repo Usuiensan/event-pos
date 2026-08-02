@@ -1,0 +1,2589 @@
+{
+  "schemaVersion": 2,
+  "runId": "766bce19-525c-4200-931d-2bf84a785f01",
+  "result": "failed",
+  "error": "再印刷riskが明示承認されなかったため、安全に停止しました",
+  "startedAt": "2026-08-02T21:44:23.913Z",
+  "updatedAt": "2026-08-02T21:47:52.207Z",
+  "completedAt": "2026-08-02T21:47:52.207Z",
+  "posUrl": "http://127.0.0.1:3000",
+  "environment": {
+    "platform": "win32",
+    "architecture": "x64",
+    "node": "v24.18.0"
+  },
+  "statusBefore": {
+    "printerId": "receipt-1",
+    "observation": {
+      "observedAt": "2026-08-02T21:44:26.027Z",
+      "reachable": {
+        "support": "supported",
+        "value": true
+      },
+      "online": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice onlineを取得できません"
+      },
+      "coverOpen": {
+        "support": "unknown",
+        "reason": "Winspool RAWではcover状態を取得できません"
+      },
+      "paper": {
+        "support": "unknown",
+        "reason": "Winspool RAWではpaper状態を取得できません"
+      },
+      "error": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice errorを取得できません"
+      },
+      "raw": {
+        "adapter": "windows-raw",
+        "schemaVersion": 1,
+        "normalized": "ready",
+        "printer": {
+          "Name": "EPSON TM-T70II Receipt",
+          "DriverName": "EPSON TM-T70II Receipt5",
+          "PortName": "ESDPRT001",
+          "PrinterStatus": 0,
+          "WorkOffline": null
+        },
+        "usbControllerPresent": true,
+        "usbDevices": [
+          {
+            "Status": "OK",
+            "Class": "USB",
+            "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+            "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+            "Problem": 0,
+            "ConfigManagerErrorCode": 0
+          }
+        ],
+        "reason": null
+      }
+    }
+  },
+  "statusAfter": null,
+  "jobs": [
+    {
+      "kind": "opening",
+      "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "job": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "completed",
+        "updatedAt": "2026-08-02T21:44:28.432Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      },
+      "attempts": [
+        {
+          "attemptNo": 1,
+          "phase": "postcheck_completed",
+          "startedAt": "2026-08-02T21:44:26.078Z",
+          "endedAt": "2026-08-02T21:44:28.432Z",
+          "compilerBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+          "adapterBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+          "writeBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+          "acceptedBytes": 290,
+          "result": "completed",
+          "errorCode": null,
+          "errorMessage": null,
+          "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":290,\"spoolerJobId\":9,\"api\":\"Winspool RAW WritePrinter\"}",
+          "statusObservationJson": "{\"observedAt\":\"2026-08-02T21:44:28.031Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+        }
+      ]
+    },
+    {
+      "kind": "original",
+      "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+      "job": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "completed",
+        "updatedAt": "2026-08-02T21:46:51.204Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      },
+      "attempts": [
+        {
+          "attemptNo": 1,
+          "phase": "postcheck_completed",
+          "startedAt": "2026-08-02T21:46:47.762Z",
+          "endedAt": "2026-08-02T21:46:51.204Z",
+          "compilerBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+          "adapterBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+          "writeBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+          "acceptedBytes": 548,
+          "result": "completed",
+          "errorCode": null,
+          "errorMessage": null,
+          "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":548,\"spoolerJobId\":10,\"api\":\"Winspool RAW WritePrinter\"}",
+          "statusObservationJson": "{\"observedAt\":\"2026-08-02T21:46:50.749Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "at": "2026-08-02T21:44:23.941Z",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 200,
+      "response": {
+        "name": "event-pos",
+        "service": "server",
+        "schemaVersion": 1,
+        "drawerEnabled": false
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.029Z",
+      "method": "GET",
+      "path": "/api/v1/printer/status",
+      "status": 200,
+      "response": {
+        "printerId": "receipt-1",
+        "observation": {
+          "observedAt": "2026-08-02T21:44:26.027Z",
+          "reachable": {
+            "support": "supported",
+            "value": true
+          },
+          "online": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice onlineを取得できません"
+          },
+          "coverOpen": {
+            "support": "unknown",
+            "reason": "Winspool RAWではcover状態を取得できません"
+          },
+          "paper": {
+            "support": "unknown",
+            "reason": "Winspool RAWではpaper状態を取得できません"
+          },
+          "error": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice errorを取得できません"
+          },
+          "raw": {
+            "adapter": "windows-raw",
+            "schemaVersion": 1,
+            "normalized": "ready",
+            "printer": {
+              "Name": "EPSON TM-T70II Receipt",
+              "DriverName": "EPSON TM-T70II Receipt5",
+              "PortName": "ESDPRT001",
+              "PrinterStatus": 0,
+              "WorkOffline": null
+            },
+            "usbControllerPresent": true,
+            "usbDevices": [
+              {
+                "Status": "OK",
+                "Class": "USB",
+                "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+                "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+                "Problem": 0,
+                "ConfigManagerErrorCode": 0
+              }
+            ],
+            "reason": null
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.040Z",
+      "method": "POST",
+      "path": "/api/v1/cash-sessions",
+      "status": 201,
+      "response": {
+        "sessionId": "goal7-cash-766bce19",
+        "cashboxId": "goal7-box",
+        "state": "open"
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.082Z",
+      "method": "POST",
+      "path": "/api/v1/cash-sessions/goal7-cash-766bce19/checks/opening",
+      "status": 201,
+      "response": {
+        "sessionId": "goal7-cash-766bce19",
+        "kind": "opening",
+        "counted": [
+          {
+            "denomination": 1000,
+            "quantity": 1
+          }
+        ],
+        "theoreticalYen": 0,
+        "actorId": "goal7-operator",
+        "terminalId": "goal7-register-766bce19",
+        "carryoverYen": 0,
+        "countedYen": 1000,
+        "differenceYen": 1000,
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "printJobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f"
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.100Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.367Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.647Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:26.928Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:27.207Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:27.488Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:27.767Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:28.049Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:28.330Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:44:26.078Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:28.612Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+      "status": 200,
+      "response": {
+        "jobId": "2efe5f7d-57ca-427d-b6fb-c654a887f40f",
+        "transactionId": "cash-check:goal7-cash-766bce19:opening:2026-08-02T21:44:26.053Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAIpKi8eDjINWgVuDZwobRQAbLQAcLQAdQgAbYQCJY4vGk/ogMjAyNi0wOC0wMgqMu4vglKAgZ29hbDctYm94Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCjEsMDAwiX4ggX4gMSAgICAgICAgICAgICBcMSwwMDAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0Kl52YX4y7i+AgICAgICAgICAgICAgICAgICAgICBcMAqOwI3djYIgICAgICAgICAgICAgICAgICAgXDEsMDAwConflXORqyAgICAgICAgICAgICAgICAgICBcMSwwMDAKCgoKG2k=",
+          "cashCheck": {
+            "sessionId": "goal7-cash-766bce19",
+            "kind": "opening",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 1
+              }
+            ],
+            "theoreticalYen": 0,
+            "actorId": "goal7-operator",
+            "terminalId": "goal7-register-766bce19",
+            "carryoverYen": 0,
+            "countedYen": 1000,
+            "differenceYen": 1000,
+            "createdAt": "2026-08-02T21:44:26.053Z"
+          },
+          "eventId": "goal7-766bce19"
+        },
+        "createdAt": "2026-08-02T21:44:26.053Z",
+        "state": "completed",
+        "updatedAt": "2026-08-02T21:44:28.432Z",
+        "operationId": "43637df1-8adb-4c10-ac0c-2e036a2bcf6b",
+        "kind": "opening",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v1",
+        "bytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"開局レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-02\"\n!text \"現金箱 goal7-box\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 1\",\"right\":\"¥1,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥0\"}\n!row {\"left\":\"実在高\",\"right\":\"¥1,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥1,000\"}\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "627e977d6a0ab9df9b2fd47b2184f943bc90b664e0f7289b7effe2cc2a74aa62",
+        "expectedBytesLength": 290
+      }
+    },
+    {
+      "at": "2026-08-02T21:44:28.627Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/2efe5f7d-57ca-427d-b6fb-c654a887f40f/attempts",
+      "status": 200,
+      "response": {
+        "attempts": [
+          {
+            "attemptNo": 1,
+            "phase": "postcheck_completed",
+            "startedAt": "2026-08-02T21:44:26.078Z",
+            "endedAt": "2026-08-02T21:44:28.432Z",
+            "compilerBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+            "adapterBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+            "writeBytesSha256": "4861a83a98695f9a374f638a88792a90aeb4373fbc0dc356a3091cece85c1b0e",
+            "acceptedBytes": 290,
+            "result": "completed",
+            "errorCode": null,
+            "errorMessage": null,
+            "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":290,\"spoolerJobId\":9,\"api\":\"Winspool RAW WritePrinter\"}",
+            "statusObservationJson": "{\"observedAt\":\"2026-08-02T21:44:28.031Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.703Z",
+      "method": "PUT",
+      "path": "/api/v1/events/goal7-766bce19/catalog",
+      "status": 200,
+      "response": {
+        "catalog": {
+          "eventId": "goal7-766bce19",
+          "products": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "saleState": "on_sale"
+            }
+          ],
+          "quickEntries": [],
+          "autoDiscountRules": [],
+          "customerWelcome": {
+            "circleName": "Goal 7.1 実機受入"
+          }
+        },
+        "updatedAt": "2026-08-02T21:46:47.701Z"
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.707Z",
+      "method": "POST",
+      "path": "/api/v1/registers/goal7-register-766bce19/sale-drafts",
+      "status": 201,
+      "response": {
+        "draftId": "019fc471-9c18-7c30-98af-cda62f5afd8c",
+        "eventId": "goal7-766bce19",
+        "registerId": "goal7-register-766bce19",
+        "staffId": "staff-001",
+        "terminalId": "goal7-register-766bce19",
+        "businessDate": "2026-08-02",
+        "sessionNo": 1,
+        "version": 1,
+        "state": "editing",
+        "lines": [],
+        "payments": [],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [],
+          "discounts": [],
+          "taxSummaries": [],
+          "subtotalYen": 0,
+          "discountTotalYen": 0,
+          "taxTotalYen": 0,
+          "totalYen": 0
+        },
+        "createdAt": "2026-08-02T21:46:47.704Z",
+        "updatedAt": "2026-08-02T21:46:47.704Z"
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.721Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc471-9c18-7c30-98af-cda62f5afd8c/lines",
+      "status": 201,
+      "response": {
+        "draftId": "019fc471-9c18-7c30-98af-cda62f5afd8c",
+        "eventId": "goal7-766bce19",
+        "registerId": "goal7-register-766bce19",
+        "staffId": "staff-001",
+        "terminalId": "goal7-register-766bce19",
+        "businessDate": "2026-08-02",
+        "sessionNo": 1,
+        "version": 2,
+        "state": "editing",
+        "lines": [
+          {
+            "lineId": "019fc471-9c26-70b4-ac72-d593f5ee4722",
+            "lineNo": 1,
+            "productId": "goal7-766bce19:00000001",
+            "productCode": "00000001",
+            "name": "実機確認新刊",
+            "priceInclTax": 500,
+            "taxRate": 10,
+            "taxCategory": "inclusive_10",
+            "quantity": 1,
+            "status": "active",
+            "source": "manual"
+          }
+        ],
+        "payments": [],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [
+            {
+              "lineId": "019fc471-9c26-70b4-ac72-d593f5ee4722",
+              "lineNo": 1,
+              "productId": "goal7-766bce19:00000001",
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "quantity": 1,
+              "status": "active",
+              "source": "manual",
+              "grossYen": 500,
+              "discountYen": 0,
+              "taxYen": 45,
+              "netYen": 500
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableGrossYen": 500,
+              "discountAllocatedYen": 0,
+              "taxableNetYen": 500,
+              "taxAmountYen": 45,
+              "roundingMode": "floor"
+            }
+          ],
+          "subtotalYen": 500,
+          "discountTotalYen": 0,
+          "taxTotalYen": 45,
+          "totalYen": 500
+        },
+        "createdAt": "2026-08-02T21:46:47.704Z",
+        "updatedAt": "2026-08-02T21:46:47.718Z"
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.736Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc471-9c18-7c30-98af-cda62f5afd8c/payments",
+      "status": 201,
+      "response": {
+        "draftId": "019fc471-9c18-7c30-98af-cda62f5afd8c",
+        "eventId": "goal7-766bce19",
+        "registerId": "goal7-register-766bce19",
+        "staffId": "staff-001",
+        "terminalId": "goal7-register-766bce19",
+        "businessDate": "2026-08-02",
+        "sessionNo": 1,
+        "version": 3,
+        "state": "payment",
+        "lines": [
+          {
+            "lineId": "019fc471-9c26-70b4-ac72-d593f5ee4722",
+            "lineNo": 1,
+            "productId": "goal7-766bce19:00000001",
+            "productCode": "00000001",
+            "name": "実機確認新刊",
+            "priceInclTax": 500,
+            "taxRate": 10,
+            "taxCategory": "inclusive_10",
+            "quantity": 1,
+            "status": "active",
+            "source": "manual"
+          }
+        ],
+        "payments": [
+          {
+            "paymentId": "019fc471-9c36-7767-b26e-0676e271bb30",
+            "sequence": 1,
+            "kind": "cash",
+            "amountYen": 500,
+            "tenderedYen": 1000,
+            "changeYen": 500
+          }
+        ],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [
+            {
+              "lineId": "019fc471-9c26-70b4-ac72-d593f5ee4722",
+              "lineNo": 1,
+              "productId": "goal7-766bce19:00000001",
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "quantity": 1,
+              "status": "active",
+              "source": "manual",
+              "grossYen": 500,
+              "discountYen": 0,
+              "taxYen": 45,
+              "netYen": 500
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableGrossYen": 500,
+              "discountAllocatedYen": 0,
+              "taxableNetYen": 500,
+              "taxAmountYen": 45,
+              "roundingMode": "floor"
+            }
+          ],
+          "subtotalYen": 500,
+          "discountTotalYen": 0,
+          "taxTotalYen": 45,
+          "totalYen": 500
+        },
+        "createdAt": "2026-08-02T21:46:47.704Z",
+        "updatedAt": "2026-08-02T21:46:47.734Z"
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.765Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc471-9c18-7c30-98af-cda62f5afd8c/finalize",
+      "status": 201,
+      "response": {
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "draftId": "019fc471-9c18-7c30-98af-cda62f5afd8c",
+        "draftVersion": 4,
+        "publicReference": "10000012",
+        "publicReferenceDisplay": "1000-0012",
+        "subtotalYen": 500,
+        "discountTotalYen": 0,
+        "taxTotalYen": 45,
+        "totalYen": 500,
+        "paymentKind": "cash",
+        "printJobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "printState": "pending",
+        "completedAt": "2026-08-02T21:46:47.750Z"
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:47.767Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:48.049Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:48.331Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:48.612Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:48.881Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:49.162Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:49.444Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:49.725Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:50.006Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:50.285Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:50.566Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:50.847Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:51.126Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "sending",
+        "updatedAt": "2026-08-02T21:46:47.762Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:51.404Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3",
+      "status": 200,
+      "response": {
+        "jobId": "019fc471-9c47-7dd2-8448-7373182009e3",
+        "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+        "printerId": "goal7-register-766bce19",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "goal7-766bce19",
+          "circleName": "Goal 7.1 実機受入",
+          "transactionId": "019fc471-9c46-7deb-b1dd-462b956192e0",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-02T21:46:47.750Z",
+          "confirmedAtPrinted": "2026-08-03 06:46",
+          "businessDate": "2026-08-02",
+          "registerNo": "goal7-regist",
+          "staffPrintLabel": "001",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "実機確認新刊",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 1000,
+              "tenderedFormatted": "¥1,000",
+              "changeYen": 500,
+              "changeFormatted": "¥500"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 1000,
+          "tenderedFormatted": "¥1,000",
+          "changeYen": 500,
+          "changeFormatted": "¥500",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": true
+        },
+        "createdAt": "2026-08-02T21:46:47.750Z",
+        "state": "completed",
+        "updatedAt": "2026-08-02T21:46:51.204Z",
+        "operationId": "019fc471-9c50-7dc1-ba66-760959c2ac16",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"goal7-766bce19\"\n!text \"Goal 7.1 実機受入\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 06:46\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"goal7-regist/001\"}\n!rule \"single\"\n!row {\"left\":\"実機確認新刊 x1\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥1,000\"}\n!row {\"left\":\"釣銭\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 3\n!cut \"partial\"\n",
+        "irSha256": "85c95a1a48c1795102ecb1007c6f276bacd3d5840bcb4d29ca51cd6ff21b6ae2",
+        "expectedBytesLength": 548,
+        "templateKey": "sale-receipt",
+        "templateVersion": 1,
+        "templateSourceSha256": "ec4ff6cadd2d332fe9394fc4a1a0723ae55f44fa016b5e70ad5d5a35cf0e8cc1",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 1
+      }
+    },
+    {
+      "at": "2026-08-02T21:46:51.419Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc471-9c47-7dd2-8448-7373182009e3/attempts",
+      "status": 200,
+      "response": {
+        "attempts": [
+          {
+            "attemptNo": 1,
+            "phase": "postcheck_completed",
+            "startedAt": "2026-08-02T21:46:47.762Z",
+            "endedAt": "2026-08-02T21:46:51.204Z",
+            "compilerBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+            "adapterBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+            "writeBytesSha256": "0bed798800b2f2e75919cdcad1bfbc474d96723674f3e7ee455c4790c687c3cb",
+            "acceptedBytes": 548,
+            "result": "completed",
+            "errorCode": null,
+            "errorMessage": null,
+            "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":548,\"spoolerJobId\":10,\"api\":\"Winspool RAW WritePrinter\"}",
+            "statusObservationJson": "{\"observedAt\":\"2026-08-02T21:46:50.749Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -98,3 +98,23 @@ EPSON OPOS for .NET 1.14はPowerShell 7と互換ではないため、64-bit Wind
 紙切れ、カバー開放、USB切断を各1回実施し、取得できた値を`ready`、`paper_out`、`offline`、`unknown`のいずれかで記録する。取得できない機種・接続方式は`unknown`のままADR-P002へ記載し、正常扱いに補正しない。
 
 証跡には、試験日時、機種、OS、CPUアーキテクチャ、device/spooler、Windows Serviceまたはsystemd unit、入力fixtureのhash、結果JSON、紙面写真、操作と判定者を紐付ける。Windows/Linuxのどちらか一方だけではGoal 6を完了扱いにしない。
+
+## Goal 7.1 POS統合受入
+
+build済みPOS serverとPrinterHostを起動したTTY terminalで、開局、現金会計初回、再印刷、中間計、精算を順に送信する。各紙面を確認するまで次のjobは作成しない。初回紙面が`printed`または`indeterminate`の場合、再印刷前に完全一致の`REPRINT`入力を必須とする。
+
+```powershell
+node .\tools\hardware-test\run-goal7-pos-acceptance.mjs --run `
+  --operator goal7-operator --manager goal7-manager `
+  --pos-url http://127.0.0.1:3000 `
+  --output .\docs\printer-baseline\windows\YYYYMMDD-HHMMSS-goal7.1-pos
+```
+
+開局と初回の紙面確認後、`REPRINT`を入力せず安全停止したrunだけは、同じoutput directoryとDBを使って`--resume`できる。既に合格した2枚は再送せず、再印刷承認から再開する。別の失敗状態やjob構成ではresumeを拒否する。
+
+```powershell
+node .\tools\hardware-test\run-goal7-pos-acceptance.mjs --run --resume `
+  --operator goal7-operator --manager goal7-manager `
+  --pos-url http://127.0.0.1:3000 `
+  --output .\docs\printer-baseline\windows\YYYYMMDD-HHMMSS-goal7.1-pos
+```

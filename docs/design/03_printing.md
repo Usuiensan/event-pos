@@ -57,7 +57,7 @@ body:
           left: "{{name}} x{{quantity}}"
           right: "{{netFormatted}}"
   - finish:
-      feedLines: 3
+      feedLines: 8
       cutMode: partial
 ```
 
@@ -246,8 +246,9 @@ Goal 5では `packages/receipt-template`、`packages/receipt-ir`、`packages/esc
 - 内容幅: `384 dots`、物理上限: `416 dots`
 - renderer: `event-pos-escpos-v1`
 - font: `tm-t70ii-cp932` version `1`、hash `builtin-tm-t70ii-cp932-v1`
-- finishing policy: `receipt-partial-cut` version `1`
-- production末尾: template内のfeed 3行とpartial cut。worker/PrinterHostはfeed/cutを追加しない
+- finishing policy: `receipt-partial-cut` version `2`
+- production末尾: template内のfeed 8行（従来3行に実機補正5行を追加）とpartial cut。worker/PrinterHostはfeed/cutを追加しない
+- 2026-08-03のWindows TM-T70II実紙面で、3行feedでは最終文字行へcut位置が掛かった。sale/再印刷/開局/中間計/精算を同じ8行へ揃え、旧default template v1だけを新defaultへ自動移行する。任意のactive custom templateは自動更新しない
 - canonical IR: 1行1commandの `!command <canonical JSON>`、LF改行、末尾LF。未知command、余分な引数、非canonical表現を拒否する
 - CP932非対応文字はGoal 5では暗黙置換せずrender errorにする。将来画像化する場合はfont/rasterのID・version・hash固定が必要
 

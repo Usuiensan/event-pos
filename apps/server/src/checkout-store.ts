@@ -406,7 +406,7 @@ function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculat
   };
 }
 
-export function finalizeSale(db: PosDatabase, draftId: string, version: number, idempotencyKey: string, failureInjector?: FailureInjector): FinalizeResult {
+export function finalizeSale(db: PosDatabase, draftId: string, version: number, idempotencyKey: string, failureInjector?: FailureInjector, drawerEnabled = false): FinalizeResult {
   if (!idempotencyKey.trim()) throw new CheckoutError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Keyが必要です");
   const requestHash = finalizeRequestHash(draftId, version);
   return immediate(db, () => {
@@ -460,6 +460,13 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
     failureInjector?.("after_cash");
     db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'sale_finalize','transaction',?,?,?)").run(String(row.event_id), transactionId, JSON.stringify({ draftId, draftVersion: version, registerId: row.register_id, terminalId: row.terminal_id, staffId: row.staff_id, publicReference: reference.display, totalYen: calculation.totalYen, paymentKind }), now);
     failureInjector?.("after_audit");
+    if (drawerEnabled && payments.some((payment) => payment.kind === "cash" && payment.amountYen > 0)) {
+      const drawerJobId = uuidV7(); const drawerOperationId = uuidV7();
+      db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,'drawer',?,?,?,?,?,?,?,?,'not_sent')")
+        .run(drawerJobId, drawerOperationId, transactionId, String(row.register_id), "drawer", JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }), now, "pending", now, "event-pos", "event-pos-drawer-v1", "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", 5);
+      const drawerSequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
+      db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'drawer','receipt-1',?,'pending',?,0,4,?,?)").run(drawerOperationId, drawerSequence, drawerJobId, now, now, now);
+    }
     const printJobId = uuidV7();
     const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, now);
     const receipt = renderReceipt(db, snapshot);

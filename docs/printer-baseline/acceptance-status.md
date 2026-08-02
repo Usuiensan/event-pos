@@ -6,10 +6,35 @@
 | --- | --- | --- | --- |
 | PR-01 同一内容をTM-T70IIへ印刷 | A,H,R: fixture v2をUSB切断→再接続後にも紙面・実読取り済み（W-04/W-05） | A,H,R: 同一fixture v2で紙面・実読取り済み | Windows/Linux同一hashの紙面比較は取得済み。写真/scan補強は任意 |
 | PR-03 紙切れ/cover/USB切断 | A,H: Winspool queue/PnPはcover/paperを区別不能。OPOSではnormal時CoverOpen=`false`、RecEmpty=`false`、RecNearEnd=`true`、ErrorLevel=`None`を実測 / H: OPOS cover/paper-out/USB切断値は未実施 | A,H: cover/paper-outは`unknown`、near-endはn=4=`1e`、USB切断は`ENODEV`、再接続後/OS再起動後ready復帰を実測 / R: UI未実施 | Windows OPOSのcover/paper-out/USB fault、host再起動・同一jobId/4レジFIFO、両OSのUIは未実施 |
-| PR-06 cut/drawer | A: partial bytes固定 / H,R: cut受入済み、drawer Pending | A: partial bytes固定 / H,R: cut受入済み、drawer Pending | P003の機種/pin/pulse未提供 |
+| PR-06 cut/drawer | A: partial bytes固定、BC-415M用drawer bytes `1b70000214`固定 / H,R: cut受入済み、drawer物理開放は判定待ち | A: partial bytes固定、同一drawer bytesのRAW write試験済み / H,R: drawer実機未実施 | BC-415M-B(6C)・2番pin・4/40 ms候補を固定。Windowsはtransport受理済みだが物理結果未判定、Linuxは到着後に実機証跡を取得 |
 | PR-07 rendererから実機印刷 | A,H,R: canonical IR/bytes→Winspool→紙面・実読取り済み。OPOS `M-T70II` CheckHealthもOpen/Claim→診断印刷`Complete`を実測 | A,H,R: 同一bytesを`/dev/usb/lp0`へ送信、bot停止/復帰、紙面・実読取り済み | Windows Service、OPOS raw status/Claim timeoutは未実施 |
 | PR-10 同一取引+版の再現 | A,H,R: fixture v2固定hashの紙面・実読取り済み。ただし同一jobId/4レジFIFO未実施 | A,H,R: Windowsと同一hashの紙面・実読取り済み | same `.bin`は取得済み。同一jobId/4レジFIFO未実施 |
 
 Linux ARM64は実機未保有のため、2026-08-03にGoal 6の正式サポート・受入対象から除外した。将来再追加する場合は別途、同じfixtureと全実機受入を満たす必要がある。
 
 Goal 7の正式adapter・POS queue/status API/UI統合はこの表の対象外である。ここでのWinspool/Linux RAW probeは技術検証用であり、実機結果が揃うまで正式採用ではない。
+
+## Goal 7.1 統合差分
+
+| 要件 | Windows x64 | Linux x86_64 | 現在の根拠と残件 |
+| --- | --- | --- | --- |
+| build済みHost・常駐起動 | A: standalone smoke、production-only portable deploy smoke、portable/WinSW定義 / H: Windows launcherから実backend起動・到達確認 / H,R: Service無人起動未実施 | A: systemd/udev/env定義 / H,R: 対象機へ未配置 | 起動・停止・再起動・ログrunbookは実装。両OSのservice実演が必要 |
+| POS FIFO統合 | A: 初回、再印刷、開局、中間計、精算の5jobを実HTTP HostへFIFO送信 | A: OS非依存経路は同一 / H,R: Linux実transport未実施 | compiler/adapter/write hashとacceptedBytesの自動一致は確認。実機runnerは紙面確認を逐次保存し、初回確認前の再印刷を禁止。両OSのHostログ・紙面が必要 |
+| 再起動・切断・結果不明 | A: queue/Host試験でunknown・自動再送禁止を確認 / H,R: 実Service/USB未実施 | A: 同じqueue契約 / H,R: 実systemd/USB未実施 | 既存Goal 6 probeだけでGoal 7.1完了にはしない |
+| 紙面5種 | 開局・初回だけ取得したが、営業日不具合と再印刷前の安全停止によりrun不合格 | 未実施（対象機へ到達不能） | Windowsは正しい営業日で5種を再実施。jobId/hash/acceptedBytes/hostログと紙面判定をOS別に保存する |
+
+詳細は[Goal 7.1 status](goal7.1-status.md)を参照する。
+
+### 2026-08-03 継続監査追記
+
+Goal 7.1の自動経路は、全workspaceの`pnpm check`、built/deploy PrinterHost smoke、POS→HttpPrinterHostClient→PrinterHost→TransportのFIFO・同一jobId・結果不明テストまで合格している。これは送信経路の自動証拠であり、実機紙面受入の代替ではない。
+
+Windowsの`20260803-070121-goal7.1-pos-feed8` artifactには、開局・初回・再印刷・中間計・精算のjobId、payload hash、acceptedBytes、spoolerJobIdが保存されている。一方、中間計・精算の紙面写真IDが実体写真ではないため、Windowsの5種紙面受入は証拠不足のまま保留する。Linux x86_64の正式Host/systemd/POS経由runは未取得である。
+
+したがって、Goal 7.1は自動試験・定義・運用文書を決定可能とするが、Windows/Linux双方の実機紙面・常駐起動・USB復旧を含む最終受入は未完了とする。紙切れ、カバー開、ドロアー物理開放は`unknown`/未実施として維持する。
+
+### 2026-08-03 再監査
+
+`pnpm check`（build/typecheck/test、built/deploy smokeを含む）は再実行して全件成功した。実機受入ランナーは紙面写真IDおよび未印刷・結果不明の事象記録IDに、`ok`、`なし`、`n/a`等のプレースホルダーを受け付けないよう更新済みである。これにより送信完了を紙面確認済みとして記録する誤記録を防止する。
+
+WindowsのPrinterHostは到達可能でPOSも稼働中。Linux候補ホスト（`services`、`linux-printer`、`printer-linux`）はDNS/SSH到達不可のため、Linux x86_64の正式Host/systemd/POS経由紙面runは引き続き証拠不足である。

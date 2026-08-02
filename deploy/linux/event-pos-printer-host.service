@@ -2,6 +2,8 @@
 Description=event-pos printer host
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -9,13 +11,24 @@ User=event-pos
 Group=lp
 WorkingDirectory=/opt/event-pos
 EnvironmentFile=-/etc/event-pos/printer-host.env
+Environment=NODE_ENV=production
+Environment=PRINTER_BACKEND=linux-raw
+ExecStartPre=/usr/bin/test -r /opt/event-pos/apps/printer-host/dist/index.js
 ExecStart=/usr/bin/node /opt/event-pos/apps/printer-host/dist/index.js
 Restart=on-failure
 RestartSec=2
+TimeoutStopSec=15
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=event-pos-printer-host
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/var/lib/event-pos
+ProtectHome=true
+RestrictSUIDSGID=true
+LockPersonality=true
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

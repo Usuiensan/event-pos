@@ -28,7 +28,10 @@ describe("AudioBuffer音声再生", () => {
     playOperationSound("register");
 
     await vi.waitFor(() => expect(starts).toHaveLength(3));
-    expect(starts).toEqual([10.01, 10.51, 11.01]);
+    expect(starts).toHaveLength(3);
+    expect(starts[0]).toBeCloseTo(10.01, 8);
+    expect(starts[1]).toBeCloseTo(10.45, 8);
+    expect(starts[2]).toBeCloseTo(10.89, 8);
     expect(contextCount).toBe(1);
   });
 });

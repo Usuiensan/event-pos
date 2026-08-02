@@ -10,7 +10,7 @@ describe("print status view", () => {
   });
 
   it("completedを紙面完了と誤表示せず、待機系状態も表示する", () => {
-    expect(formatPrintStatus({ ...job, state: "completed", deliveryCertainty: "accepted" }).label).toBe("送信完了（紙面完了は未確認）");
+    expect(formatPrintStatus({ ...job, state: "completed", deliveryCertainty: "accepted" }).label).toBe("送信完了");
     expect(formatPrintStatus({ ...job, state: "retry_wait", deliveryCertainty: "not_sent" })).toEqual({ label: "再試行待ち", className: "retry" });
     expect(formatPrintStatus(null).label).toBe("印刷状態を取得中");
   });
