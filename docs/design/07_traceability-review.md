@@ -162,3 +162,27 @@
 - 要件v0.6、Architecture、Printing、受入、Pending ADR、Goal、引継ぎ文書をLinux本番へ更新した。
 - Windowsは開発・管理端末として残し、本番USB・障害復旧・性能受入は64bit Linuxで行う。
 - x86_64とARM64の双方を自動試験対象とし、採用ハードウェアはP006の実測後に確定する。
+
+## 8. 2026-08-02 会計確定実装の受入証跡
+
+対象commitは `92f3bc0`、`5f36707`、`aefa758`、`104fa41`、`470863d`、`64ae53e`。Goal 2〜4のうち、税区分、会計ドラフト、会計確定、顧客表示投影、R18保存境界を実装した。自動試験の正本は `packages/contracts/src/checkout.test.ts`、`packages/contracts/src/auto-discount.test.ts`、`apps/server/src/checkout.test.ts`、`apps/register-web/src/checkout-api.test.ts` である。
+
+| 受入項目 | 実装・自動試験証拠 | 判定 |
+| --- | --- | --- |
+| AC-02 | 60会計のburstで取引、明細、支払、在庫移動、冪等記録、初回print job/operation、現金移動を各60件照合 | A合格。15分継続900件はGoal 9で再実施 |
+| AC-03 | 在庫1点に対する2レジ確定を並行実行し、取引2件、在庫移動2件、残高-1を照合 | A合格 |
+| AC-07 | 販売停止商品を含むセット追加を全件rollbackし、draft versionと明細0件を照合 | A合格 |
+| AC-08/09 | 数量token非重複、最大値引き、同額時rule ID決定、条件解除後の再計算を照合 | A合格 |
+| AC-10/11 | 任意値引き0/100/101%、自動値引きとの併用、解除、非負合計を照合。承認・理由API/UIは未作成 | A合格 |
+| AC-12 | 同一冪等keyの同時確定と再送で同一取引を返し、取引と初回print jobを1件に固定 | A合格 |
+| AC-18 | 預り金不足で422 `PAYMENT_INSUFFICIENT`、draft payment 0件、取引0件を照合。既存エラーモーダルへ日本語messageを表示 | A合格、Rは総合受入で実施 |
+| AC-21 | 500円預り、110円支払、390円釣銭を支払snapshotと顧客表示投影で照合 | A合格 |
+| R18-03 | 許可fieldを限定し、容貌確認・身分証目視だけを保存。canary生年月日をdraft/取引DBから検出しないことを照合 | A合格 |
+| 原子性・障害境界 | `after_inventory`故障注入で全成果物をrollback。commit後の印刷送信失敗では取引・在庫を保持しprint jobだけ`failed`へ遷移 | 合格 |
+| 再起動復元 | SQLiteをclose/reopenし、取引snapshot、完了draft、顧客表示投影を再取得 | 合格 |
+| UI接続 | 実ブラウザーで商品追加、顧客画面同期、現金会計、預り・釣銭表示、スタッフ画面再読込後の会計済復元を確認 | 合格 |
+| Docker | `docker compose up -d --build --wait`後にcontainer healthとDB readinessが`ok`。隔離環境でcatalog→draft→line→cash→finalize→transaction/customer projectionを通過 | 合格 |
+
+2026-08-02時点で `pnpm check` は型検査、80件の自動試験、全workspace buildに成功した。通常composeの `event-pos-pos-1` は既存volumeを保持したまま `running/healthy` である。
+
+次はこの実装範囲を総合受入済みと誤認しないこと。TM-T70IIの紙面、cut、USB切断・再接続、status能力、15分継続負荷、10端末、画面視認性の人間レビューは未実施であり、Goal 6/7/9の証拠が必要である。

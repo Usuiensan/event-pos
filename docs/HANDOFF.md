@@ -144,17 +144,45 @@ git status
 
 Codexの`config.toml`、個人用skills、MCP設定が必要な場合も、秘密情報を除外して個別に再設定する。
 
-## 10. 次の作業
+## 10. 2026-08-02 実装状況
 
-Windows開発PCではGoal 1からGoal 5までのソフトウェア基盤を進められる。Goal 6は現在プリンターが接続されているDebianで開始でき、PrinterTransportの採用方式はLinux probe後に固定する。
+作業branchは `codex/durable-sale-finalization`。会計確定の実装commitは次のとおり。
+
+- `92f3bc0 商品マスタに税区分を追加して明細表示する`
+- `5f36707 会計金額をサーバー規則で再計算する`
+- `aefa758 会計ドラフトと冪等な確定処理を永続化する`
+- `104fa41 レジ画面を永続会計APIへ接続する`
+- `470863d 値引き併用と解除の境界処理を正す`
+- `64ae53e 印刷送信失敗時の会計保持を検証する`
+
+実装済み:
+
+- 商品masterの税込10%、税込8%、税抜10%、税抜8%、免税、非課税と、過去catalogの互換読込
+- SQLite migration、event別商品正規化、版付きsale draft、明細、セット、取消状態、支払、R18確認
+- server側の自動・任意値引き、税率別1回切捨て、無配0円、現金不足・釣銭10,000円以上の拒否
+- UUIDv7内部IDとDamm検査数字付き受付番号
+- 冪等な会計確定transaction。取引snapshot、在庫、現金、監査、初回print job/operationを同時commit
+- commit後の印刷送信。失敗時も売上を戻さずprint jobを`failed`にする
+- 現金、クレジット、売掛、無配、預り・釣銭、R18容貌確認・身分証目視
+- スタッフ画面と顧客画面のREST接続。BroadcastChannel/localStorageは更新通知だけに使い、表示内容はDB投影から再取得
+- SQLite再open後の完了取引、draft、顧客表示復元
+
+確認済み:
+
+- `pnpm check`: 型検査、80件の自動試験、全workspace build成功
+- 実ブラウザー: 商品追加、顧客同期、現金会計、預り・釣銭、再読込後の会計済復元
+- Docker: `docker compose up -d --build --wait`成功。`event-pos-pos-1`は3000番で`running/healthy`、DB readinessは`ok`
+- 隔離Docker環境: catalog登録から会計確定、取引snapshot、顧客表示投影まで成功
+
+詳細な受入対応は `docs/design/07_traceability-review.md` 8章を参照する。
+
+## 11. 次の作業
 
 最新要件は `docs/requirements/即売会向けPOSレジ_要件定義_v0.6.md`。v0.5以前は履歴として保持する。
 
-直近の推奨作業:
-
-1. pnpm/TypeScript monorepo、Fastify、React、SQLite migrationの骨格を作る。
-2. UUIDv7、共通受付番号、Damm検査数字を実装し、自動試験を追加する。
-3. fake PrinterTransportとESC/POS golden testの境界を作る。
-4. Discord botから移植する印刷コードとLinux USB運用の一覧、移植元commitを記録する。
-5. 既存Debian上でPOS用printer probeを作り、P001/P002の実測を開始する。
+1. 返品、取り置き、締め、CSV、backup/restoreなど、今回の会計確定範囲外を各Goalで実装する。
+2. 60会計/分を15分継続する900件負荷と10端末試験をGoal 9で実施する。
+3. 既存DebianとTM-T70IIでPOS用printer probeを実行し、紙面、cut、status、USB切断・再接続、udev/systemdを証拠化する。
+4. 本番候補Linuxの永続diskとbackup/restoreを確定し、P001/P002/P006を判断する。
+5. AC-18を含むA+R項目の視認性と、46件の総合受入を人間レビュー込みで完了する。
 

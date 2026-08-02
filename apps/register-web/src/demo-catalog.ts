@@ -16,7 +16,7 @@ const groups: DemoGroup[] = [
 let sequence = 1;
 const products: ProductDefinition[] = groups.flatMap((group) => group.items.map(([name, priceInclTax]) => {
   const number = String(sequence++).padStart(7, "0");
-  return { productCode: `T${number}`, name, priceInclTax, taxRate: group.taxRate, saleState: "on_sale", internalToken: `P1TEST${number}`, tabId: group.id, displayColor: group.color, ...(group.ageCheck ? { ageCheck: group.ageCheck } : {}) };
+  return { productCode: `T${number}`, name, priceInclTax, taxRate: group.taxRate, taxCategory: group.taxRate === 8 ? "inclusive_8" : "inclusive_10", saleState: "on_sale", internalToken: `P1TEST${number}`, tabId: group.id, displayColor: group.color, ...(group.ageCheck ? { ageCheck: group.ageCheck } : {}) };
 }));
 
 export const demoCatalog: EventCatalog = {

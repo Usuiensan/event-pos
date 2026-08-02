@@ -1,5 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import type { CashCheck, PrintJob, PrintJobRequest, PrintJobStateUpdate } from "@event-pos/contracts";
+import { importEventCatalog } from "@event-pos/contracts";
+import { applyCheckoutSchema } from "./checkout-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -76,6 +78,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
     db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(2, new Date().toISOString());
     db.prepare("INSERT INTO app_metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run("schema_version", "2");
   }
+  applyCheckoutSchema(db);
   return db;
 }
 
@@ -86,9 +89,18 @@ export function getCatalog(db: PosDatabase, eventId: string): CatalogRecord | un
 
 export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: string, action = "upsert"): CatalogRecord {
   const updatedAt = new Date().toISOString();
+  const catalog = importEventCatalog(catalogJson);
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO event_catalogs (event_id, catalog_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET catalog_json = excluded.catalog_json, updated_at = excluded.updated_at").run(eventId, catalogJson, updatedAt);
+    for (const product of catalog.products) {
+      const productId = `${eventId}:${product.productCode}`;
+      db.prepare(`INSERT INTO event_products (product_id, event_id, product_code, name, price_incl_tax, price_excl_tax, tax_rate_bps, tax_category, age_requirement, sale_state, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(event_id, product_code) DO UPDATE SET name=excluded.name, price_incl_tax=excluded.price_incl_tax, price_excl_tax=excluded.price_excl_tax, tax_rate_bps=excluded.tax_rate_bps, tax_category=excluded.tax_category, age_requirement=excluded.age_requirement, sale_state=excluded.sale_state, updated_at=excluded.updated_at`)
+        .run(productId, eventId, product.productCode, product.name, product.priceInclTax, product.priceExclTax ?? null, product.taxRate * 100, product.taxCategory, product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : 0, product.saleState, updatedAt);
+      db.prepare("INSERT INTO inventory_balances (event_id, product_id, on_hand, reserved, version) VALUES (?, ?, 0, 0, 1) ON CONFLICT(event_id, product_id) DO NOTHING").run(eventId, productId);
+    }
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'event_catalog', ?, ?, ?)").run(eventId, action, eventId, catalogJson, updatedAt);
     db.exec("COMMIT;");
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
