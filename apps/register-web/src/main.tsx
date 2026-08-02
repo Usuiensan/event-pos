@@ -70,7 +70,27 @@ function App() {
   useEffect(() => { if (role === "staff") localStorage.setItem("event-pos-cart", JSON.stringify(cart.map((line) => ({ productCode: line.product.productCode, quantity: line.quantity, cancelled: line.cancelled })))); }, [cart, role]);
   useEffect(() => { if (role !== "customer") return; const syncAge = () => { const value = localStorage.getItem("event-pos-age-check"); setCustomerAgeNotice(value?.startsWith("verified") ? "verified" : value?.startsWith("required") ? "required" : null); setCustomerAgeMinimum(value?.endsWith(":18") ? 18 : 20); }; syncAge(); window.addEventListener("storage", syncAge); return () => window.removeEventListener("storage", syncAge); }, [role]);
   useEffect(() => { if (role !== "staff" || !ageProduct || ageFlowState !== "customer_pending") return; const onCustomerAge = () => { if (localStorage.getItem("event-pos-age-response") === "yes") { localStorage.removeItem("event-pos-age-response"); setAgeFlowState("staff_pending"); } }; window.addEventListener("storage", onCustomerAge); onCustomerAge(); return () => window.removeEventListener("storage", onCustomerAge); }, [role, ageProduct, ageFlowState]);
-  useEffect(() => { if (role !== "staff") return; const onKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; } if (event.key === "Escape") { setInputBuffer(""); return; } if (event.key === "Enter" && inputBuffer) { event.preventDefault(); if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; } const amount = Number(inputBuffer); if (amount >= total && amount - total < 10000) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); } else { setInputBuffer(""); showError(amount >= total ? "お釣りが10,000円以上になる預り金は入力できません。" : "預り金が不足しています。合計金額以上を入力してください。"); } return; } if (paymentFinished && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt") { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); localStorage.removeItem("event-pos-age-check"); setMessage("会計待ち"); } }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [inputBuffer, paymentFinished, role, speech, total, catalog.products]);
+  useEffect(() => {
+    if (role !== "staff") return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target;
+      const isFormInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
+      if (showSignIn || isFormInput) return;
+      if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; }
+      if (event.key === "Escape") { setInputBuffer(""); return; }
+      if (event.key === "Enter" && inputBuffer) {
+        event.preventDefault();
+        if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; }
+        const amount = Number(inputBuffer);
+        if (amount >= total && amount - total < 10000) { setReceived(amount); setPaymentFinished(true); setInputBuffer(""); speakReceiptReady(speech); setMessage("現計・レシート発行済み"); }
+        else { setInputBuffer(""); showError(amount >= total ? "お釣りが10,000円以上になる預り金は入力できません。" : "預り金が不足しています。合計金額以上を入力してください。"); }
+        return;
+      }
+      if (paymentFinished && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt") { setCart([]); setLastAdded(null); setPaymentFinished(false); setReceived(0); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); localStorage.removeItem("event-pos-age-check"); setMessage("会計待ち"); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inputBuffer, paymentFinished, role, showSignIn, speech, total, catalog.products]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then((loaded) => { setCatalog(loaded); setLoading(false); }).catch(() => { setMessage("カタログを読み込めません。初期値を表示しています"); setLoading(false); }); }, []);
   const saveCatalog = async (next: EventCatalog) => { const response = await fetch(`/api/v1/events/${encodeURIComponent(next.eventId)}/catalog`, { method: "PUT", headers: { "content-type": "application/json" }, body: exportEventCatalog(next) }); if (!response.ok) throw new Error((await response.json()).message ?? "カタログ保存に失敗しました"); setCatalog(next); };
   const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false) => {
