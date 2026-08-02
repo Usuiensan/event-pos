@@ -65,6 +65,6 @@ Linuxでは同じcommandのoutput先を`linux-x86_64/<run-id>`にする。runner
 
 自動検証を再実行し、`pnpm check`（全workspaceのbuild・typecheck・test・PrinterHostのbuilt/deploy smoke）と、POS→PrinterHost統合テストは合格した。これにより、ビルド済み起動経路、FIFO先頭処理、同一jobIdの冪等性、結果不明の自動再送禁止は自動証拠として維持される。
 
-Windowsの未追跡run artifact `windows/20260803-070121-goal7.1-pos-feed8/pos-printerhost-evidence.json` には5種のjobId、payload hash、acceptedBytes、spoolerJobId、操作者判定が記録されている。ただし中間計・精算の`paperPhotoId`が`ok`というプレースホルダーで、紙面写真の実体・hashがなく、runの`result.md`も「再印刷承認待ち」と記載されたままである。このため、送信証拠は保存済みでも、5種の紙面受入をWindows Acceptedへ昇格させない。
+Windowsの未追跡run artifact `windows/20260803-070121-goal7.1-pos-feed8/pos-printerhost-evidence.json` には5種のjobId、payload hash、acceptedBytes、spoolerJobId、操作者判定が記録されている。再印刷については操作者が指定したDownloads写真（SHA-256 `bec8796913702444dca61a1c964b1cb07d841e5f41496c3b1e626b1f58f07bab`）を目視し、受付番号`1000-0012`、日本語全文、金額、余白、部分cutを確認できるが、runディレクトリ内の写真hashとして固定されていない。中間計・精算の`paperPhotoId`は`ok`というプレースホルダーで、紙面写真の実体・hashがない。runの`result.md`も「再印刷承認待ち」と記載されたままである。このため、送信証拠は保存済みでも、5種の紙面受入をWindows Acceptedへ昇格させない。
 
 Linux x86_64の正式Host/systemd/POS経由run、Windows/LinuxのHost常駐無人起動、USB切断・再接続および送信後結果不明の実機証跡は未取得である。紙切れ・カバー開・ドロアー物理開放は引き続き`unknown`/未実施とする。P001/P002/P003/P006の判定は変更しない。
