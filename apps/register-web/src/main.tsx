@@ -49,6 +49,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   });
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<{ name: string; quantity: number; unitPrice: number } | null>(null);
+  const [recentAddedProducts, setRecentAddedProducts] = useState<Array<{ id: number; product: ProductDefinition; quantity: number }>>([]);
   const [lastAddedShortcut, setLastAddedShortcut] = useState<{ lineId: string; eligible: boolean } | null>(null);
   const [panel, setPanel] = useState<"detail" | "products">("detail");
   const [productTab, setProductTab] = useState("all");
@@ -153,7 +154,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setPaymentFinished(draft.state === "completed");
     if (draft.state === "payment" && draft.payments.length === 0) setShowPayment(true);
     if (draft.state === "completed") { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
-    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setLastAdded(null); setLastAddedShortcut(null); setReceived(0); setInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
+    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setLastAdded(null); setRecentAddedProducts([]); setLastAddedShortcut(null); setReceived(0); setInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
     const verified = draft.ageVerifications.filter((item) => item.result === "passed" && (item.method === "appearance" || item.method === "id_visual")).reduce<0 | 18 | 20>((maximum, item) => Math.max(maximum, item.minimumAge) as 0 | 18 | 20, 0);
     setAgeVerified(verified > 0); setAgeVerifiedMinimum(verified);
   };
@@ -202,7 +203,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   }), [speech, registerId, customerDisplayAvailable]);
   const startNextTransaction = async (): Promise<boolean> => {
     if (!checkoutLocked && draftRef.current?.state !== "completed") return true;
-    setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setLastAddedShortcut(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null);
+    setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setRecentAddedProducts([]); setLastAddedShortcut(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null);
     try { await openDraft(); return true; } catch (error) { showSystemError(errorMessage(error), error); return false; }
   };
   const clearFinishedTransaction = () => { void startNextTransaction(); };
@@ -401,6 +402,16 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [highlighted, panel, cart.length]);
   useEffect(() => {
+    const picker = document.querySelector<HTMLElement>(".product-picker");
+    if (!picker) return;
+    picker.querySelector(".recent-products")?.remove();
+    if (panel !== "products" || recentAddedProducts.length === 0) return;
+    const section = document.createElement("section"); section.className = "recent-products"; section.setAttribute("aria-label", "追加した商品"); section.setAttribute("aria-live", "polite");
+    section.innerHTML = `<header><strong>追加した商品</strong><small>新しい順</small></header><div>${recentAddedProducts.map(({ product, quantity }) => `<article class="recent-product-card"><div class="recent-product-main"><div><strong>${product.name}</strong><small>${product.productCode}</small></div></div><div class="recent-product-meta"><span>${quantity}点　${product.priceInclTax.toLocaleString()}円</span>${isAgeRestricted(product) ? `<b>年齢確認 ${ageRequirement(product)}歳以上</b>` : ""}</div></article>`).join("")}</div>`;
+    picker.prepend(section);
+    return () => section.remove();
+  }, [panel, recentAddedProducts]);
+  useEffect(() => {
     if (!lastAddedShortcut?.eligible) return;
     const line = cart.find((candidate) => candidate.lineId === lastAddedShortcut.lineId);
     if (!line || line.cancelled) setLastAddedShortcut({ lineId: lastAddedShortcut.lineId, eligible: false });
@@ -414,7 +425,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       void openDraft().then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge)).then((request) => { setAgeConfirmationRequest(request); speakAgeCheckRequired(routedSpeech); }).catch((error) => { setAgeProduct(null); setAgeFlowState("idle"); showSystemError(errorMessage(error), error); });
       return;
     }
-    void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
+    void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); setRecentAddedProducts((current) => [{ id: Date.now(), product, quantity }, ...current].slice(0, 6)); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
   };
   const handleBarcode = (raw: string) => {
     const parsed = parseBarcode(raw);
@@ -465,7 +476,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setLifecycleLoading(true); setLifecycleError("");
     void checkoutApi.signIn(catalog.eventId, normalized, registerId).then((actor) => { setResponsibleNumber(normalized); setSignedInResponsibleNumber(actor.responsibleNumber); setSignedInUser(actor.displayName); setAuthActor(actor); setShowSignIn(false); }).catch((error) => setLifecycleError(errorMessage(error))).finally(() => setLifecycleLoading(false));
   };
-  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { applyDraft(next); setLastAdded(null); setReceived(0); setPaymentFinished(false); setAgeVerified(false); setAgeProduct(null); setAgeFlowState("idle"); setAgeConfirmationRequest(null); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); }).catch((error) => showSystemError(errorMessage(error), error)); };
+  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { applyDraft(next); setLastAdded(null); setRecentAddedProducts([]); setReceived(0); setPaymentFinished(false); setAgeVerified(false); setAgeProduct(null); setAgeFlowState("idle"); setAgeConfirmationRequest(null); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); }).catch((error) => showSystemError(errorMessage(error), error)); };
   const selectedLineItem = selectedLine !== null ? cart[selectedLine] : undefined;
   const priceChangePreview = (() => { if (!selectedLineItem || !discountMode || !discountInput) return null; const value = Number(discountInput); if (!Number.isSafeInteger(value) || value < 0) return null; return discountMode === "percent" ? (value <= 100 ? Math.floor(selectedLineItem.product.priceInclTax * (100 - value) / 100) : null) : (value <= selectedLineItem.product.priceInclTax ? selectedLineItem.product.priceInclTax - value : null); })();
   const closePriceChange = () => { setShowPriceChange(false); setDiscountMode(null); setDiscountInput(""); };
