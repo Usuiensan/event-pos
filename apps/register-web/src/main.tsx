@@ -18,6 +18,7 @@ import { CashOperations } from "./cash-operations.js";
 import { OperationsDashboard } from "./operations-dashboard.js";
 import { ReturnOperations } from "./return-operations.js";
 import { HoldOperations } from "./hold-operations.js";
+import { AdminSettings } from "./admin-settings.js";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = demoCatalog;
@@ -476,7 +477,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
 function Launcher() {
   const [registerNumber, setRegisterNumber] = useState(1);
   const openRegister = (role: RegisterRole) => { const url = new URL(window.location.href); url.search = new URLSearchParams({ register: String(registerNumber), role }).toString(); window.location.assign(url); };
-  return <main className="launcher-screen"><section className="launcher-card"><div className="launcher-mark">POS</div><h1>event-pos</h1><p>使用するレジ番号と画面を選択してください。</p><fieldset><legend>レジ番号</legend><div className="register-selector">{[1, 2, 3, 4].map((number) => <button key={number} className={registerNumber === number ? "active" : ""} onClick={() => setRegisterNumber(number)}>レジ{number}</button>)}</div></fieldset><div className="role-selector"><button className="staff-launch" onClick={() => openRegister("staff")}><strong>店員側画面</strong><span>商品登録・会計操作</span></button><button className="customer-launch" onClick={() => openRegister("customer")}><strong>顧客側画面</strong><span>明細・合計・年齢確認</span></button></div><small>ホーム画面から起動した場合も、この画面で使用するレジを選択します。</small></section></main>;
+  return <main className="launcher-screen"><section className="launcher-card"><div className="launcher-mark">POS</div><h1>event-pos</h1><p>使用するレジ番号と画面を選択してください。</p><fieldset><legend>レジ番号</legend><div className="register-selector">{[1, 2, 3, 4].map((number) => <button key={number} className={registerNumber === number ? "active" : ""} onClick={() => setRegisterNumber(number)}>レジ{number}</button>)}</div></fieldset><div className="role-selector"><button className="staff-launch" onClick={() => openRegister("staff")}><strong>店員側画面</strong><span>商品登録・会計操作</span></button><button className="customer-launch" onClick={() => openRegister("customer")}><strong>顧客側画面</strong><span>明細・合計・年齢確認</span></button><button onClick={() => window.location.assign("/?role=admin")}><strong>管理画面</strong><span>マスタ・帳票・運用設定</span></button></div><small>ホーム画面から起動した場合も、この画面で使用するレジを選択します。</small></section></main>;
 }
 
 function Root() {
@@ -504,6 +505,7 @@ function Root() {
     document.addEventListener("pointercancel", cancelTap, { capture: true });
     return () => { document.removeEventListener("pointerdown", rememberTapStart, { capture: true }); document.removeEventListener("pointerup", playTapFeedback, { capture: true }); document.removeEventListener("pointercancel", cancelTap, { capture: true }); };
   }, [registerNumber, role]);
+  if (role === "admin") return <AdminSettings eventId={initialCatalog.eventId} />;
   if ((role !== "staff" && role !== "customer") || !Number.isInteger(registerNumber) || registerNumber < 1 || registerNumber > 4) return <Launcher />;
   return <App role={role} registerNumber={registerNumber} />;
 }

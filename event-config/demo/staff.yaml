@@ -12,13 +12,13 @@ staff:
     role: operator
     enabled: true
     permissions: []
-  - staffId: manager-1
+  - staffId: staff003
     responsibleNumber: "003"
     displayName: うすいえんさん
     role: admin
     enabled: true
     permissions: [catalog_import, refund, void, reprint, cash_check, business_close]
-    - staffId: staff004
+  - staffId: staff004
     responsibleNumber: "004"
     displayName: スタッフ004
     role: operator

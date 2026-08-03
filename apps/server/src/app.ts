@@ -16,9 +16,10 @@ import { registerBusinessRoutes } from "./business-routes.js";
 import { synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
+import { registerConfigManagementRoutes } from "./config-management.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -42,6 +43,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector, options.artifactMinimumFreeBytes) : undefined;
   app.register(websocket);
   registerBusinessRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, secureCookie: !!options.https, realtimeHub });
+  registerConfigManagementRoutes(app, { database: options.database, ...(options.eventConfigDirectory ? { configDirectory: options.eventConfigDirectory } : {}), ...(options.eventConfigRepository ? { configRepository: options.eventConfigRepository } : {}), authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub, options.requireAuth ?? false));
   let latestEmergencyAlert: EmergencyAlert | null = null;
   app.addHook("onClose", async () => { await printQueue?.stop(); await backupArtifactWorker?.stop(); options.database.close(); });
@@ -231,7 +233,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
-  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
+  registerPrintingRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
   backupArtifactWorker?.trigger();
   return app;

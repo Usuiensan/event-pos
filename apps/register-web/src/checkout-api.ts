@@ -103,6 +103,13 @@ const versionHeaders = (version: number): HeadersInit => ({ "if-match": String(v
 const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
+  getManagementConfig: (eventId: string) => request<{ catalog: unknown; businessOpen: boolean }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`),
+  saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
+  listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string }> }>("/api/v1/receipt-templates"),
+  createReceiptTemplate: (templateKey: string, sourceText: string) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText }) }),
+  validateReceiptTemplate: (templateKey: string, version: number) => request<{ sourceSha256: string }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/validate`, { method: "POST", body: body({}) }),
+  previewReceiptTemplate: (templateKey: string, version: number) => request<{ humanReadable: string; warnings: string[] }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/preview`, { method: "POST", body: body({}) }),
+  activateReceiptTemplate: (templateKey: string, version: number, sourceSha256: string) => request<unknown>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/activate`, { method: "POST", body: body({ sourceSha256 }) }),
   saveCatalog: (eventId: string, catalog: unknown) => request<void>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`, { method: "PUT", body: body(catalog) }),
   reloadCatalog: (eventId: string) => request<{ catalog: unknown }>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog/reload`, { method: "POST", body: body({}) }),
   signIn: async (eventId: string, responsibleNumber: string, terminalId: string) => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/sessions", { method: "POST", body: body({ eventId, responsibleNumber, terminalId }) }); csrfToken = result.actor.csrfToken; return result.actor; },

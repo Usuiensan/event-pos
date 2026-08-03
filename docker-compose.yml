@@ -7,12 +7,20 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       POS_DATABASE_PATH: /var/lib/event-pos/event-pos.sqlite
-      POS_EVENT_CONFIG_DIR: /app/event-config/demo
+      POS_EVENT_CONFIG_DIR: /workspace/event-config/demo
+      POS_EVENT_CONFIG_REPOSITORY: /workspace
+      GIT_AUTHOR_NAME: event-pos 管理画面
+      GIT_AUTHOR_EMAIL: event-pos@localhost
+      GIT_COMMITTER_NAME: event-pos 管理画面
+      GIT_COMMITTER_EMAIL: event-pos@localhost
       POS_ARTIFACT_ROOT: /var/lib/event-pos/artifacts
     ports:
       - "3000:3000"
     volumes:
       - pos-data:/var/lib/event-pos
+      - ./:/workspace:ro
+      - ./event-config:/workspace/event-config
+      - ./.git:/workspace/.git
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
