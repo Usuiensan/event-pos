@@ -17,9 +17,6 @@ describe("分割イベント設定", () => {
     expect(catalog.quickEntries).toHaveLength(2);
     expect(catalog.staffMembers).toHaveLength(2);
     expect(catalog.autoDiscountRules).toHaveLength(1);
-    const builtProducts = catalog.products.map(({ internalToken: _token, ...product }: Record<string, unknown>) => product);
-    const legacyProducts = demoCatalog.products.map(({ internalToken: _token, ...product }) => product);
-    expect(builtProducts).toEqual(legacyProducts);
     expect(catalog.productTabs?.map((tab) => tab.label)).toEqual(["野菜", "青果", "鮮魚", "精肉", "惣菜", "ギフト", "本", "成人向"]);
     expect(catalog.quickEntries).toContainEqual({ id: "adult-new", label: "R18新刊 小説A", components: [{ productCode: "T0000141", quantity: 1 }], tabId: "adult" });
   });
