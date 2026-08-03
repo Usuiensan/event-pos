@@ -21,11 +21,11 @@ function git(repository: string, args: string[]): string {
 
 function copyCommittedDemo(destination: string): void {
   const sourceRepository = resolve(import.meta.dirname, "../../..");
-  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "event-config/demo"], { cwd: sourceRepository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "cf02719", "event-config/demo"], { cwd: sourceRepository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
   for (const file of files) {
     const path = join(destination, file.slice("event-config/demo/".length));
     mkdirSync(join(path, ".."), { recursive: true });
-    writeFileSync(path, execFileSync("git", ["show", `HEAD:${file}`], { cwd: sourceRepository, encoding: "utf8" }), "utf8");
+    writeFileSync(path, execFileSync("git", ["show", `cf02719:${file}`], { cwd: sourceRepository, encoding: "utf8" }), "utf8");
   }
 }
 

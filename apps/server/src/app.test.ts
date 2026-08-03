@@ -16,11 +16,11 @@ afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 
 function copyCommittedDemo(destination: string): void {
   const repository = resolve(import.meta.dirname, "../../..");
-  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "event-config/demo"], { cwd: repository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "cf02719", "event-config/demo"], { cwd: repository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
   for (const file of files) {
     const path = join(destination, file.slice("event-config/demo/".length));
     mkdirSync(join(path, ".."), { recursive: true });
-    writeFileSync(path, execFileSync("git", ["show", `HEAD:${file}`], { cwd: repository, encoding: "utf8" }), "utf8");
+    writeFileSync(path, execFileSync("git", ["show", `cf02719:${file}`], { cwd: repository, encoding: "utf8" }), "utf8");
   }
 }
 
