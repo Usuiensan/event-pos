@@ -28,7 +28,7 @@ export type SnapshotVerification = {
   logicalSha256: string;
 };
 
-const SHEET_NAMES = ["概要", "売上", "売上明細", "支払", "税", "在庫移動", "現金台帳", "点検締め", "印刷Operation", "監査"] as const;
+const SHEET_NAMES = ["概要", "担当者別", "時間帯別", "商品別", "部門別", "売上", "売上明細", "支払", "税", "在庫移動", "現金台帳", "点検締め", "印刷Operation", "監査"] as const;
 
 function safePathPart(value: string): string {
   return value.normalize("NFKC").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64) || "unknown";
@@ -48,6 +48,20 @@ function normalizedRows(rows: Array<Record<string, unknown>>): Array<Record<stri
   return rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value instanceof Uint8Array ? Buffer.from(value).toString("hex") : value])));
 }
 
+function excelText(value: unknown): string {
+  return String(value ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "�").replace(/[\r\n]+/g, " ");
+}
+
+function inspectionRows(data: SnapshotData): { staff: Array<Record<string, unknown>>; time: Array<Record<string, unknown>>; product: Array<Record<string, unknown>>; department: Array<Record<string, unknown>> } {
+  const transactions = new Map(data.transactions.map((row) => [String(row.transaction_id), row]));
+  const aggregate = (rows: Array<Record<string, unknown>>, key: (row: Record<string, unknown>) => string, quantity: (row: Record<string, unknown>) => number, yen: (row: Record<string, unknown>) => number, label: (key: string) => Record<string, unknown>) => [...rows.reduce((map, row) => { const id = key(row); const current = map.get(id) ?? { ...label(id), sales_count: 0, quantity: 0, sales_yen: 0 }; current.sales_count = Number(current.sales_count) + 1; current.quantity = Number(current.quantity) + quantity(row); current.sales_yen = Number(current.sales_yen) + yen(row); map.set(id, current); return map; }, new Map<string, Record<string, unknown>>()).values()].sort((a, b) => Number(b.sales_yen) - Number(a.sales_yen));
+  const staff = aggregate(data.transactions, (row) => String(row.staff_id ?? "不明"), () => 0, (row) => Number(row.total_yen ?? 0), (id) => ({ staff_id: id })).map((row) => ({ ...row, quantity: undefined }));
+  const time = aggregate(data.transactions, (row) => `${String((new Date(String(row.created_at)).getUTCHours() + 9) % 24).padStart(2, "0")}時台`, () => 0, (row) => Number(row.total_yen ?? 0), (id) => ({ time_band: id })).map((row) => ({ ...row, quantity: undefined }));
+  const product = aggregate(data.transactionLines, (row) => `${String(row.product_code)}\u0000${String(row.product_name)}`, (row) => Number(row.quantity ?? 0), (row) => Number(row.net_yen ?? 0), (id) => { const [product_code, product_name] = id.split("\u0000"); return { product_code, product_name }; });
+  const department = aggregate(data.transactionLines, (row) => String(row.department ?? "未分類"), (row) => Number(row.quantity ?? 0), (row) => Number(row.net_yen ?? 0), (id) => ({ department: id }));
+  return { staff, time, product, department };
+}
+
 function querySnapshot(db: PosDatabase, artifact: BackupArtifactRecord): SnapshotData {
   const cutoff = (db.prepare("SELECT created_at FROM cash_checks WHERE id=?").get(artifact.sourceCashCheckId) as { created_at: string }).created_at;
   const scope = [artifact.eventId, artifact.businessDate, cutoff] as const;
@@ -55,6 +69,10 @@ function querySnapshot(db: PosDatabase, artifact: BackupArtifactRecord): Snapsho
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,t.transaction_id`).all(...scope) as Array<Record<string, unknown>>;
   const transactionLines = db.prepare(`SELECT tl.* FROM transaction_lines tl JOIN transactions t ON t.transaction_id=tl.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,tl.line_no,tl.transaction_line_id`).all(...scope) as Array<Record<string, unknown>>;
+  const catalogJson = (db.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(artifact.eventId) as { catalog_json?: string } | undefined)?.catalog_json;
+  const departmentByCode = new Map<string, string>();
+  try { for (const product of (JSON.parse(catalogJson ?? "{}").products ?? []) as Array<{ productCode?: string; tabId?: string }>) if (product.productCode) departmentByCode.set(product.productCode, product.tabId || "未分類"); } catch { /* 元データが不正でも成果物生成を継続 */ }
+  for (const line of transactionLines) line.department = departmentByCode.get(String(line.product_code)) ?? "未分類";
   const payments = db.prepare(`SELECT p.* FROM payments p JOIN transactions t ON t.transaction_id=p.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,p.sequence,p.payment_id`).all(...scope) as Array<Record<string, unknown>>;
   const taxes = db.prepare(`SELECT ts.* FROM tax_summaries ts JOIN transactions t ON t.transaction_id=ts.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
@@ -105,7 +123,7 @@ function addDataSheet(workbook: ExcelJS.Workbook, name: string, columns: Column[
       const raw = source[column.key];
       if (column.kind === "date") return [column.key, toDate(raw)];
       if (column.kind === "integer" || column.kind === "yen") return [column.key, raw === null || raw === undefined ? null : Number(raw)];
-      return [column.key, raw === null || raw === undefined ? "" : String(raw)];
+      return [column.key, excelText(raw)];
     }));
     sheet.addRow(row);
   }
@@ -133,6 +151,11 @@ async function writeWorkbook(path: string, artifact: BackupArtifactRecord, verif
     { key: "成果物ID", value: artifact.artifactId }, { key: "event ID", value: artifact.eventId }, { key: "営業日", value: artifact.businessDate }, { key: "現金箱", value: artifact.cashboxId }, { key: "cash session ID", value: artifact.cashSessionId }, { key: "契機", value: artifact.triggerKind }, { key: "生成要求日時 UTC", value: artifact.requestedAt }, { key: "snapshot論理SHA-256", value: verification.logicalSha256 },
     ...Object.entries(verification.rowCounts).map(([key, value]) => ({ key: `件数.${key}`, value })), ...Object.entries(verification.totals).map(([key, value]) => ({ key: `合計.${key}`, value })),
   ]);
+  const inspection = inspectionRows(data);
+  addDataSheet(workbook, "担当者別", [{ header: "担当者", key: "staff_id", width: 18 }, { header: "売上件数", key: "sales_count", width: 12, kind: "integer" }, { header: "売上金額（円）", key: "sales_yen", width: 16, kind: "yen" }], inspection.staff);
+  addDataSheet(workbook, "時間帯別", [{ header: "時間帯（JST）", key: "time_band", width: 16 }, { header: "売上件数", key: "sales_count", width: 12, kind: "integer" }, { header: "売上金額（円）", key: "sales_yen", width: 16, kind: "yen" }], inspection.time);
+  addDataSheet(workbook, "商品別", [{ header: "商品コード", key: "product_code", width: 18 }, { header: "商品名", key: "product_name", width: 32, kind: "text" }, { header: "売上数量", key: "quantity", width: 12, kind: "integer" }, { header: "売上金額（円）", key: "sales_yen", width: 16, kind: "yen" }], inspection.product);
+  addDataSheet(workbook, "部門別", [{ header: "部門", key: "department", width: 24 }, { header: "売上数量", key: "quantity", width: 12, kind: "integer" }, { header: "売上金額（円）", key: "sales_yen", width: 16, kind: "yen" }], inspection.department);
   addDataSheet(workbook, "売上", [
     { header: "取引ID", key: "transaction_id", width: 38 }, { header: "受付番号", key: "public_reference_display", width: 18 }, { header: "レジ", key: "register_id", width: 16 }, { header: "担当者", key: "staff_id", width: 16 }, { header: "種別", key: "type", width: 12 }, { header: "小計（円）", key: "subtotal_yen", width: 14, kind: "yen" }, { header: "値引（円）", key: "discount_total_yen", width: 14, kind: "yen" }, { header: "税（円）", key: "tax_total_yen", width: 14, kind: "yen" }, { header: "合計（円）", key: "total_yen", width: 14, kind: "yen" }, { header: "支払種別", key: "payment_kind", width: 18 }, { header: "確定日時 UTC", key: "created_at", width: 21, kind: "date" },
   ], data.transactions);

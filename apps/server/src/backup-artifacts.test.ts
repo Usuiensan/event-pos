@@ -58,8 +58,10 @@ describe("Goal 8 backup artifacts", () => {
     for (const path of [interim.backupPath!, interim.workbookPath!, interim.manifestPath!]) expect(existsSync(path)).toBe(true);
 
     const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(interim.workbookPath!);
-    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(["概要", "売上", "売上明細", "支払", "税", "在庫移動", "現金台帳", "点検締め", "印刷Operation", "監査"]);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(["概要", "担当者別", "時間帯別", "商品別", "部門別", "売上", "売上明細", "支払", "税", "在庫移動", "現金台帳", "点検締め", "印刷Operation", "監査"]);
     expect(workbook.getWorksheet("売上")?.getRow(2).getCell(9).value).toBe(220);
+    expect(workbook.getWorksheet("担当者別")?.getRow(2).getCell(3).value).toBe(220);
+    expect(workbook.getWorksheet("商品別")?.getRow(2).getCell(3).value).toBe(2);
     expect(workbook.getWorksheet("支払")?.getRow(2).getCell(6).value).toBe(220);
     expect(workbook.getWorksheet("税")?.getRow(2).getCell(7).value).toBe(20);
     expect(workbook.getWorksheet("現金台帳")?.getRow(2).getCell(4).value).toBe(220);
