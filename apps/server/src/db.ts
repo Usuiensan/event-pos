@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
 import { applyBusinessSchema } from "./business-schema.js";
 import { applyHoldSchema } from "./hold-schema.js";
+import { applyProductAssistSchema } from "./product-assist-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -93,6 +94,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
   applyBackupArtifactSchema(db);
   applyBusinessSchema(db);
   applyHoldSchema(db);
+  applyProductAssistSchema(db);
   ensureDefaultReceiptTemplate(db);
   return db;
 }

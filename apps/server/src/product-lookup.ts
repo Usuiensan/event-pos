@@ -4,6 +4,7 @@ import { fetchIsdnProduct } from "./isdn.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import type { PosDatabase } from "./db.js";
 import { getCatalog } from "./db.js";
+import { randomUUID } from "node:crypto";
 
 const normalize = (code: string) => code.replace(/[\s-]/g, "");
 async function braveCandidates(code: string): Promise<ProductLookupCandidate[]> {
@@ -19,6 +20,9 @@ async function braveCandidates(code: string): Promise<ProductLookupCandidate[]> 
 export async function lookupProductCandidates(database: PosDatabase, eventId: string, configDirectory: string | undefined, codeInput: string): Promise<ProductLookupResult> {
   const code = normalize(codeInput);
   if (!/^\d{8,18}$/.test(code)) throw new Error("商品コードは数字8〜18桁で入力してください");
+  const cacheKey = `${eventId}:${code}`;
+  const cached = database.prepare("SELECT result_json, expires_at FROM product_lookup_cache WHERE cache_key=?").get(cacheKey) as { result_json: string; expires_at: string } | undefined;
+  if (cached && cached.expires_at > new Date().toISOString()) return JSON.parse(cached.result_json) as ProductLookupResult;
   const record = getCatalog(database, eventId);
   if (!record) throw new Error("商品カタログが見つかりません");
   const catalog = importEventCatalog(record.catalogJson);
@@ -38,5 +42,11 @@ export async function lookupProductCandidates(database: PosDatabase, eventId: st
     candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price }), url: info.sourceUrl, source: "ISDN", strength: "strong", reason: "ISDN完全一致の公開情報" });
   }
   if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong")) candidates.push(...await braveCandidates(code));
-  return { code, codeKind: parsed.kind, existingProducts, candidates, searchedAt: new Date().toISOString() };
+  const result = { code, codeKind: parsed.kind, existingProducts, candidates, searchedAt: new Date().toISOString() } satisfies ProductLookupResult;
+  database.prepare("INSERT INTO product_lookup_cache(cache_key,event_id,code,result_json,fetched_at,expires_at) VALUES (?,?,?,?,?,?) ON CONFLICT(cache_key) DO UPDATE SET result_json=excluded.result_json,fetched_at=excluded.fetched_at,expires_at=excluded.expires_at").run(cacheKey, eventId, code, JSON.stringify(result), result.searchedAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
+  return result;
+}
+
+export function recordProductLookupAdoption(database: PosDatabase, eventId: string, productCode: string, fieldName: string, candidate: ProductLookupCandidate, actorId: string): void {
+  database.prepare("INSERT INTO product_lookup_adoptions(adoption_id,event_id,product_code,field_name,candidate_json,actor_id,created_at) VALUES (?,?,?,?,?,?,?)").run(randomUUID(), eventId, productCode, fieldName, JSON.stringify(candidate), actorId, new Date().toISOString());
 }

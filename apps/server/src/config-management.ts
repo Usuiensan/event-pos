@@ -9,7 +9,7 @@ import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
 import { fetchNdlIsbnProduct } from "./isbn.js";
-import { lookupProductCandidates } from "./product-lookup.js";
+import { lookupProductCandidates, recordProductLookupAdoption } from "./product-lookup.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -81,6 +81,15 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
       if (actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
       return await lookupProductCandidates(options.database, request.params.eventId, options.configDirectory, request.params.code);
+    } catch (error) { return failure(reply, error); }
+  });
+
+  app.post<{ Params: { eventId: string }; Body: { productCode?: string; fieldName?: string; candidate?: unknown } }>("/api/v1/events/:eventId/product-lookup/adoptions", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
+      if (actor.eventId !== request.params.eventId || !request.body?.productCode || !request.body.fieldName || !request.body.candidate || typeof request.body.candidate !== "object") throw new Error("候補採用情報が不正です");
+      recordProductLookupAdoption(options.database, request.params.eventId, request.body.productCode, request.body.fieldName, request.body.candidate as never, actor.staffId);
+      return { recorded: true };
     } catch (error) { return failure(reply, error); }
   });
 
