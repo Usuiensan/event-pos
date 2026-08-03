@@ -241,6 +241,41 @@ export function addDraftLine(db: PosDatabase, draftId: string, version: number, 
   });
 }
 
+export function addHoldLinesToDraft(db: PosDatabase, draftId: string, version: number, lines: Array<{ productId: string; quantity: number }>): SaleDraftDto {
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    if (!lines.length) throw new CheckoutError(400, "HOLD_EMPTY", "取り置き明細がありません");
+    for (const line of lines) {
+      const product = db.prepare("SELECT * FROM event_products WHERE product_id=? AND event_id=?").get(line.productId, String(row.event_id)) as Record<string, unknown> | undefined;
+      if (!product) throw new CheckoutError(409, "HOLD_PRODUCT_UNAVAILABLE", "取り置き商品の商品マスタが見つかりません");
+      insertLine(db, draftId, product, line.quantity, "hold", null, "{}", new Date().toISOString());
+    }
+    bump(db, draftId, version, "editing");
+    return updateProjection(db, draftId);
+  });
+}
+
+export function claimHoldToDraft(db: PosDatabase, holdId: string, draftId: string, version: number): SaleDraftDto {
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    const hold = db.prepare("SELECT event_id,state FROM holds WHERE hold_id=?").get(holdId) as { event_id: string; state: string } | undefined;
+    if (!hold) throw new CheckoutError(404, "HOLD_NOT_FOUND", "取り置きが見つかりません");
+    if (hold.event_id !== String(row.event_id) || hold.state !== "active") throw new CheckoutError(409, "HOLD_NOT_CLAIMABLE", "この取り置きは受取会計に使用できません");
+    const lines = db.prepare("SELECT product_id,quantity FROM hold_lines WHERE hold_id=? ORDER BY rowid").all(holdId) as Array<{ product_id: string; quantity: number }>;
+    if (!lines.length) throw new CheckoutError(409, "HOLD_EMPTY", "取り置き明細がありません");
+    for (const line of lines) {
+      const product = db.prepare("SELECT * FROM event_products WHERE product_id=? AND event_id=?").get(line.product_id, String(row.event_id)) as Record<string, unknown> | undefined;
+      if (!product) throw new CheckoutError(409, "HOLD_PRODUCT_UNAVAILABLE", "取り置き商品の商品マスタが見つかりません");
+      insertLine(db, draftId, product, Number(line.quantity), "hold", null, "{}", new Date().toISOString());
+      db.prepare("UPDATE inventory_balances SET reserved=reserved-?,version=version+1 WHERE event_id=? AND product_id=? AND reserved>=?").run(line.quantity, hold.event_id, line.product_id, line.quantity);
+    }
+    const changed = db.prepare("UPDATE holds SET state='claimed',claimed_draft_id=?,claimed_at=? WHERE hold_id=? AND state='active'").run(draftId, new Date().toISOString(), holdId);
+    if (Number(changed.changes) !== 1) throw new CheckoutError(409, "HOLD_CLAIM_CONFLICT", "取り置きが別端末で更新されています");
+    bump(db, draftId, version, "editing");
+    return updateProjection(db, draftId);
+  });
+}
+
 export function addDraftBundle(db: PosDatabase, draftId: string, version: number, bundleId: string): SaleDraftDto {
   return immediate(db, () => {
     const row = draftRow(db, draftId); assertMutable(db, row, version);
@@ -362,13 +397,13 @@ export function allocatePublicReference(db: PosDatabase, eventId: string, busine
   db.prepare("INSERT INTO public_reference_counters (event_id,business_date,session_no,next_sequence) VALUES (?,?,?,1) ON CONFLICT(event_id,business_date,session_no) DO NOTHING").run(eventId, businessDate, sessionNo);
   const counter = db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?");
   const advance = db.prepare("UPDATE public_reference_counters SET next_sequence=next_sequence+1 WHERE event_id=? AND business_date=? AND session_no=?");
-  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? LIMIT 1");
+  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? UNION SELECT 1 FROM holds WHERE event_id=? AND public_reference=? LIMIT 1");
   while (true) {
     const sequence = (counter.get(eventId, businessDate, sessionNo) as { next_sequence: number }).next_sequence;
     if (sequence > 999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
     const raw = createPublicReference(sessionNo, sequence);
     advance.run(eventId, businessDate, sessionNo);
-    if (!alreadyUsed.get(eventId, raw)) return { raw, display: formatPublicReference(raw) };
+    if (!alreadyUsed.get(eventId, raw, eventId, raw)) return { raw, display: formatPublicReference(raw) };
   }
 }
 

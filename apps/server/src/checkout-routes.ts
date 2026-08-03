@@ -6,6 +6,7 @@ import {
   addDraftBundle,
   addDraftLine,
   addDraftPayment,
+  claimHoldToDraft,
   cancelDraftLine,
   cancelSaleDraft,
   CheckoutError,
@@ -24,6 +25,8 @@ import {
 import type { RealtimeHub } from "./realtime.js";
 import { createFullReturn, createManualRefund, searchReturnableTransactions } from "./returns.js";
 import { AuthError, requireAuthActor } from "./auth.js";
+import { assertRegisterOpen } from "./business-store.js";
+import { createHold, findHold, releaseHold } from "./holds.js";
 
 type PrintQueue = { trigger(): void };
 export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean; authRequired?: boolean };
@@ -64,14 +67,31 @@ function draftReply(reply: FastifyReply, draft: ReturnType<typeof getSaleDraft>)
 }
 
 export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRouteOptions): void {
+  app.post<{ Body: { eventId?: string; registerId?: string; terminalId?: string; lines?: Array<{ productCode: string; quantity: number }>; allowShortage?: boolean } }>("/api/v1/holds", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const eventId = request.body?.eventId ?? actor.eventId; const registerId = request.body?.registerId ?? "";
+      const state = assertRegisterOpen(options.database, eventId, registerId);
+      const result = createHold(options.database, { eventId, businessDate: state.businessDate, sessionNo: state.sessionNo, businessSessionId: state.businessSessionId, actorId: options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator", terminalId: request.body?.terminalId ?? registerId, lines: request.body?.lines ?? [], allowShortage: !!request.body?.allowShortage });
+      return reply.code(201).send(result);
+    } catch (error) { return sendError(reply, error); }
+  });
+  app.get<{ Querystring: { eventId?: string; reference?: string } }>("/api/v1/holds/find", async (request, reply) => {
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); if (!request.query.eventId || !request.query.reference) throw new CheckoutError(400,"HOLD_QUERY_REQUIRED","eventIdと取り置き番号が必要です"); const hold = findHold(options.database,request.query.eventId,request.query.reference); return hold ?? sendError(reply,new CheckoutError(404,"HOLD_NOT_FOUND","取り置きが見つかりません")); } catch(error) { return sendError(reply,error); }
+  });
+  app.post<{ Params: { holdId: string }; Body: { draftId?: string; version?: number } }>("/api/v1/holds/:holdId/claim", async (request, reply) => {
+    try { requireAuthActor(options.database,request,"operator",options.authRequired ?? false); const draftId=request.body?.draftId; const version=Number(request.body?.version); if (!draftId || !Number.isSafeInteger(version)) throw new CheckoutError(400,"HOLD_CLAIM_INPUT_INVALID","販売ドラフトとversionが必要です"); const draft=claimHoldToDraft(options.database,request.params.holdId,draftId,version); notifyDraft(options,draft); return reply.code(200).send(draft); } catch(error) { return sendError(reply,error,options.database,request.body?.draftId); }
+  });
+  app.post<{ Params: { holdId: string }; Body: { reason?: string } }>("/api/v1/holds/:holdId/release", async (request, reply) => {
+    try { const actor=requireAuthActor(options.database,request,"operator",options.authRequired ?? false); return releaseHold(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:headerValue(request.headers["x-pos-actor-id"])??"unsigned-operator",request.body?.reason??""); } catch(error) { return sendError(reply,error); }
+  });
   app.get<{ Querystring: { eventId?: string; query?: string } }>("/api/v1/transactions/returnable", async (request, reply) => {
     if (!request.query.eventId || !request.query.query?.trim()) return sendError(reply, new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です"));
     return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };
   });
-  app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
+  app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string; externalResults?: Record<string, "completed" | "failed" | "unknown"> } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
     let actor; try { actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); } catch (error) { return sendError(reply, error); }
     const actorId = options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
-    try { const result = createFullReturn(options.database, { originalTransactionId: request.params.transactionId, cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", reason: request.body?.reason ?? "", idempotencyKey: key ?? "" }); options.printQueue?.trigger(); return reply.code(201).send(result); }
+    try { const result = createFullReturn(options.database, { originalTransactionId: request.params.transactionId, cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", reason: request.body?.reason ?? "", idempotencyKey: key ?? "", ...(request.body?.externalResults ? { externalResults: request.body.externalResults } : {}) }); options.printQueue?.trigger(); return reply.code(201).send(result); }
     catch (error) { return sendError(reply, error instanceof CheckoutError ? error : new CheckoutError(500, "RETURN_FAILED", error instanceof Error ? error.message : "返品処理に失敗しました")); }
   });
   app.post<{ Body: { eventId?: string; cashSessionId?: string; terminalId?: string; description?: string; amountYen?: number; productCode?: string; quantity?: number; paymentKind?: "cash" | "credit" | "accounts_receivable" } }>("/api/v1/refunds/manual", async (request, reply) => {

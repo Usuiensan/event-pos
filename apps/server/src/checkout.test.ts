@@ -80,8 +80,8 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT total_yen,type FROM transactions WHERE transaction_id=?").get(originalId)).toEqual({ total_yen: 110, type: "sale" });
     const search = await app.inject({ method: "GET", url: `/api/v1/transactions/returnable?eventId=checkout-event&query=${encodeURIComponent(sale.json().publicReference)}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } }); expect(search.json().transactions[0]).toMatchObject({ transactionId: originalId, returnable: false, returnTransactionId: result.transactionId });
     let creditDraft = await startDraft(app, "register-credit-return"); creditDraft = await addLine(app, creditDraft); creditDraft = await addPayment(app, creditDraft, "credit", 110); const creditSale = await finalize(app, creditDraft, "credit-return-source");
-    const creditReturn = await app.inject({ method: "POST", url: `/api/v1/transactions/${creditSale.json().transactionId}/full-return`, headers: { "idempotency-key": "credit-return-1" }, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "紙面へ手書き" } }); expect(creditReturn.statusCode).toBe(201);
-    expect(db.prepare("SELECT external_result FROM payments WHERE transaction_id=?").get(creditReturn.json().transactionId)).toEqual({ external_result: "reversed" });
+    const creditReturn = await app.inject({ method: "POST", url: `/api/v1/transactions/${creditSale.json().transactionId}/full-return`, headers: { "idempotency-key": "credit-return-1" }, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "紙面へ手書き", externalResults: { "1": "completed" } } }); expect(creditReturn.statusCode).toBe(201);
+    expect(db.prepare("SELECT external_result FROM payments WHERE transaction_id=?").get(creditReturn.json().transactionId)).toEqual({ external_result: "completed" });
   });
   it("権限制限なしで商品指定または金額指定の例外返金を追記し署名欄付きレシートを作る", async () => {
     const { app, db } = makeApp(); await installCatalog(app); const sessionId="manual-refund-session";

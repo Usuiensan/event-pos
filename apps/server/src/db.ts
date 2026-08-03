@@ -9,6 +9,7 @@ import { DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "
 import { randomUUID } from "node:crypto";
 import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
 import { applyBusinessSchema } from "./business-schema.js";
+import { applyHoldSchema } from "./hold-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -91,6 +92,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
   applyPrintingSchema(db);
   applyBackupArtifactSchema(db);
   applyBusinessSchema(db);
+  applyHoldSchema(db);
   ensureDefaultReceiptTemplate(db);
   return db;
 }
