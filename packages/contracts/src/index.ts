@@ -7,6 +7,7 @@ export { exportEventCatalog, importEventCatalog, taxCategories, taxCategoryLabel
 export type { Department, EventCatalog, EventDetails, ProductDefinition, ProductTab, QuickEntry, ReceiptSettings, StaffMember, StaffPermission, StaffRole, TaxCategory } from "./catalog.js";
 export { gs1ProductCodeInfo, lookupGs1Company, validateGs1CompanyPrefixRegistry } from "./gs1-company-prefix.js";
 export type { Gs1CompanyPrefixRecord, Gs1CompanyPrefixRegistry, Gs1ProductCodeInfo } from "./gs1-company-prefix.js";
+export type { IsdnProductInfo } from "./isdn.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
 export { calculateSale, SaleCalculationError } from "./checkout.js";
