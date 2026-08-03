@@ -26,7 +26,7 @@ import type { RealtimeHub } from "./realtime.js";
 import { createFullReturn, createManualRefund, searchReturnableTransactions } from "./returns.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { assertRegisterOpen } from "./business-store.js";
-import { createHold, findHold, releaseHold } from "./holds.js";
+import { carryHold, createHold, findHold, releaseHold, reprintHoldTicket, requestHoldCarryover } from "./holds.js";
 
 type PrintQueue = { trigger(): void };
 export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean; authRequired?: boolean };
@@ -72,7 +72,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
       const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const eventId = request.body?.eventId ?? actor.eventId; const registerId = request.body?.registerId ?? "";
       const state = assertRegisterOpen(options.database, eventId, registerId);
       const result = createHold(options.database, { eventId, businessDate: state.businessDate, sessionNo: state.sessionNo, businessSessionId: state.businessSessionId, actorId: options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator", terminalId: request.body?.terminalId ?? registerId, lines: request.body?.lines ?? [], allowShortage: !!request.body?.allowShortage });
-      return reply.code(201).send(result);
+      options.printQueue?.trigger(); return reply.code(201).send(result);
     } catch (error) { return sendError(reply, error); }
   });
   app.get<{ Querystring: { eventId?: string; reference?: string } }>("/api/v1/holds/find", async (request, reply) => {
@@ -82,8 +82,11 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
     try { requireAuthActor(options.database,request,"operator",options.authRequired ?? false); const draftId=request.body?.draftId; const version=Number(request.body?.version); if (!draftId || !Number.isSafeInteger(version)) throw new CheckoutError(400,"HOLD_CLAIM_INPUT_INVALID","販売ドラフトとversionが必要です"); const draft=claimHoldToDraft(options.database,request.params.holdId,draftId,version); notifyDraft(options,draft); return reply.code(200).send(draft); } catch(error) { return sendError(reply,error,options.database,request.body?.draftId); }
   });
   app.post<{ Params: { holdId: string }; Body: { reason?: string } }>("/api/v1/holds/:holdId/release", async (request, reply) => {
-    try { const actor=requireAuthActor(options.database,request,"operator",options.authRequired ?? false); return releaseHold(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:headerValue(request.headers["x-pos-actor-id"])??"unsigned-operator",request.body?.reason??""); } catch(error) { return sendError(reply,error); }
+    try { const actor=requireAuthActor(options.database,request,"manager",options.authRequired ?? false); return releaseHold(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:headerValue(request.headers["x-pos-actor-id"])??"unsigned-manager",request.body?.reason??""); } catch(error) { return sendError(reply,error); }
   });
+  app.post<{ Params:{holdId:string}; Body:{terminalId?:string;reason?:string} }>("/api/v1/holds/:holdId/reprint",async(request,reply)=>{try{const actor=requireAuthActor(options.database,request,"operator",options.authRequired??false);const result=reprintHoldTicket(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:"operator",request.body?.terminalId??actor.terminalId,request.body?.reason??"");options.printQueue?.trigger();return reply.code(201).send(result);}catch(error){return sendError(reply,error);}});
+  app.post<{ Params:{holdId:string}; Body:{businessSessionId?:string;terminalId?:string} }>("/api/v1/holds/:holdId/carry",async(request,reply)=>{try{const actor=requireAuthActor(options.database,request,"manager",options.authRequired??false);if(!request.body?.businessSessionId)throw new CheckoutError(400,"HOLD_CARRY_INPUT_INVALID","繰越先営業が必要です");return carryHold(options.database,request.params.holdId,request.body.businessSessionId,options.authRequired?actor.responsibleNumber:"manager",request.body.terminalId??actor.terminalId);}catch(error){return sendError(reply,error);}});
+  app.post<{ Params:{holdId:string}; Body:{terminalId?:string} }>("/api/v1/holds/:holdId/carry-request",async(request,reply)=>{try{const actor=requireAuthActor(options.database,request,"manager",options.authRequired??false);return requestHoldCarryover(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:"manager",request.body?.terminalId??actor.terminalId);}catch(error){return sendError(reply,error);}});
   app.get<{ Querystring: { eventId?: string; query?: string } }>("/api/v1/transactions/returnable", async (request, reply) => {
     if (!request.query.eventId || !request.query.query?.trim()) return sendError(reply, new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です"));
     return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };

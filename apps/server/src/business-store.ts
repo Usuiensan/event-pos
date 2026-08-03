@@ -95,6 +95,8 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   if (business.state === "closed") return business;
   const activeDraft = db.prepare("SELECT draft_id FROM sale_drafts WHERE event_id=? AND state IN ('editing','payment','finalizing') LIMIT 1").get(business.eventId);
   if (activeDraft) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "未確定の会計が残っています");
+  const activeHold = db.prepare("SELECT hold_id FROM holds WHERE business_session_id=? AND state='active' LIMIT 1").get(businessSessionId);
+  if (activeHold) throw new CheckoutError(409, "ACTIVE_HOLDS_EXIST", "未解決の取り置きが残っています。解除または翌営業へ繰越してください");
   const openCashbox = db.prepare("SELECT cashbox_id FROM cash_sessions WHERE business_session_id=? AND state!='closed' LIMIT 1").get(businessSessionId);
   if (openCashbox) throw new CheckoutError(409, "REGISTER_NOT_CLOSED", "精算されていないレジがあります");
   const now = new Date().toISOString();
