@@ -1,0 +1,16 @@
+schemaVersion: 1
+automaticDiscounts:
+  - discountId: book-pair-discount
+    name: 新刊小説2冊値引き
+    priority: 10
+    enabled: true
+    conditions:
+      all:
+        - productCode: T0000121
+          quantity: 1
+        - productCode: T0000122
+          quantity: 1
+    benefit:
+      type: fixed_amount
+      amountYen: 100
+    repeatable: true

@@ -1,0 +1,383 @@
+schemaVersion: 1
+departmentId: own
+products:
+  - productCode: T0000081
+    name: 鶏の唐揚げ
+    shortName: 鶏の唐揚げ
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 鶏の唐揚げ
+      sortOrder: 10
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000082
+    name: コロッケ 2個
+    shortName: コロッケ 2個
+    priceYen: 198
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: コロッケ 2個
+      sortOrder: 20
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000083
+    name: メンチカツ 2個
+    shortName: メンチカツ 2個
+    priceYen: 298
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: メンチカツ 2個
+      sortOrder: 30
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000084
+    name: とんかつ
+    shortName: とんかつ
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: とんかつ
+      sortOrder: 40
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000085
+    name: エビフライ 3本
+    shortName: エビフライ 3本
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: エビフライ 3本
+      sortOrder: 50
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000086
+    name: 春巻 4本
+    shortName: 春巻 4本
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 春巻 4本
+      sortOrder: 60
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000087
+    name: 焼き餃子
+    shortName: 焼き餃子
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 焼き餃子
+      sortOrder: 70
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000088
+    name: だし巻き玉子
+    shortName: だし巻き玉子
+    priceYen: 298
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: だし巻き玉子
+      sortOrder: 80
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000089
+    name: ポテトサラダ
+    shortName: ポテトサラダ
+    priceYen: 258
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: ポテトサラダ
+      sortOrder: 90
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000090
+    name: マカロニサラダ
+    shortName: マカロニサラダ
+    priceYen: 258
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: マカロニサラダ
+      sortOrder: 100
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000091
+    name: きんぴらごぼう
+    shortName: きんぴらごぼう
+    priceYen: 198
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: きんぴらごぼう
+      sortOrder: 110
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000092
+    name: ひじき煮
+    shortName: ひじき煮
+    priceYen: 198
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: ひじき煮
+      sortOrder: 120
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000093
+    name: 筑前煮
+    shortName: 筑前煮
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 筑前煮
+      sortOrder: 130
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000094
+    name: 肉じゃが
+    shortName: 肉じゃが
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 肉じゃが
+      sortOrder: 140
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000095
+    name: 麻婆豆腐
+    shortName: 麻婆豆腐
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 麻婆豆腐
+      sortOrder: 150
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000096
+    name: 焼きそば
+    shortName: 焼きそば
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 焼きそば
+      sortOrder: 160
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000097
+    name: ナポリタン
+    shortName: ナポリタン
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: ナポリタン
+      sortOrder: 170
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000098
+    name: おにぎりセット
+    shortName: おにぎりセット
+    priceYen: 298
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: おにぎりセット
+      sortOrder: 180
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000099
+    name: 幕の内弁当
+    shortName: 幕の内弁当
+    priceYen: 598
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 幕の内弁当
+      sortOrder: 190
+      color: "#ffedd5"
+    sales:
+      enabled: true
+  - productCode: T0000100
+    name: 海苔弁当
+    shortName: 海苔弁当
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: deli
+      buttonLabel: 海苔弁当
+      sortOrder: 200
+      color: "#ffedd5"
+    sales:
+      enabled: true

@@ -1,0 +1,13 @@
+schemaVersion: 1
+event:
+  eventId: demo-event-large
+  name: event-pos デモ即売会
+  businessDate: 2026-08-03
+seller:
+  circleName: event-pos テストサークル
+  space: 東A-01a
+  receiptIssuerName: event-pos テストサークル
+locale:
+  language: ja-JP
+  currency: JPY
+  timezone: Asia/Tokyo

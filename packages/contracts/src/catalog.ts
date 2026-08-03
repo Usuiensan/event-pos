@@ -1,6 +1,7 @@
 export type ProductDefinition = {
   productCode: string;
   name: string;
+  departmentId?: string;
   priceInclTax: number;
   taxRate: number;
   taxCategory: TaxCategory;
@@ -40,10 +41,13 @@ function legacyTaxCategory(taxRate: number): TaxCategory {
 }
 
 export type ProductTab = { id: string; label: string; color?: string };
-export type StaffPermission = "catalog_import" | "refund" | "reprint";
+export type StaffPermission = "catalog_import" | "refund" | "void" | "reprint" | "cash_check" | "business_close";
 export type StaffRole = "operator" | "manager" | "admin";
-export type StaffMember = { responsibleNumber: string; displayName: string; role?: StaffRole; permissions?: StaffPermission[] };
+export type StaffMember = { staffId?: string; responsibleNumber: string; displayName: string; role?: StaffRole; permissions?: StaffPermission[] };
 export type CustomerWelcome = { message?: string; circleName?: string; space?: string; imageUrl?: string };
+export type EventDetails = { name: string; businessDate: string; seller: { circleName: string; space: string; receiptIssuerName: string }; locale: { language: string; currency: string; timezone: string } };
+export type Department = { departmentId: string; code: string; name: string; settlementOwnerId: string; enabled: boolean };
+export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string } };
 
 export type QuickEntry = {
   id: string;
@@ -54,7 +58,7 @@ export type QuickEntry = {
   tabId?: string;
 };
 
-export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[]; customerWelcome?: CustomerWelcome };
+export type EventCatalog = { eventId: string; event?: EventDetails; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[]; customerWelcome?: CustomerWelcome; departments?: Department[]; receiptSettings?: ReceiptSettings };
 
 function fail(message: string): never { throw new Error(message); }
 
@@ -81,8 +85,8 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (p.saleState !== "on_sale" && p.saleState !== "off_sale") fail(`products[${index}].saleStateが不正です`);
     const priceInclTax = p.priceInclTax as number;
     if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
-    for (const key of ["displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
-    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
+    for (const key of ["departmentId", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
+    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);
@@ -118,7 +122,7 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   });
   if (autoDiscountRules) { const ids = new Set<string>(); for (const rule of autoDiscountRules) if (ids.has(rule.id)) fail(`autoDiscountRules.idが重複しています: ${rule.id}`); else ids.add(rule.id); }
   const productTabs = value.productTabs?.map((raw, index) => { const tab = raw as Partial<ProductTab>; if (typeof tab.id !== "string" || !tab.id.trim() || typeof tab.label !== "string" || !tab.label.trim()) fail(`productTabs[${index}]のid/labelが必要です`); if (tab.color !== undefined && typeof tab.color !== "string") fail(`productTabs[${index}].colorが不正です`); return { id: tab.id, label: tab.label, ...(tab.color ? { color: tab.color } : {}) }; });
-  const staffMembers = value.staffMembers?.map((raw, index) => { const member = raw as Partial<StaffMember>; if (typeof member.responsibleNumber !== "string" || !/^\d{3}$/.test(member.responsibleNumber)) fail(`staffMembers[${index}].responsibleNumberは3桁の数字です`); if (typeof member.displayName !== "string" || !member.displayName.trim()) fail(`staffMembers[${index}].displayNameが必要です`); const allowedRoles: StaffRole[] = ["operator", "manager", "admin"]; if (member.role !== undefined && !allowedRoles.includes(member.role)) fail(`staffMembers[${index}].roleが不正です`); const allowedPermissions: StaffPermission[] = ["catalog_import", "refund", "reprint"]; if (member.permissions !== undefined && (!Array.isArray(member.permissions) || member.permissions.some((permission) => !allowedPermissions.includes(permission)))) fail(`staffMembers[${index}].permissionsが不正です`); return { responsibleNumber: member.responsibleNumber, displayName: member.displayName.trim(), ...(member.role ? { role: member.role } : {}), ...(member.permissions ? { permissions: [...new Set(member.permissions)] } : {}) }; });
+  const staffMembers = value.staffMembers?.map((raw, index) => { const member = raw as Partial<StaffMember>; if (typeof member.responsibleNumber !== "string" || !/^\d{3}$/.test(member.responsibleNumber)) fail(`staffMembers[${index}].responsibleNumberは3桁の数字です`); if (typeof member.displayName !== "string" || !member.displayName.trim()) fail(`staffMembers[${index}].displayNameが必要です`); if (member.staffId !== undefined && (typeof member.staffId !== "string" || !member.staffId.trim())) fail(`staffMembers[${index}].staffIdが不正です`); const allowedRoles: StaffRole[] = ["operator", "manager", "admin"]; if (member.role !== undefined && !allowedRoles.includes(member.role)) fail(`staffMembers[${index}].roleが不正です`); const allowedPermissions: StaffPermission[] = ["catalog_import", "refund", "void", "reprint", "cash_check", "business_close"]; if (member.permissions !== undefined && (!Array.isArray(member.permissions) || member.permissions.some((permission) => !allowedPermissions.includes(permission)))) fail(`staffMembers[${index}].permissionsが不正です`); return { ...(member.staffId ? { staffId: member.staffId } : {}), responsibleNumber: member.responsibleNumber, displayName: member.displayName.trim(), ...(member.role ? { role: member.role } : {}), ...(member.permissions ? { permissions: [...new Set(member.permissions)] } : {}) }; });
   if (staffMembers) { const numbers = new Set<string>(); for (const member of staffMembers) if (numbers.has(member.responsibleNumber)) fail(`責任者番号が重複しています: ${member.responsibleNumber}`); else numbers.add(member.responsibleNumber); }
   let customerWelcome: CustomerWelcome | undefined;
   if (value.customerWelcome !== undefined) {
@@ -130,7 +134,13 @@ export function validateEventCatalog(input: unknown): EventCatalog {
       if (typeof field === "string" && field.trim()) customerWelcome[key] = field.trim();
     }
   }
-  return { eventId: value.eventId, products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}), ...(customerWelcome ? { customerWelcome } : {}) };
+  const departments = value.departments?.map((raw, index) => { const d = raw as Partial<Department>; if (typeof d.departmentId !== "string" || !d.departmentId.trim() || typeof d.code !== "string" || !d.code.trim() || typeof d.name !== "string" || !d.name.trim() || typeof d.settlementOwnerId !== "string" || !d.settlementOwnerId.trim() || typeof d.enabled !== "boolean") fail(`departments[${index}]が不正です`); return { departmentId: d.departmentId, code: d.code, name: d.name, settlementOwnerId: d.settlementOwnerId, enabled: d.enabled }; });
+  if (departments) { const ids = new Set<string>(); const codes = new Set<string>(); for (const d of departments) { if (ids.has(d.departmentId) || codes.has(d.code)) fail(`departmentIdまたはcodeが重複しています: ${d.departmentId}`); ids.add(d.departmentId); codes.add(d.code); } }
+  let receiptSettings: ReceiptSettings | undefined;
+  if (value.receiptSettings !== undefined) { const r = value.receiptSettings as Partial<ReceiptSettings>; if (!r || typeof r !== "object" || Array.isArray(r) || !r.templates || typeof r.templates !== "object" || Array.isArray(r.templates)) fail("receiptSettings.templatesが必要です"); const templates: ReceiptSettings["templates"] = {}; for (const [kind, raw] of Object.entries(r.templates)) { const t = raw as Partial<ReceiptSettings["templates"][string]>; const activeVersion = t.activeVersion; if (!kind.trim() || typeof t.templateKey !== "string" || !t.templateKey.trim() || !Number.isSafeInteger(activeVersion) || (activeVersion as number) <= 0 || (t.templatePath !== undefined && typeof t.templatePath !== "string")) fail(`receiptSettings.templates.${kind}が不正です`); templates[kind] = { templateKey: t.templateKey, activeVersion: activeVersion as number, ...(t.templatePath ? { templatePath: t.templatePath } : {}) }; } receiptSettings = { templates, ...(r.commonText ? { commonText: r.commonText } : {}) }; }
+  let event: EventDetails | undefined;
+  if (value.event !== undefined) { const raw = value.event as Partial<EventDetails>; if (!raw || typeof raw.name !== "string" || !raw.name.trim() || typeof raw.businessDate !== "string" || !raw.businessDate.trim() || !raw.seller || typeof raw.seller.circleName !== "string" || typeof raw.seller.space !== "string" || typeof raw.seller.receiptIssuerName !== "string" || !raw.locale || typeof raw.locale.language !== "string" || typeof raw.locale.currency !== "string" || typeof raw.locale.timezone !== "string") fail("eventが不正です"); event = { name: raw.name, businessDate: raw.businessDate, seller: raw.seller, locale: raw.locale }; }
+  return { eventId: value.eventId, ...(event ? { event } : {}), products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}), ...(customerWelcome ? { customerWelcome } : {}), ...(departments ? { departments } : {}), ...(receiptSettings ? { receiptSettings } : {}) };
 }
 
 export function importEventCatalog(json: string): EventCatalog { try { return validateEventCatalog(JSON.parse(json)); } catch (error) { throw new Error(error instanceof Error ? error.message : "JSONが不正です"); } }

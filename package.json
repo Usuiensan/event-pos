@@ -7,6 +7,7 @@
     "check": "pnpm build && pnpm typecheck && pnpm test && pnpm --filter @event-pos/printer-host smoke:built && pnpm --filter @event-pos/printer-host smoke:deploy",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --if-present test",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "catalog": "pnpm --filter @event-pos/catalog-config catalog"
   }
 }

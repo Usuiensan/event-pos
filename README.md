@@ -89,3 +89,6 @@ pnpm --filter @event-pos/register-web dev
 3. 両OSでUSB切断、再接続、紙切れ、カバー開、排他、部分カット、service再起動を測定する。
 4. ADR-P001/P002をOS別の能力表付きで確定し、Windows/Linux PrinterTransportを同じ契約へ実装する。
 5. Windows x64、Linux x86_64/ARM64の全プロファイルで自動・実機・運用受入を完了する。
+# event-pos
+
+イベント設定は [分割イベント設定](docs/event-config-yaml.md) を参照してください。

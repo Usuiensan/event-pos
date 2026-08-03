@@ -9,6 +9,7 @@
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
+    "@event-pos/catalog-config": "workspace:*",
     "@event-pos/contracts": "workspace:*",
     "@event-pos/escpos": "workspace:*",
     "@event-pos/receipt-ir": "workspace:*",

@@ -104,6 +104,7 @@ const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
   saveCatalog: (eventId: string, catalog: unknown) => request<void>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`, { method: "PUT", body: body(catalog) }),
+  reloadCatalog: (eventId: string) => request<{ catalog: unknown }>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog/reload`, { method: "POST", body: body({}) }),
   signIn: async (eventId: string, responsibleNumber: string, terminalId: string) => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/sessions", { method: "POST", body: body({ eventId, responsibleNumber, terminalId }) }); csrfToken = result.actor.csrfToken; return result.actor; },
   getAuthSession: async () => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/session"); csrfToken = result.actor.csrfToken; return result.actor; },
   signOut: async () => { await request<void>("/api/v1/auth/session", { method: "DELETE" }); csrfToken = ""; },

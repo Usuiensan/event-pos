@@ -1,0 +1,14 @@
+schemaVersion: 1
+staff:
+  - staffId: manager-1
+    responsibleNumber: "001"
+    displayName: テスト管理者
+    role: admin
+    enabled: true
+    permissions: [catalog_import, refund, void, reprint, cash_check, business_close]
+  - staffId: operator-a
+    responsibleNumber: "002"
+    displayName: 売り子A
+    role: operator
+    enabled: true
+    permissions: []

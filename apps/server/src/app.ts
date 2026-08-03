@@ -15,9 +15,10 @@ import { registerOperationsDashboard } from "./operations-dashboard.js";
 import { registerBusinessRoutes } from "./business-routes.js";
 import { synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
+import { buildCatalog } from "@event-pos/catalog-config";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer } };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -166,6 +167,19 @@ export function buildApp(options: AppOptions): FastifyInstance {
       synchronizeCatalogStaff(options.database, catalog);
       return reply.code(200).send({ catalog, updatedAt: record.updatedAt });
     } catch (error) { return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
+  });
+  app.post<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog/reload", async (request, reply) => {
+    if (!options.eventConfigDirectory) return reply.code(503).send({ error: "event_config_not_configured", message: "POS_EVENT_CONFIG_DIRが設定されていません" });
+    try {
+      const existingStaff = options.database.prepare("SELECT 1 FROM event_staff_assignments WHERE event_id=? LIMIT 1").get(request.params.eventId);
+      if (options.requireAuth && existingStaff) requireAuthActor(options.database, request, "admin", true);
+      if (options.database.prepare("SELECT 1 FROM business_sessions WHERE event_id=? AND state='open' LIMIT 1").get(request.params.eventId)) return reply.code(409).send({ error: "business_already_open", message: "営業開始後は設定を再読み込みできません" });
+      const catalog = await buildCatalog(options.eventConfigDirectory);
+      if (catalog.eventId !== request.params.eventId) return reply.code(400).send({ error: "event_id_mismatch", message: "YAMLのeventIdと対象イベントが一致しません" });
+      const record = saveCatalog(options.database, catalog.eventId, exportEventCatalog(catalog), "catalog_reload");
+      synchronizeCatalogStaff(options.database, catalog);
+      return reply.code(200).send({ catalog, updatedAt: record.updatedAt, source: "yaml" });
+    } catch (error) { return reply.code(400).send({ error: "catalog_reload_failed", message: error instanceof Error ? error.message : "YAML再読み込みに失敗しました" }); }
   });
   app.get<{ Querystring: { eventId?: string; businessDate?: string; cashboxId?: string } }>("/api/v1/backup-artifacts", async (request, reply) => {
     const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
