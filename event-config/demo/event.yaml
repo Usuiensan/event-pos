@@ -1,12 +1,12 @@
 schemaVersion: 1
 event:
-  eventId: demo-event-large
+  eventId: demo-event-1
   name: event-pos デモ即売会
   businessDate: 2026-08-03
 seller:
-  circleName: event-pos テストサークル
-  space: 東A-01a
-  receiptIssuerName: event-pos テストサークル
+  circleName: 毎日
+  space: 
+  receiptIssuerName: 毎日ぽすPOS健康生活
 locale:
   language: ja-JP
   currency: JPY
