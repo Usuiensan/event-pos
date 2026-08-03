@@ -70,11 +70,17 @@ function fail(message: string): never { throw new Error(message); }
 function validGs1Prefix(prefix: number): boolean { return (prefix >= 0 && prefix <= 49) || (prefix >= 60 && prefix <= 139) || (prefix >= 200 && prefix <= 969) || (prefix >= 977 && prefix <= 999); }
 function validGtinCheckDigit(code: string): boolean { let sum = 0; let weight = 3; for (let index = code.length - 2; index >= 0; index -= 1) { sum += Number(code[index]) * weight; weight = weight === 3 ? 1 : 3; } return (10 - (sum % 10)) % 10 === Number(code.at(-1)); }
 function validateExternalProductCode(code: string, index: number): void {
-  if (!/^\d+$/.test(code) || (code.length !== 12 && code.length !== 13)) return;
-  if (!validGtinCheckDigit(code)) fail(`products[${index}].productCodeのチェックデジットが不正です（${code.length === 12 ? "UPC-A" : "EAN/JAN-13"}）`);
-  const prefix = Number(code.slice(0, 3));
-  if (!validGs1Prefix(prefix)) fail(`products[${index}].productCodeのGS1プレフィックス（国・地域番号）が不正です: ${code.slice(0, 3)}`);
-  const companyCode = code.length === 13 ? code.slice(3, -1) : code.slice(2, -1);
+  if (!/^\d+$/.test(code)) return;
+  const gtin = code.length === 18 ? code.slice(0, 13) : code;
+  if (![8, 12, 13, 14].includes(gtin.length)) return;
+  // 既存のゼロ始まり短縮商品コードは内部コードとして維持する。
+  if ((gtin.length === 8 || gtin.length === 14) && gtin.startsWith("0")) return;
+  if (!validGtinCheckDigit(gtin)) fail(`products[${index}].productCodeのチェックデジットが不正です（GTIN-${gtin.length}${code.length === 18 ? "本体部" : ""}）`);
+  if (code.length === 18 && !/^491\d{15}$/.test(code)) fail(`products[${index}].productCodeの18桁コードは定期刊行物JANコードです`);
+  if (gtin.length === 8 || gtin.length === 14) return;
+  const prefix = Number(gtin.slice(0, 3));
+  if (!validGs1Prefix(prefix)) fail(`products[${index}].productCodeのGS1プレフィックス（国・地域番号）が不正です: ${gtin.slice(0, 3)}`);
+  const companyCode = gtin.length === 13 ? gtin.slice(3, -1) : gtin.slice(2, -1);
   if (!/[1-9]/.test(companyCode)) fail(`products[${index}].productCodeの事業者コードが不正です`);
 }
 

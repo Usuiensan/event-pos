@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { createPrintJob, openDatabase } from "./db.js";
 import { bytesSha256 } from "@event-pos/escpos";
+import { calculateMod10CheckDigit } from "@event-pos/contracts";
 import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -180,6 +181,18 @@ describe("server foundation", () => {
     expect((await app.inject("/health/live")).json()).toEqual({ status: "ok" });
     expect((await app.inject("/health/ready")).json()).toEqual({ status: "ok", database: "ok" });
     expect((await app.inject("/api/v1/info")).json()).toMatchObject({ name: "event-pos", schemaVersion: 1 });
+  });
+
+  it("代理収納票は収納せず、個人欄を印刷payloadへ残さないリマインダーjobだけを作る", async () => {
+    const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
+    const first43 = `91${"123451"}${"123456789012345678901"}1${"260831"}0${"012340"}`;
+    const code = `${first43}${calculateMod10CheckDigit(first43)}`;
+    const response = await app.inject({ method: "POST", url: "/api/v1/payment-slip-reminders", payload: { code, terminalId: "register-1" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ reminder: { amount: 12340, gs1CompanyPrefix7: "4123451", dueDate: { isoDate: "2026-08-31" } }, job: { documentType: "payment-slip-reminder" } });
+    const stored = database.prepare("SELECT payload_json FROM print_jobs WHERE document_type='payment-slip-reminder'").get() as { payload_json: string };
+    expect(stored.payload_json).not.toContain(code);
+    expect(stored.payload_json).not.toContain("123456789012345678901");
   });
 
   it("persists a print job and drives its state through a fake printer host", async () => {

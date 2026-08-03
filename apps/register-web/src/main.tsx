@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, taxCategoryLabel, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
+import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, parseBarcode, taxCategoryLabel, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
 import { createSpeechPlayer, playOperationSound, previewSystemErrorSound, speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakProductPrice, speakReceiptReady, speakSubtotal, stopOperationSound, type SpeechPlayer } from "./speech.js";
 import { demoCatalog } from "./demo-catalog.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
@@ -76,6 +76,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [customerAgeAcknowledged, setCustomerAgeAcknowledged] = useState(false);
   const [received, setReceived] = useState(0);
   const [inputBuffer, setInputBuffer] = useState("");
+  const [scanNotice, setScanNotice] = useState("");
+  const [pendingBook, setPendingBook] = useState<{ isbn?: string; priceCode?: string } | null>(null);
   const [paymentFinished, setPaymentFinished] = useState(false);
   const [completedPaymentLabel, setCompletedPaymentLabel] = useState("現金");
   const [emergencyAlert, setEmergencyAlert] = useState<EmergencyAlert | null>(null);
@@ -359,8 +361,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       if (event.key === "Escape") { setInputBuffer(""); return; }
       if (event.key === "Enter" && inputBuffer) {
         event.preventDefault();
-        if (checkoutLocked) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showOperationError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "商品コードを入力してください。"); return; }
-        if (total === 0) { const product = inputBuffer.length >= 8 ? catalog.products.find((candidate) => candidate.productCode === inputBuffer) : undefined; setInputBuffer(""); if (product) addProduct(product); else showOperationError(inputBuffer.length >= 8 ? "商品コードが見つかりません。登録済みコードを入力してください。" : "会計待ちです。商品を登録してから預り金を入力してください。"); return; }
+        if (checkoutLocked || total === 0 || inputBuffer.length >= 8) { const scanned = inputBuffer; setInputBuffer(""); handleBarcode(scanned); return; }
         finishPayment("現金");
         return;
       }
@@ -396,6 +397,32 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       return;
     }
     void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
+  };
+  const handleBarcode = (raw: string) => {
+    const parsed = parseBarcode(raw);
+    if (parsed.kind === "payment-slip" && parsed.paymentSlip) {
+      setScanNotice("払込票を確認しました。リマインダーレシートを発行します（収納処理は行いません）。");
+      void checkoutApi.createPaymentSlipReminder(raw, registerId).then(() => setScanNotice(`払込票リマインダーを印刷待ちにしました。期限：${parsed.paymentSlip!.dueDate.kind === "date" ? parsed.paymentSlip!.dueDate.isoDate : "設定なし"}／${parsed.paymentSlip!.amount.toLocaleString()}円`)).catch((error) => showSystemError(errorMessage(error), error));
+      return;
+    }
+    if (parsed.kind === "book-price" && parsed.bookPrice) {
+      setPendingBook((current) => ({ ...current, priceCode: parsed.normalized }));
+      const detail = `書籍JAN下段：${parsed.bookPrice.cCode}（${parsed.bookPrice.salesTarget}・${parsed.bookPrice.publicationForm}・${parsed.bookPrice.subject}）／税抜${parsed.bookPrice.priceExclTaxYen.toLocaleString()}円。`;
+      if (pendingBook?.isbn) { setPendingBook(null); setScanNotice(`${detail}上下段を確認済みです。1冊として商品登録しました。`); }
+      else setScanNotice(`${detail}上段ISBNを読み取ってください。`);
+      return;
+    }
+    const productCode = parsed.kind === "periodical" ? [parsed.normalized, parsed.periodical?.coreCode].find((code) => code && catalog.products.some((item) => item.productCode === code)) : parsed.gtin;
+    if (parsed.kind === "book-isbn") {
+      setPendingBook((current) => ({ ...current, isbn: parsed.normalized }));
+      setScanNotice(pendingBook?.priceCode ? "書籍JANの上下段を確認しました。1冊として商品登録します。" : "書籍JAN上段（ISBN）を読み取りました。下段の分類・価格コードも読み取ってください。商品登録します。 ");
+    } else if (parsed.kind === "periodical" && parsed.periodical) {
+      setScanNotice(`定期刊行物JAN：号コード ${parsed.periodical.issueCode}／税抜${parsed.periodical.priceExclTaxYen === null ? "10,000円以上（バーコード上は0000）" : `${parsed.periodical.priceExclTaxYen.toLocaleString()}円`}`);
+    }
+    const product = productCode ? catalog.products.find((candidate) => candidate.productCode === productCode) : undefined;
+    if (product) { addProduct(product); if (parsed.kind === "book-isbn" && pendingBook?.priceCode) setPendingBook(null); return; }
+    if (parsed.kind === "unknown") return showOperationError(parsed.error ?? "対応していないバーコードです。");
+    showOperationError("商品コードが見つかりません。商品マスタへ登録してください。");
   };
   const addQuick = (quick: QuickEntry, startedNextTransaction = false) => {
     if ((checkoutLocked || draftRef.current?.state === "completed") && !startedNextTransaction) { void startNextTransaction().then((ready) => { if (ready) addQuick(quick, true); }); return; }
@@ -452,7 +479,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     {emergencyModal}
   </main>;
   return <main className="pos-screen register-shell">
-    <header className="register-header"><div className="header-actions"><button className="business-menu-button" onClick={() => setShowBusinessMenu(true)}>業務メニュー</button><button className="cancel-top" disabled={!canCancelRegistration} onClick={() => { if (canCancelRegistration) setCancelConfirm(true); }}>登録中止</button></div><p className="operation-guide">営業 {businessSession.sessionNo}／{businessSession.businessDate}／レジ営業中<br />商品登録後、小計ボタンを押してください。</p><div className="responsible-actions"><button className="drawer-button" disabled={!staffPermissions.has("reprint")} onClick={() => void checkoutApi.openDrawer(signedInResponsibleNumber).catch((error) => showSystemError(errorMessage(error), error))} aria-label="責任者としてドロアーを開く">替</button><button className="signed-in-user sign-out-button" onClick={signOut} aria-label="ログイン中の担当者を解除"><span>{signedInUser}</span></button></div></header>
+    <header className="register-header"><div className="header-actions"><button className="business-menu-button" onClick={() => setShowBusinessMenu(true)}>業務メニュー</button><button className="cancel-top" disabled={!canCancelRegistration} onClick={() => { if (canCancelRegistration) setCancelConfirm(true); }}>登録中止</button></div><p className="operation-guide">営業 {businessSession.sessionNo}／{businessSession.businessDate}／レジ営業中<br />商品登録後、小計ボタンを押してください。{scanNotice && <><br /><strong>{scanNotice}</strong></>}</p><div className="responsible-actions"><button className="drawer-button" disabled={!staffPermissions.has("reprint")} onClick={() => void checkoutApi.openDrawer(signedInResponsibleNumber).catch((error) => showSystemError(errorMessage(error), error))} aria-label="責任者としてドロアーを開く">替</button><button className="signed-in-user sign-out-button" onClick={signOut} aria-label="ログイン中の担当者を解除"><span>{signedInUser}</span></button></div></header>
     {panel === "products" ? <section className="product-panel"><aside className="mini-cart"><button className="panel-switch" onClick={() => setPanel("detail")}>登録明細へ</button><div className="mini-cart-table"><div className="mini-cart-head">No. 商品名</div><div className="mini-cart-lines">{cart.length === 0 ? <div className="mini-cart-empty">登録待ち</div> : cart.map((line, index) => { const discountYen = serverDraft?.calculation.lines.find((item) => item.lineId === line.lineId)?.discountYen ?? 0; return <div role="button" tabIndex={0} onClick={() => setSelectedLine(index)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedLine(index); }} className={`mini-cart-line ${line.cancelled ? "cancelled-line" : ""} ${isLineHighlighted(line) ? "line-highlight" : ""}`} key={`${line.product.productCode}-${index}`}><div className="mini-cart-item-name"><span>{index + 1}.</span><strong>{line.product.name}</strong></div><div className="mini-cart-item-detail"><span>{line.product.priceInclTax.toLocaleString()}円 × {line.quantity}</span>{discountYen > 0 && <span className="mini-cart-item-discount">値引き -{discountYen.toLocaleString()}円</span>}</div></div>; })}</div><footer><span>{activeCart.reduce((sum, line) => sum + line.quantity, 0)}点</span><strong>{total.toLocaleString()}円</strong></footer></div></aside><div className="product-picker"><div className="product-tabs"><button className={productTab === "all" ? "active" : ""} onClick={() => setProductTab("all")}>すべて</button>{(catalog.productTabs ?? []).map((tab) => <button key={tab.id} className={productTab === tab.id ? "active" : ""} style={tab.color ? { backgroundColor: tab.color } : undefined} onClick={() => setProductTab(tab.id)}>{tab.label}</button>)}</div><div className="product-grid">{visibleProducts.map((product) => <button key={product.productCode} disabled={product.saleState !== "on_sale"} style={product.displayColor ? { backgroundColor: product.displayColor } : undefined} onClick={() => addProduct(product)}>{product.thumbnailUrl && <img className="product-thumbnail" src={product.thumbnailUrl} alt="" />}<strong>{product.name}</strong></button>)}{catalog.quickEntries.map((quick) => <button key={quick.id} className="quick" onClick={() => addQuick(quick)}><strong>{quick.label}</strong></button>)}</div></div></section> : <section className="detail-view"><button className="panel-switch" onClick={() => setPanel("products")}>商品登録へ</button><div ref={detailPanelRef} className="detail-panel"><div className="detail-head"><span>NO.</span><span>税区分</span><span>商品名</span><span>数量</span><span>単価</span><span>値引</span><span>操作</span></div>{cart.map((line, index) => <div role="button" tabIndex={0} data-product-code={line.product.productCode} onClick={() => setSelectedLine(index)} onKeyDown={(event) => { if (event.key === "Enter") setSelectedLine(index); }} className={`detail-row ${line.cancelled ? "cancelled-line" : ""} ${isLineHighlighted(line) ? "line-highlight" : ""}`} key={`${line.product.productCode}-${index}`}><span>{index + 1}</span><span>{taxCategoryLabel(line.product.taxCategory)}</span><strong>{line.product.name}</strong><span>{line.quantity}</span><span>{line.product.priceInclTax.toLocaleString()}</span><span>{(serverDraft?.calculation.lines.find((item) => item.lineId === line.lineId)?.discountYen ?? 0).toLocaleString()}</span><span>タップして操作</span></div>)}{cart.length === 0 && <div className="empty-detail">登録待ち</div>}</div></section>}
     <section className="staff-bottom"><div className="last-added">{displayDiscounts.map((discount, index) => <div className="auto-discount" key={`${discount.label}-${index}`}>{discount.label}　-{discount.amountYen.toLocaleString()}円</div>)}{lastAdded ? <><strong>{lastAdded.name}</strong><span>{lastAdded.quantity}個　{lastAdded.unitPrice.toLocaleString()}</span></> : <span>登録待ち</span>}{checkoutLocked && <div className={`print-status ${formatPrintStatus(printJob).className}`}><span>印刷</span><strong>{formatPrintStatus(printJob).label}</strong>{currentPublicReference && <small>受付 {currentPublicReference}</small>}</div>}</div><div className="checkout-summary"><div className="checkout-values"><div><span>合計</span><strong>{activeCart.reduce((sum, line) => sum + line.quantity, 0)}点　{total.toLocaleString()}円</strong></div><div><span>お預り</span><strong>{paymentFinished && completedPaymentLabel !== "現金" ? completedPaymentLabel : `${received.toLocaleString()}円`}</strong></div><div><span>お釣り</span><strong>{paymentFinished && completedPaymentLabel !== "現金" ? "—" : `${Math.max(0, received - total).toLocaleString()}円`}</strong></div></div>{checkoutLocked ? <button className="subtotal-large next-sale" onClick={clearFinishedTransaction}>次の取引</button> : <button className="subtotal-large" disabled={activeCart.length === 0} onClick={() => { setInputBuffer(""); setShowPayment(true); speakSubtotal(routedSpeech, `合計金額は ${formatJapaneseYenSpeech(total)}`); }}>小計</button>}</div></section>
     {inputBuffer && !showPayment && <div className="cash-popup"><span>お預り金額</span><strong>{Number(inputBuffer).toLocaleString()}円</strong><small>Enterで現計・レシート発行</small></div>}
