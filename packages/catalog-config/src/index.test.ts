@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildCatalog, deterministicCatalogJson } from "./index.js";
 
 describe("分割イベント設定", () => {
+  const temporaryDirectories: string[] = [];
+  afterEach(async () => { await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
+  async function copiedDemo(): Promise<string> { const directory = await mkdtemp(join(tmpdir(), "event-pos-catalog-")); temporaryDirectories.push(directory); await cp(resolve(import.meta.dirname, "../../../event-config/demo"), directory, { recursive: true }); return directory; }
   it("demo設定を決定的な既存互換カタログへ統合する", async () => {
     const directory = resolve(import.meta.dirname, "../../../event-config/demo");
     const first = deterministicCatalogJson(await buildCatalog(directory));
@@ -19,5 +24,22 @@ describe("分割イベント設定", () => {
     expect(catalog.autoDiscountRules).toHaveLength(1);
     expect(catalog.productTabs?.map((tab) => tab.label)).toEqual(["野菜", "青果", "鮮魚", "精肉", "惣菜", "ギフト", "本", "成人向"]);
     expect(catalog.quickEntries).toContainEqual({ id: "adult-new", label: "R18新刊 小説A", components: [{ productCode: "T0000141", quantity: 1 }], tabId: "adult" });
+  });
+
+  it("参照切れ・重複・未知fieldをファイルと設定パス付きで拒否する", async () => {
+    const duplicateDirectory = await copiedDemo();
+    const productPath = join(duplicateDirectory, "products", "vegetables.yaml");
+    await writeFile(productPath, (await readFile(productPath, "utf8")).replace("productCode: T0000001", "productCode: T0000002"), "utf8");
+    await expect(buildCatalog(duplicateDirectory)).rejects.toThrow("products:products: 商品コードが重複しています");
+
+    const unknownDirectory = await copiedDemo();
+    const uiPath = join(unknownDirectory, "register-ui.yaml");
+    await writeFile(uiPath, `${await readFile(uiPath, "utf8")}\nunknownField: true\n`, "utf8");
+    await expect(buildCatalog(unknownDirectory)).rejects.toThrow("register-ui.yaml:$: 未知field unknownField");
+
+    const brokenReferenceDirectory = await copiedDemo();
+    const discountPath = join(brokenReferenceDirectory, "discounts.yaml");
+    await writeFile(discountPath, (await readFile(discountPath, "utf8")).replace("T0000121", "MISSING"), "utf8");
+    await expect(buildCatalog(brokenReferenceDirectory)).rejects.toThrow("discounts.yaml:automaticDiscounts[0].conditions.all[0].productCode: 存在しない商品です");
   });
 });
