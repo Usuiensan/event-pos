@@ -221,17 +221,21 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .lifecycle-sign-in-backdrop,
 .admin-sign-in-backdrop { z-index: 40; background: rgb(15 23 42 / 62%); }
 .lifecycle-sign-in-modal,
-.admin-sign-in-modal { width: min(32rem, calc(100vw - 2rem)); border: 0; border-radius: 1rem; overflow: hidden; background: #fff; box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%); color: #17212b; }
+.admin-sign-in-modal { width: min(34rem, calc(100vw - 2rem)); border: 4px solid #0ea5e9; border-radius: .45rem; overflow: hidden; background: #f8fafc; box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 45%); color: #17212b; }
 .lifecycle-sign-in-modal h2,
-.admin-sign-in-modal h2 { margin: 0; padding: 1rem 1.25rem; background: #17212b; color: #fff; font-size: 1.35rem; }
+.admin-sign-in-modal h2 { margin: 0; padding: .8rem 1.25rem; background: #0ea5e9; color: #fff; font-size: 1.35rem; }
+.lifecycle-sign-in-modal h2::before,
+.admin-sign-in-modal h2::before { content: "■■ "; color: #1d4ed8; }
+.lifecycle-sign-in-modal h2::after,
+.admin-sign-in-modal h2::after { content: " ■■"; color: #1d4ed8; }
 .lifecycle-sign-in-modal p,
 .admin-sign-in-modal p { margin: 0; padding: 1rem 1.25rem .5rem; line-height: 1.6; }
 .lifecycle-sign-in-modal label,
 .admin-sign-in-modal label { display: grid; gap: .45rem; margin: .75rem 1.25rem 0; font-weight: 800; text-align: left; }
 .lifecycle-sign-in-modal input,
-.admin-sign-in-modal input { box-sizing: border-box; width: 100%; min-height: 3.5rem; padding: .65rem .8rem; border: 2px solid #94a3b8; border-radius: .45rem; font: inherit; font-size: 1.8rem; text-align: center; letter-spacing: .45em; }
+.admin-sign-in-modal input { box-sizing: border-box; width: 100%; min-height: 3.5rem; padding: .65rem .8rem; border: 2px solid #a16207; border-radius: 0; background: #facc15; color: #17212b; font: inherit; font-size: 1.8rem; text-align: center; letter-spacing: .45em; }
 .lifecycle-sign-in-modal > button,
-.admin-sign-in-modal > button { box-sizing: border-box; width: calc(100% - 2.5rem); min-height: 3.5rem; margin: 1.15rem 1.25rem .75rem; border: 1px solid #1e40af; background: #1d4ed8; color: #fff; font-size: 1.1rem; font-weight: 800; }
+.admin-sign-in-modal > button { box-sizing: border-box; width: calc(100% - 2.5rem); min-height: 3.5rem; margin: 1.15rem 1.25rem .75rem; border: 1px solid #a16207; background: #facc15; color: #713f12; font-size: 1.1rem; font-weight: 800; }
 .admin-sign-in-modal .admin-input-with-swatch { display: block; }
 .lifecycle-sign-in-modal .lifecycle-secondary { width: auto; margin: 0 1.25rem 1.25rem; background: #e7ebef; color: #27333e; font-size: .95rem; }
 .admin-sign-in-links { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem 1.25rem; padding: .25rem 1.25rem 1.25rem; }
