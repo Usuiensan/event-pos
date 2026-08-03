@@ -6,6 +6,12 @@ const gitCommit = (() => { try { return execFileSync("git", ["rev-parse", "--sho
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      "/api": { target: process.env.POS_API_PROXY_TARGET ?? "http://127.0.0.1:3000", changeOrigin: true, ws: true },
+      "/health": { target: process.env.POS_API_PROXY_TARGET ?? "http://127.0.0.1:3000", changeOrigin: true },
+    },
+  },
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(process.env.POS_APP_VERSION ?? "開発版"),
     "import.meta.env.VITE_GIT_COMMIT": JSON.stringify(gitCommit),
