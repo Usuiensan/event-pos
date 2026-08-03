@@ -159,6 +159,13 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} })).statusCode).toBe(409);
   });
 
+  it("管理画面向けにGS1事業者コード台帳を返す", async () => {
+    const app = buildApp({ database: openDatabase(), eventConfigDirectory: resolve(import.meta.dirname, "../../../event-config/demo") }); apps.push(app);
+    const response = await app.inject({ method: "GET", url: "/api/v1/events/demo-event-large/gs1-company-prefixes" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().registry).toMatchObject({ schemaVersion: 1, country: "JP", records: [] });
+  });
+
   it("rejects invalid catalog references and duplicate product codes", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
     const product = { productCode: "A", name: "A", priceInclTax: 100, taxRate: 10, saleState: "on_sale" } as const;

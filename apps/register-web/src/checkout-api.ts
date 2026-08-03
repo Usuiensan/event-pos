@@ -1,4 +1,4 @@
-import type { ManualDiscountInput, SaleCalculation, TaxCategory } from "@event-pos/contracts";
+import type { Gs1CompanyPrefixRegistry, ManualDiscountInput, SaleCalculation, TaxCategory } from "@event-pos/contracts";
 
 export type CheckoutDraftLine = {
   lineId: string;
@@ -104,6 +104,7 @@ const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
   getManagementConfig: (eventId: string) => request<{ catalog: unknown; businessOpen: boolean }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`),
+  getGs1CompanyPrefixes: (eventId: string) => request<{ registry: Gs1CompanyPrefixRegistry }>(`/api/v1/events/${encodeURIComponent(eventId)}/gs1-company-prefixes`),
   saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
   listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string }> }>("/api/v1/receipt-templates"),
   createReceiptTemplate: (templateKey: string, sourceText: string) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText }) }),

@@ -6,6 +6,7 @@ import { exportEventCatalog, importEventCatalog, type EventCatalog } from "@even
 import { getCatalog, saveCatalog, type PosDatabase } from "./db.js";
 import { getOpenBusinessSession, synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
+import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -38,6 +39,15 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       const record = getCatalog(options.database, request.params.eventId);
       if (!record) return reply.code(404).send({ error: { code: "CATALOG_NOT_FOUND", message: "設定が見つかりません", details: {}, requestId: request.id } });
       return { catalog: importEventCatalog(record.catalogJson), businessOpen: Boolean(getOpenBusinessSession(options.database, request.params.eventId)) };
+    } catch (error) { return failure(reply, error); }
+  });
+
+  app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/gs1-company-prefixes", async (request, reply) => {
+    try {
+      requireAuthActor(options.database, request, "manager", options.authRequired);
+      if (!options.configDirectory) throw new Error("POS_EVENT_CONFIG_DIRが設定されていません");
+      const registry = await loadGs1CompanyPrefixRegistry(options.configDirectory);
+      return { registry };
     } catch (error) { return failure(reply, error); }
   });
 
