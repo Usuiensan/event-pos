@@ -15,7 +15,7 @@ describe("分割イベント設定", () => {
     const second = deterministicCatalogJson(await buildCatalog(directory));
     expect(first).toBe(second);
     expect(createHash("sha256").update(first).digest("hex")).toBe(createHash("sha256").update(second).digest("hex"));
-    const catalog = JSON.parse(first) as { eventId: string; event: unknown; products: unknown[]; quickEntries: unknown[]; staffMembers: unknown[]; productTabs: Array<{ label: string }>; autoDiscountRules: unknown[] };
+    const catalog = JSON.parse(first) as { eventId: string; event: unknown; products: unknown[]; quickEntries: unknown[]; staffMembers: unknown[]; productTabs: Array<{ label: string }>; autoDiscountRules: unknown[]; receiptSettings: { commonText?: { footer?: string } } };
     expect(catalog).toMatchObject({ eventId: "demo-event-large", event: { name: "event-pos デモ即売会", seller: { circleName: "event-pos テストサークル" }, locale: { timezone: "Asia/Tokyo" } } });
     expect(catalog.products).toHaveLength(160);
     expect(catalog.products.every((product: { departmentId?: string }) => product.departmentId === "own")).toBe(true);
@@ -23,6 +23,7 @@ describe("分割イベント設定", () => {
     expect(catalog.quickEntries).toHaveLength(2);
     expect(catalog.staffMembers).toHaveLength(2);
     expect(catalog.autoDiscountRules).toHaveLength(1);
+    expect(catalog.receiptSettings.commonText?.footer).toBe("ご利用ありがとうございます。");
     expect(catalog.productTabs?.map((tab) => tab.label)).toEqual(["野菜", "青果", "鮮魚", "精肉", "惣菜", "ギフト", "本", "成人向"]);
     expect(catalog.quickEntries).toContainEqual({ id: "adult-new", label: "R18新刊 小説A", components: [{ productCode: "T0000141", quantity: 1 }], tabId: "adult" });
   });
