@@ -25,6 +25,7 @@ export function createFullReturn(db: PosDatabase, input: ReturnInput) {
     const original = db.prepare("SELECT * FROM transactions WHERE transaction_id=? AND type='sale'").get(input.originalTransactionId) as Record<string, any> | undefined;
     if (!original) throw new CheckoutError(404, "ORIGINAL_TRANSACTION_NOT_FOUND", "元売上が見つかりません");
     if (db.prepare("SELECT 1 FROM transactions WHERE original_transaction_id=? AND type='return'").get(input.originalTransactionId)) throw new CheckoutError(409, "TRANSACTION_ALREADY_RETURNED", "この売上は返品済みです");
+    if (db.prepare("SELECT 1 FROM payments WHERE transaction_id=? AND kind NOT IN ('cash','no_charge')").get(input.originalTransactionId)) throw new CheckoutError(409, "EXTERNAL_REFUND_NOT_ACCEPTED", "クレジット・売掛の外部返金確認は未受入のため、この画面では返品できません");
     const session = db.prepare("SELECT state,opening_yen FROM cash_sessions WHERE session_id=?").get(input.cashSessionId) as { state: string; opening_yen: number | null } | undefined;
     if (!session || session.state !== "open" || session.opening_yen === null) throw new CheckoutError(409, "CASH_SESSION_NOT_OPEN", "開局中の現金セッションが必要です");
     const now = new Date().toISOString(); const transactionId = uuidV7(); const printJobId = uuidV7(); const operationId = uuidV7();

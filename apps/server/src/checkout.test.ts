@@ -77,6 +77,8 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='full_return' AND entity_id=?").get(result.transactionId)).toEqual({ count: 1 });
     expect(db.prepare("SELECT total_yen,type FROM transactions WHERE transaction_id=?").get(originalId)).toEqual({ total_yen: 110, type: "sale" });
     const search = await app.inject({ method: "GET", url: `/api/v1/transactions/returnable?eventId=checkout-event&query=${encodeURIComponent(sale.json().publicReference)}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } }); expect(search.json().transactions[0]).toMatchObject({ transactionId: originalId, returnable: false, returnTransactionId: result.transactionId });
+    let creditDraft = await startDraft(app, "register-credit-return"); creditDraft = await addLine(app, creditDraft); creditDraft = await addPayment(app, creditDraft, "credit", 110); const creditSale = await finalize(app, creditDraft, "credit-return-source");
+    const rejected = await app.inject({ method: "POST", url: `/api/v1/transactions/${creditSale.json().transactionId}/full-return`, headers: { ...headers, "idempotency-key": "credit-return-1" }, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "商品不良" } }); expect(rejected.statusCode).toBe(409); expect(rejected.json().error.code).toBe("EXTERNAL_REFUND_NOT_ACCEPTED");
   });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
