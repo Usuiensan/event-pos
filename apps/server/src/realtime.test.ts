@@ -27,6 +27,15 @@ async function setup(now = { value: Date.parse("2026-08-02T00:00:00.000Z") }) {
 }
 
 describe("顧客画面realtime境界", () => {
+  it("draft未作成でも顧客画面は空のprojectionを返す", async () => {
+    const app = buildApp({ database: openDatabase() });
+    apps.push(app);
+    await app.ready();
+    const response = await app.inject({ method: "GET", url: "/api/v1/customer-displays/customer-1?registerId=register-1" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ registerId: "register-1", version: 0, lines: [], totals: { totalYen: 0 }, payment: { state: "waiting", kinds: [] } });
+  });
+
   it("heartbeat期限と音声の単一配送先をサーバーで決定する", async () => {
     const { app, now } = await setup();
     expect((await app.inject({ method: "GET", url: "/api/v1/registers/register-1/customer-display-status" })).json()).toMatchObject({ available: false, heartbeatTtlMs: 5_000 });

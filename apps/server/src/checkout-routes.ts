@@ -192,7 +192,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   app.get<{ Params: { terminalId: string }; Querystring: { registerId?: string } }>("/api/v1/customer-displays/:terminalId", async (request, reply) => {
     const registerId = request.query.registerId ?? request.params.terminalId;
     const projection = getCustomerDisplayProjection(options.database, registerId);
-    if (!projection) return sendError(reply, new CheckoutError(404, "CUSTOMER_DISPLAY_STATE_NOT_FOUND", "顧客画面の状態が見つかりません"));
+    if (!projection) return { registerId, draftId: `customer-display:${registerId}`, version: 0, draftVersion: 0, state: "editing", lines: [], discounts: [], totals: { subtotalYen: 0, discountYen: 0, taxYen: 0, totalYen: 0 }, payment: { state: "waiting", kinds: [] } };
     reply.header("etag", `"customer-display:${registerId}:${String(projection.version)}"`).header("cache-control", "no-store");
     return projection;
   });
