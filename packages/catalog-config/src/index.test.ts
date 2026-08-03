@@ -41,5 +41,10 @@ describe("分割イベント設定", () => {
     const discountPath = join(brokenReferenceDirectory, "discounts.yaml");
     await writeFile(discountPath, (await readFile(discountPath, "utf8")).replace("T0000121", "MISSING"), "utf8");
     await expect(buildCatalog(brokenReferenceDirectory)).rejects.toThrow("discounts.yaml:automaticDiscounts[0].conditions.all[0].productCode: 存在しない商品です");
+
+    const duplicateQuickDirectory = await copiedDemo();
+    const quickPath = join(duplicateQuickDirectory, "register-ui.yaml");
+    await writeFile(quickPath, (await readFile(quickPath, "utf8")).replace("quickEntryId: adult-new", "quickEntryId: book-pair"), "utf8");
+    await expect(buildCatalog(duplicateQuickDirectory)).rejects.toThrow("register-ui.yaml:quickEntries: quickEntryIdが重複しています: book-pair");
   });
 });
