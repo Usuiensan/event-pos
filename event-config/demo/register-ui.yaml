@@ -1,9 +1,42 @@
 schemaVersion: 1
-tabs: []
+tabs:
+  - tabId: vegetables
+    label: 野菜
+    sortOrder: 0
+    color: "#dcfce7"
+  - tabId: fruit
+    label: 青果
+    sortOrder: 1
+    color: "#fef9c3"
+  - tabId: fish
+    label: 鮮魚
+    sortOrder: 2
+    color: "#cffafe"
+  - tabId: meat
+    label: 精肉
+    sortOrder: 3
+    color: "#fee2e2"
+  - tabId: deli
+    label: 惣菜
+    sortOrder: 4
+    color: "#ffedd5"
+  - tabId: gift
+    label: ギフト
+    sortOrder: 5
+    color: "#f3e8ff"
+  - tabId: books
+    label: 本
+    sortOrder: 6
+    color: "#dbeafe"
+  - tabId: adult
+    label: 成人向
+    sortOrder: 7
+    color: "#fbcfe8"
 quickEntries: []
 customerDisplay:
   welcome:
-    circleName: 毎日ぽすPOS健康生活
-    space: ""
+    circleName: event-pos テストサークル
+    space: 東A-01a
     message: |-
       いらっしゃいませ
+      新刊・既刊を頒布しています

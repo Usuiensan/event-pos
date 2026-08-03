@@ -9,3 +9,9 @@ staff:
       - catalog_import
       - refund
       - reprint
+  - staffId: "002"
+    responsibleNumber: "002"
+    displayName: 売り子A
+    role: operator
+    enabled: true
+    permissions: []
