@@ -54,7 +54,7 @@ describe("Goal 8 backup artifacts", () => {
     expect(interimResponse.statusCode).toBe(201);
     const interimId = interimResponse.json().backupArtifact.artifactId as string;
     const interim = await waitForArtifact(db, interimId, "completed");
-    expect(interim).toMatchObject({ eventId: "event-backup", businessDate: "2026-08-03", cashboxId: "register-1", triggerKind: "interim", canRegenerate: false, rowCounts: { transactions: 1, transaction_lines: 1, payments: 1, inventory_movements: 1, cash_movements: 1, cash_checks: 2 } });
+    expect(interim).toMatchObject({ eventId: "event-backup", businessDate: "2026-08-03", cashboxId: "register-1", triggerKind: "interim", canRegenerate: true, rowCounts: { transactions: 1, transaction_lines: 1, payments: 1, inventory_movements: 1, cash_movements: 1, cash_checks: 2 } });
     for (const path of [interim.backupPath!, interim.workbookPath!, interim.manifestPath!]) expect(existsSync(path)).toBe(true);
 
     const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(interim.workbookPath!);

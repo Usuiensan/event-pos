@@ -110,7 +110,7 @@ export function mapBackupArtifact(row: Record<string, unknown>): BackupArtifactR
     ...(row.output_directory ? { outputDirectory: String(row.output_directory) } : {}), ...(row.backup_path ? { backupPath: String(row.backup_path) } : {}), ...(row.workbook_path ? { workbookPath: String(row.workbook_path) } : {}), ...(row.manifest_path ? { manifestPath: String(row.manifest_path) } : {}),
     ...(row.backup_sha256 ? { backupSha256: String(row.backup_sha256) } : {}), ...(row.workbook_sha256 ? { workbookSha256: String(row.workbook_sha256) } : {}), ...(row.manifest_sha256 ? { manifestSha256: String(row.manifest_sha256) } : {}), ...(row.snapshot_logical_sha256 ? { snapshotLogicalSha256: String(row.snapshot_logical_sha256) } : {}),
     ...(parseJsonRecord(row.row_counts_json) ? { rowCounts: parseJsonRecord(row.row_counts_json)! } : {}), ...(parseJsonRecord(row.totals_json) ? { totals: parseJsonRecord(row.totals_json)! } : {}),
-    ...(row.error_code ? { errorCode: String(row.error_code) } : {}), ...(row.error_message ? { errorMessage: String(row.error_message) } : {}), attemptCount: Number(row.attempt_count), canRegenerate: state === "failed",
+    ...(row.error_code ? { errorCode: String(row.error_code) } : {}), ...(row.error_message ? { errorMessage: String(row.error_message) } : {}), attemptCount: Number(row.attempt_count), canRegenerate: state === "failed" || state === "completed",
   };
 }
 
