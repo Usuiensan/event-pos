@@ -15,8 +15,8 @@ describe("分割イベント設定", () => {
     const second = deterministicCatalogJson(await buildCatalog(directory));
     expect(first).toBe(second);
     expect(createHash("sha256").update(first).digest("hex")).toBe(createHash("sha256").update(second).digest("hex"));
-    const catalog = JSON.parse(first) as { eventId: string; products: unknown[]; quickEntries: unknown[]; staffMembers: unknown[]; productTabs: Array<{ label: string }>; autoDiscountRules: unknown[] };
-    expect(catalog).toMatchObject({ eventId: "demo-event-large" });
+    const catalog = JSON.parse(first) as { eventId: string; event: unknown; products: unknown[]; quickEntries: unknown[]; staffMembers: unknown[]; productTabs: Array<{ label: string }>; autoDiscountRules: unknown[] };
+    expect(catalog).toMatchObject({ eventId: "demo-event-large", event: { name: "event-pos デモ即売会", seller: { circleName: "event-pos テストサークル" }, locale: { timezone: "Asia/Tokyo" } } });
     expect(catalog.products).toHaveLength(160);
     expect(catalog.products.filter((product: { tabId?: string }) => product.tabId === "adult")).toHaveLength(20);
     expect(catalog.quickEntries).toHaveLength(2);

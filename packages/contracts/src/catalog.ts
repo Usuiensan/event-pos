@@ -44,6 +44,7 @@ export type StaffPermission = "catalog_import" | "refund" | "void" | "reprint" |
 export type StaffRole = "operator" | "manager" | "admin";
 export type StaffMember = { staffId?: string; responsibleNumber: string; displayName: string; role?: StaffRole; permissions?: StaffPermission[] };
 export type CustomerWelcome = { message?: string; circleName?: string; space?: string; imageUrl?: string };
+export type EventDetails = { name: string; businessDate: string; seller: { circleName: string; space: string; receiptIssuerName: string }; locale: { language: string; currency: string; timezone: string } };
 export type Department = { departmentId: string; code: string; name: string; settlementOwnerId: string; enabled: boolean };
 export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string } };
 
@@ -56,7 +57,7 @@ export type QuickEntry = {
   tabId?: string;
 };
 
-export type EventCatalog = { eventId: string; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[]; customerWelcome?: CustomerWelcome; departments?: Department[]; receiptSettings?: ReceiptSettings };
+export type EventCatalog = { eventId: string; event?: EventDetails; products: ProductDefinition[]; quickEntries: QuickEntry[]; staffMembers?: StaffMember[]; productTabs?: ProductTab[]; autoDiscountRules?: AutoDiscountRule[]; customerWelcome?: CustomerWelcome; departments?: Department[]; receiptSettings?: ReceiptSettings };
 
 function fail(message: string): never { throw new Error(message); }
 
@@ -136,7 +137,9 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   if (departments) { const ids = new Set<string>(); const codes = new Set<string>(); for (const d of departments) { if (ids.has(d.departmentId) || codes.has(d.code)) fail(`departmentIdまたはcodeが重複しています: ${d.departmentId}`); ids.add(d.departmentId); codes.add(d.code); } }
   let receiptSettings: ReceiptSettings | undefined;
   if (value.receiptSettings !== undefined) { const r = value.receiptSettings as Partial<ReceiptSettings>; if (!r || typeof r !== "object" || Array.isArray(r) || !r.templates || typeof r.templates !== "object" || Array.isArray(r.templates)) fail("receiptSettings.templatesが必要です"); const templates: ReceiptSettings["templates"] = {}; for (const [kind, raw] of Object.entries(r.templates)) { const t = raw as Partial<ReceiptSettings["templates"][string]>; const activeVersion = t.activeVersion; if (!kind.trim() || typeof t.templateKey !== "string" || !t.templateKey.trim() || !Number.isSafeInteger(activeVersion) || (activeVersion as number) <= 0 || (t.templatePath !== undefined && typeof t.templatePath !== "string")) fail(`receiptSettings.templates.${kind}が不正です`); templates[kind] = { templateKey: t.templateKey, activeVersion: activeVersion as number, ...(t.templatePath ? { templatePath: t.templatePath } : {}) }; } receiptSettings = { templates, ...(r.commonText ? { commonText: r.commonText } : {}) }; }
-  return { eventId: value.eventId, products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}), ...(customerWelcome ? { customerWelcome } : {}), ...(departments ? { departments } : {}), ...(receiptSettings ? { receiptSettings } : {}) };
+  let event: EventDetails | undefined;
+  if (value.event !== undefined) { const raw = value.event as Partial<EventDetails>; if (!raw || typeof raw.name !== "string" || !raw.name.trim() || typeof raw.businessDate !== "string" || !raw.businessDate.trim() || !raw.seller || typeof raw.seller.circleName !== "string" || typeof raw.seller.space !== "string" || typeof raw.seller.receiptIssuerName !== "string" || !raw.locale || typeof raw.locale.language !== "string" || typeof raw.locale.currency !== "string" || typeof raw.locale.timezone !== "string") fail("eventが不正です"); event = { name: raw.name, businessDate: raw.businessDate, seller: raw.seller, locale: raw.locale }; }
+  return { eventId: value.eventId, ...(event ? { event } : {}), products, quickEntries, ...(staffMembers ? { staffMembers } : {}), ...(productTabs ? { productTabs } : {}), ...(autoDiscountRules ? { autoDiscountRules } : {}), ...(customerWelcome ? { customerWelcome } : {}), ...(departments ? { departments } : {}), ...(receiptSettings ? { receiptSettings } : {}) };
 }
 
 export function importEventCatalog(json: string): EventCatalog { try { return validateEventCatalog(JSON.parse(json)); } catch (error) { throw new Error(error instanceof Error ? error.message : "JSONが不正です"); } }
