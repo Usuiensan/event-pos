@@ -251,7 +251,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .lifecycle-sign-in-modal label,
 .admin-sign-in-modal label { display: grid; gap: .45rem; margin: .75rem 1.25rem 0; font-weight: 800; text-align: left; }
 .lifecycle-sign-in-modal input,
-.admin-sign-in-modal input { box-sizing: border-box; width: 100%; min-height: 3.5rem; padding: .65rem .8rem; border: 2px solid #a16207; border-radius: 0; background: #facc15; color: #17212b; font: inherit; font-size: 1.8rem; text-align: center; letter-spacing: .45em; }
+.admin-sign-in-modal input { box-sizing: border-box; width: 100%; min-height: 3.5rem; padding: .65rem .8rem; border: 2px solid #a16207; border-radius: 0; background: #fff; color: #17212b; font: inherit; font-size: 1.8rem; text-align: center; letter-spacing: .45em; }
 .lifecycle-sign-in-modal > button,
 .admin-sign-in-modal > button { box-sizing: border-box; width: calc(100% - 2.5rem); min-height: 3.5rem; margin: 1.15rem 1.25rem .75rem; border: 1px solid #a16207; background: #facc15; color: #713f12; font-size: 1.1rem; font-weight: 800; }
 .admin-sign-in-modal .admin-input-with-swatch { display: block; }
