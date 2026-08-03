@@ -9,6 +9,15 @@ describe("event catalog JSON", () => {
     expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [sample.products[0], sample.products[0]] }))).toThrow("重複");
     expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [{ ...sample.products[0], priceInclTax: -1 }] }))).toThrow("整数");
   });
+  it("validates UPC-A and JAN/EAN-13 check digits and prefixes", () => {
+    const externalProducts = [
+      { ...sample.products[0], productCode: "036000291452" },
+      { ...sample.products[0], productCode: "4901234567894" },
+    ];
+    expect(importEventCatalog(JSON.stringify({ ...sample, products: externalProducts, quickEntries: [] })).products.map((product) => product.productCode)).toEqual(["036000291452", "4901234567894"]);
+    expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [{ ...sample.products[0], productCode: "036000291453" }] }))).toThrow("チェックデジット");
+    expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [{ ...sample.products[0], productCode: "1500000000004" }] }))).toThrow("GS1プレフィックス");
+  });
   it("validates responsible number mappings", () => {
     expect(importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "002", displayName: "担当者", permissions: ["refund"] }] })).staffMembers?.[0]?.permissions).toEqual(["refund"]);
     expect(() => importEventCatalog(JSON.stringify({ ...sample, staffMembers: [{ responsibleNumber: "", displayName: "名無し" }] }))).toThrow("3桁");

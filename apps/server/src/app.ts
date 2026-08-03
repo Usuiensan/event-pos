@@ -1,9 +1,11 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import websocket from "@fastify/websocket";
 import { mkdir, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 import { createCashSession, createPrintJob, findCashJournalCandidates, findCashSessionSummary, getCashSessionSummary, getCashSettlementSummary, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
-import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
+import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, parsePaymentSlipCode, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
+import { bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { registerCheckoutRoutes } from "./checkout-routes.js";
 import type { FailureInjector } from "./checkout-store.js";
 import { RealtimeHub, registerRealtimeRoutes } from "./realtime.js";
@@ -16,9 +18,10 @@ import { registerBusinessRoutes } from "./business-routes.js";
 import { synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
+import { registerConfigManagementRoutes } from "./config-management.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -42,6 +45,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector, options.artifactMinimumFreeBytes) : undefined;
   app.register(websocket);
   registerBusinessRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, secureCookie: !!options.https, realtimeHub });
+  registerConfigManagementRoutes(app, { database: options.database, ...(options.eventConfigDirectory ? { configDirectory: options.eventConfigDirectory } : {}), ...(options.eventConfigRepository ? { configRepository: options.eventConfigRepository } : {}), authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub, options.requireAuth ?? false));
   let latestEmergencyAlert: EmergencyAlert | null = null;
   app.addHook("onClose", async () => { await printQueue?.stop(); await backupArtifactWorker?.stop(); options.database.close(); });
@@ -64,6 +68,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
     try { await writeFile(join(directory, `${errorId}.txt`), content, { encoding: "utf8", flag: "wx" }); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
     return reply.code(201).send({ errorId });
+  });
+  app.post<{ Body: { code?: string; terminalId?: string } }>("/api/v1/payment-slip-reminders", async (request, reply) => {
+    try { requireAuthActor(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); }
+    catch (error) { return reply.code(error instanceof AuthError ? error.status : 401).send({ error: { code: error instanceof AuthError ? error.code : "AUTH_REQUIRED", message: "サインオンしてください" } }); }
+    const parsed = parsePaymentSlipCode(request.body?.code ?? "");
+    if (!parsed.ok) return reply.code(400).send({ error: { code: "PAYMENT_SLIP_INVALID", message: parsed.error } });
+    const slip = parsed.value;
+    const dueLabel = slip.dueDate.kind === "date" ? `${slip.dueDate.isoDate.slice(0, 4)}年${Number(slip.dueDate.isoDate.slice(5, 7))}月${Number(slip.dueDate.isoDate.slice(8, 10))}日` : "設定なし";
+    const lines = ["払込票リマインダー", "これは領収書ではありません。", "", `支払期限：${dueLabel}`, `企業番号：${slip.gs1CompanyPrefix7}`, `請求金額：${slip.amount.toLocaleString("ja-JP")}円`];
+    if (slip.dueDate.kind === "not-specified") lines.push("紙面に記載された期限を確認してください。", "カレンダー登録は行えません。");
+    const document = { schemaVersion: 1 as const, contentWidthDots: 384 as const, physicalWidthDots: 416 as const, nodes: [{ kind: "reset" as const }, { kind: "align" as const, value: "center" as const }, { kind: "emphasis" as const, bold: true, underline: false, invert: false }, { kind: "text" as const, value: "払込票リマインダー" }, { kind: "emphasis" as const, bold: false, underline: false, invert: false }, { kind: "align" as const, value: "left" as const }, { kind: "rule" as const, style: "single" as const }, ...lines.slice(1).map((value) => ({ kind: "text" as const, value })), { kind: "feed" as const, lines: 3 }, { kind: "cut" as const, mode: "partial" as const }] };
+    const bytes = receiptDocumentToEscPos(document); const now = new Date().toISOString(); const jobId = `payment-slip-reminder:${randomUUID()}`;
+    const job = createPrintJob(options.database, { jobId, transactionId: `payment-slip-reminder:${randomUUID()}`, printerId: request.body?.terminalId ?? "receipt-1", documentType: "payment-slip-reminder", payload: { lines, escposBase64: Buffer.from(bytes).toString("base64"), paymentSlip: { issuerCode: slip.issuerCode, dueDate: slip.dueDate, amount: slip.amount, stampFlag: slip.stampFlag } }, createdAt: now, source: "event-pos", rendererVersion: "payment-slip-reminder-v1", bytesSha256: bytesSha256(bytes), expectedBytesLength: bytes.length });
+    printQueue?.trigger();
+    return reply.code(201).send({ job, reminder: { dueDate: slip.dueDate, amount: slip.amount, issuerCode: slip.issuerCode, gs1CompanyPrefix7: slip.gs1CompanyPrefix7 } });
   });
   app.post<{ Body: { sessionId: string; eventId: string; businessDate: string; cashboxId?: string } }>("/api/v1/cash-sessions", async (request, reply) => {
     const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
@@ -231,7 +250,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
-  registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
+  registerPrintingRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
   backupArtifactWorker?.trigger();
   return app;

@@ -7,6 +7,7 @@ import { getPrintJob, type PosDatabase } from "./db.js";
 import type { PersistentPrintQueue } from "./print-queue.js";
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
 import { createPrintJob } from "./db.js";
+import { AuthError, requireAuthActor } from "./auth.js";
 
 type PhysicalOutcome = "printed" | "not_printed" | "indeterminate";
 type ReprintBody = { sourcePrintJobId: string; reason: string; physicalOutcome: PhysicalOutcome; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } };
@@ -42,7 +43,11 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   return getPrintJob(db, jobId)!;
 }
 
-export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation>; drawerEnabled?: boolean }): void {
+export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation>; drawerEnabled?: boolean; authRequired?: boolean }): void {
+  const editor = (request: any) => {
+    requireAuthActor(options.database, request, "manager", options.authRequired ?? false);
+    if (options.authRequired && options.database.prepare("SELECT 1 FROM business_sessions WHERE state='open' LIMIT 1").get()) throw new AuthError(409, "CONFIGURATION_LOCKED", "営業中はレシート設定を変更できません");
+  };
   app.post("/api/v1/device-jobs/drawer", async (request, reply) => {
     if (!options.drawerEnabled) return error(reply, 409, "DRAWER_NOT_ACCEPTED", "ドロアー実機受入が完了するまで駆動できません");
     const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
@@ -55,18 +60,18 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
       options.queue?.trigger(); return reply.code(201).send(job);
     } catch (err) { return error(reply, 409, "DRAWER_CREATE_FAILED", err instanceof Error ? err.message : "ドロアー操作を登録できません"); }
   });
-  app.get("/api/v1/receipt-templates", async () => ({ templates: listReceiptTemplates(options.database) }));
+  app.get("/api/v1/receipt-templates", async (request) => { requireAuthActor(options.database, request, "manager", options.authRequired ?? false); return { templates: listReceiptTemplates(options.database) }; });
   app.post<{ Body: { templateKey: string; sourceText: string; assets?: Parameters<typeof createReceiptTemplateDraft>[1]["assets"] } }>("/api/v1/receipt-templates", async (request, reply) => {
-    try { return reply.code(201).send(createReceiptTemplateDraft(options.database, { templateKey: request.body.templateKey, sourceText: request.body.sourceText, ...(request.body.assets ? { assets: request.body.assets } : {}) })); } catch (err) { return error(reply, 400, "TEMPLATE_DRAFT_INVALID", err instanceof Error ? err.message : "template draftが不正です"); }
+    try { editor(request); return reply.code(201).send(createReceiptTemplateDraft(options.database, { templateKey: request.body.templateKey, sourceText: request.body.sourceText, ...(request.body.assets ? { assets: request.body.assets } : {}) })); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 400, "TEMPLATE_DRAFT_INVALID", err instanceof Error ? err.message : "template draftが不正です"); }
   });
   app.post<{ Params: { templateKey: string; version: string } }>("/api/v1/receipt-templates/:templateKey/:version/validate", async (request, reply) => {
-    try { return validateReceiptTemplateVersion(options.database, request.params.templateKey, Number(request.params.version)); } catch (err) { return error(reply, 422, "TEMPLATE_VALIDATION_FAILED", err instanceof Error ? err.message : "template検証に失敗しました"); }
+    try { editor(request); return validateReceiptTemplateVersion(options.database, request.params.templateKey, Number(request.params.version)); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 422, "TEMPLATE_VALIDATION_FAILED", err instanceof Error ? err.message : "template検証に失敗しました"); }
   });
   app.post<{ Params: { templateKey: string; version: string }; Body: { snapshot?: ReceiptSnapshot } }>("/api/v1/receipt-templates/:templateKey/:version/preview", async (request, reply) => {
-    try { return previewReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.snapshot ?? sampleReceiptSnapshot()); } catch (err) { return error(reply, 422, "TEMPLATE_PREVIEW_FAILED", err instanceof Error ? err.message : "previewに失敗しました"); }
+    try { requireAuthActor(options.database, request, "manager", options.authRequired ?? false); return previewReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.snapshot ?? sampleReceiptSnapshot()); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 422, "TEMPLATE_PREVIEW_FAILED", err instanceof Error ? err.message : "previewに失敗しました"); }
   });
   app.post<{ Params: { templateKey: string; version: string }; Body: { sourceSha256: string } }>("/api/v1/receipt-templates/:templateKey/:version/activate", async (request, reply) => {
-    try { return activateReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.sourceSha256 ?? ""); } catch (err) { return error(reply, 409, "TEMPLATE_ACTIVATION_REJECTED", err instanceof Error ? err.message : "有効化できません"); }
+    try { editor(request); return activateReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.sourceSha256 ?? ""); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 409, "TEMPLATE_ACTIVATION_REJECTED", err instanceof Error ? err.message : "有効化できません"); }
   });
   app.get<{ Params: { templateKey: string; version: string } }>("/api/v1/receipt-templates/:templateKey/:version", async (request, reply) => getReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version)) ?? error(reply, 404, "TEMPLATE_NOT_FOUND", "templateが見つかりません"));
 

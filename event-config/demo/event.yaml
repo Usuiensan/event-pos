@@ -1,6 +1,6 @@
 schemaVersion: 1
 event:
-  eventId: demo-event-1
+  eventId: demo-event-large
   name: event-pos デモ即売会
   businessDate: 2026-08-03
 seller:

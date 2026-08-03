@@ -1,3 +1,6 @@
+import type { Gs1ProductCodeInfo } from "./gs1-company-prefix.js";
+import type { IsdnProductInfo } from "./isdn.js";
+
 export type ProductDefinition = {
   productCode: string;
   name: string;
@@ -12,6 +15,8 @@ export type ProductDefinition = {
   tabId?: string;
   displayColor?: string;
   thumbnailUrl?: string;
+  gs1?: Gs1ProductCodeInfo;
+  isdn?: IsdnProductInfo;
 };
 
 export const taxCategories = ["inclusive_10", "inclusive_8", "exclusive_10", "exclusive_8", "exempt", "non_taxable"] as const;
@@ -62,6 +67,23 @@ export type EventCatalog = { eventId: string; event?: EventDetails; products: Pr
 
 function fail(message: string): never { throw new Error(message); }
 
+function validGs1Prefix(prefix: number): boolean { return (prefix >= 0 && prefix <= 49) || (prefix >= 60 && prefix <= 139) || (prefix >= 200 && prefix <= 969) || (prefix >= 977 && prefix <= 999); }
+function validGtinCheckDigit(code: string): boolean { let sum = 0; let weight = 3; for (let index = code.length - 2; index >= 0; index -= 1) { sum += Number(code[index]) * weight; weight = weight === 3 ? 1 : 3; } return (10 - (sum % 10)) % 10 === Number(code.at(-1)); }
+function validateExternalProductCode(code: string, index: number): void {
+  if (!/^\d+$/.test(code)) return;
+  const gtin = code.length === 18 ? code.slice(0, 13) : code;
+  if (![8, 12, 13, 14].includes(gtin.length)) return;
+  // 既存のゼロ始まり短縮商品コードは内部コードとして維持する。
+  if ((gtin.length === 8 || gtin.length === 14) && gtin.startsWith("0")) return;
+  if (!validGtinCheckDigit(gtin)) fail(`products[${index}].productCodeのチェックデジットが不正です（GTIN-${gtin.length}${code.length === 18 ? "本体部" : ""}）`);
+  if (code.length === 18 && !/^491\d{15}$/.test(code)) fail(`products[${index}].productCodeの18桁コードは定期刊行物JANコードです`);
+  if (gtin.length === 8 || gtin.length === 14) return;
+  const prefix = Number(gtin.slice(0, 3));
+  if (!validGs1Prefix(prefix)) fail(`products[${index}].productCodeのGS1プレフィックス（国・地域番号）が不正です: ${gtin.slice(0, 3)}`);
+  const companyCode = gtin.length === 13 ? gtin.slice(3, -1) : gtin.slice(2, -1);
+  if (!/[1-9]/.test(companyCode)) fail(`products[${index}].productCodeの事業者コードが不正です`);
+}
+
 export function validateEventCatalog(input: unknown): EventCatalog {
   if (!input || typeof input !== "object") fail("カタログはJSONオブジェクトで指定してください");
   const value = input as Partial<EventCatalog>;
@@ -70,6 +92,7 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   const products = value.products.map((raw, index) => {
     const p = raw as Partial<ProductDefinition>;
     if (typeof p.productCode !== "string" || !p.productCode.trim()) fail(`products[${index}].productCodeが必要です`);
+    validateExternalProductCode(p.productCode, index);
     if (typeof p.name !== "string" || !p.name.trim()) fail(`products[${index}].nameが必要です`);
     if (typeof p.priceInclTax !== "number" || !Number.isSafeInteger(p.priceInclTax) || p.priceInclTax < 0) fail(`products[${index}].priceInclTaxは0以上の整数です`);
     if (typeof p.taxRate !== "number" || p.taxRate < 0 || p.taxRate > 100) fail(`products[${index}].taxRateが不正です`);
@@ -86,7 +109,9 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     const priceInclTax = p.priceInclTax as number;
     if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
     for (const key of ["departmentId", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
-    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
+    if (p.gs1 !== undefined && (!p.gs1 || typeof p.gs1 !== "object" || (p.gs1.codeType !== "upc-a" && p.gs1.codeType !== "ean-13"))) fail(`products[${index}].gs1が不正です`);
+    if (p.isdn !== undefined && (!p.isdn || typeof p.isdn !== "object" || typeof p.isdn.code !== "string" || typeof p.isdn.productName !== "string" || typeof p.isdn.sourceUrl !== "string" || typeof p.isdn.fetchedAt !== "string")) fail(`products[${index}].isdnが不正です`);
+    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}), ...(p.gs1 ? { gs1: p.gs1 } : {}), ...(p.isdn ? { isdn: p.isdn } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);

@@ -60,6 +60,13 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
 }
 
 describe("durable checkout API", () => {
+  it("定期刊行物は18桁の号・年月・バーコード価格から販売明細を作り、13桁本体へフォールバックしない", async () => {
+    const { app } = makeApp(); await installCatalog(app); const draft = await startDraft(app);
+    const response = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/periodicals`, headers: { "if-match": String(draft.version) }, payload: { code: "491217631016501000" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().lines).toMatchObject([{ productCode: "491217631016501000", name: "定期刊行物 17631 2026年1月号", priceInclTax: 1100, taxCategory: "exclusive_10", source: "scan" }]);
+    expect((await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/periodicals`, headers: { "if-match": "2" }, payload: { code: "4912176310165" } })).statusCode).toBe(400);
+  });
   it("元売上を変更せず全部返品を支払・現金・在庫・税へ逆仕訳し、返品レシートを作る", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft, "00000001", 1); draft = await addPayment(app, draft, "cash", 110, 500);

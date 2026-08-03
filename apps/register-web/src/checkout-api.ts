@@ -1,4 +1,4 @@
-import type { ManualDiscountInput, SaleCalculation, TaxCategory } from "@event-pos/contracts";
+import type { Gs1CompanyPrefixRegistry, IsdnProductInfo, ManualDiscountInput, SaleCalculation, TaxCategory } from "@event-pos/contracts";
 
 export type CheckoutDraftLine = {
   lineId: string;
@@ -103,6 +103,15 @@ const versionHeaders = (version: number): HeadersInit => ({ "if-match": String(v
 const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
+  getManagementConfig: (eventId: string) => request<{ catalog: unknown; businessOpen: boolean }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`),
+  getGs1CompanyPrefixes: (eventId: string) => request<{ registry: Gs1CompanyPrefixRegistry }>(`/api/v1/events/${encodeURIComponent(eventId)}/gs1-company-prefixes`),
+  getIsdnProduct: (code: string) => request<{ info: IsdnProductInfo }>(`/api/v1/isdn/${encodeURIComponent(code)}`),
+  saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
+  listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string }> }>("/api/v1/receipt-templates"),
+  createReceiptTemplate: (templateKey: string, sourceText: string) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText }) }),
+  validateReceiptTemplate: (templateKey: string, version: number) => request<{ sourceSha256: string }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/validate`, { method: "POST", body: body({}) }),
+  previewReceiptTemplate: (templateKey: string, version: number) => request<{ humanReadable: string; warnings: string[] }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/preview`, { method: "POST", body: body({}) }),
+  activateReceiptTemplate: (templateKey: string, version: number, sourceSha256: string) => request<unknown>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/activate`, { method: "POST", body: body({ sourceSha256 }) }),
   saveCatalog: (eventId: string, catalog: unknown) => request<void>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`, { method: "PUT", body: body(catalog) }),
   reloadCatalog: (eventId: string) => request<{ catalog: unknown }>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog/reload`, { method: "POST", body: body({}) }),
   signIn: async (eventId: string, responsibleNumber: string, terminalId: string) => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/sessions", { method: "POST", body: body({ eventId, responsibleNumber, terminalId }) }); csrfToken = result.actor.csrfToken; return result.actor; },
@@ -135,6 +144,7 @@ export const checkoutApi = {
   createDraft: (registerId: string, input: { eventId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-drafts`, { method: "POST", body: body(input) }),
   getDraft: (draftId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`),
   addLine: (draftId: string, version: number, productCode: string, quantity = 1) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines`, { method: "POST", headers: versionHeaders(version), body: body({ productCode, quantity, source: "manual" }) }),
+  addPeriodicalLine: (draftId: string, version: number, code: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/periodicals`, { method: "POST", headers: versionHeaders(version), body: body({ code }) }),
   addBundle: (draftId: string, version: number, bundleId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/bundles`, { method: "POST", headers: versionHeaders(version), body: body({ bundleId }) }),
   updateLine: (draftId: string, lineId: string, version: number, input: { quantity?: number; manualDiscount?: ManualDiscountInput | null }) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines/${encodeURIComponent(lineId)}`, { method: "PATCH", headers: versionHeaders(version), body: body(input) }),
   cancelLine: (draftId: string, lineId: string, version: number) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines/${encodeURIComponent(lineId)}`, { method: "DELETE", headers: versionHeaders(version) }),
@@ -144,6 +154,7 @@ export const checkoutApi = {
   finalize: (draftId: string, version: number, idempotencyKey: string) => request<FinalizeResult>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/finalize`, { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: body({ version }) }),
   getTransaction: (transactionId: string) => request<TransactionDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}`),
   getPrintJob: (jobId: string) => request<PrintJobDto>(`/api/v1/print-jobs/${encodeURIComponent(jobId)}`),
+  createPaymentSlipReminder: (code: string, terminalId: string) => request<{ job: PrintJobDto; reminder: { dueDate: unknown; amount: number; issuerCode: string; gs1CompanyPrefix7: string } }>("/api/v1/payment-slip-reminders", { method: "POST", body: body({ code, terminalId }) }),
   createReprint: (transactionId: string, actorId: string, input: { sourcePrintJobId: string; reason: string; physicalOutcome: "printed" | "not_printed" | "indeterminate"; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } }) => request<PrintJobDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/reprints`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
   getBackupArtifacts: (eventId: string, businessDate: string, cashboxId: string, actorId: string) => request<{ artifacts: BackupArtifactDto[] }>(`/api/v1/backup-artifacts?eventId=${encodeURIComponent(eventId)}&businessDate=${encodeURIComponent(businessDate)}&cashboxId=${encodeURIComponent(cashboxId)}`, { headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),
   regenerateBackupArtifact: (artifactId: string, actorId: string, idempotencyKey: string) => request<BackupArtifactDto>(`/api/v1/backup-artifacts/${encodeURIComponent(artifactId)}/regenerate`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId, "idempotency-key": idempotencyKey }, body: body({}) }),

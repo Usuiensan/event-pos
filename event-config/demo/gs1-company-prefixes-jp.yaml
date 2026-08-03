@@ -1,0 +1,11 @@
+# 日本向けGS1事業者コード台帳
+#
+# GS1 Japanの「GS1事業者コード情報確認サービス」から、利用許諾を受けた
+# CSVを書式変換して records に登録してください。公開情報を推測して補完
+# してはいけません。prefix はチェックデジットを除く4〜12桁です。
+schemaVersion: 1
+country: JP
+source: "GS1 Japan許諾済みCSV（未取込）"
+sourceUrl: "https://www.gs1jp.org/database_service/gcp-search/about_gcp-search.html"
+lastVerifiedAt: null
+records: []
