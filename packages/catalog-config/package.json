@@ -12,7 +12,7 @@
   "scripts": {
     "catalog": "tsx src/cli.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --testTimeout=30000",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {

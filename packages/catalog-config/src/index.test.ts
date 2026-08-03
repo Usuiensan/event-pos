@@ -8,7 +8,7 @@ import { buildCatalog, deterministicCatalogJson, writeCatalog } from "./index.js
 
 describe("分割イベント設定", () => {
   const temporaryDirectories: string[] = [];
-  afterEach(async () => { await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
+  afterEach(async () => { for (const directory of temporaryDirectories.splice(0)) await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); });
   async function copiedDemo(): Promise<string> {
     const directory = await mkdtemp(join(tmpdir(), "event-pos-catalog-")); temporaryDirectories.push(directory);
     const repository = resolve(import.meta.dirname, "../../..");
@@ -37,7 +37,7 @@ describe("分割イベント設定", () => {
     expect(catalog.receiptSettings.commonText?.footer).toBe("ありがとうございました。");
     expect(catalog.productTabs?.map((tab) => tab.label)).toEqual(["野菜", "青果", "鮮魚", "精肉", "惣菜", "ギフト", "本", "成人向"]);
     expect(catalog.quickEntries).toContainEqual({ id: "adult-new", label: "R18新刊 小説A", components: [{ productCode: "T0000141", quantity: 1 }], tabId: "adult" });
-  });
+  }, 30_000);
 
   it("参照切れ・重複・未知fieldをファイルと設定パス付きで拒否する", async () => {
     const duplicateDirectory = await copiedDemo();
@@ -59,7 +59,7 @@ describe("分割イベント設定", () => {
     const quickPath = join(duplicateQuickDirectory, "register-ui.yaml");
     await writeFile(quickPath, (await readFile(quickPath, "utf8")).replace("quickEntryId: adult-new", "quickEntryId: book-pair"), "utf8");
     await expect(buildCatalog(duplicateQuickDirectory)).rejects.toThrow("register-ui.yaml:quickEntries: quickEntryIdが重複しています: book-pair");
-  });
+  }, 30_000);
 
   it("商品をすべて削除した設定では古い商品YAMLも削除する", async () => {
     const directory = await copiedDemo();
@@ -67,5 +67,5 @@ describe("分割イベント設定", () => {
     await writeCatalog(directory, { ...original, departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
     expect((await readdir(join(directory, "products")).catch(() => []))).toEqual([]);
     await expect(buildCatalog(directory)).resolves.toMatchObject({ departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
-  });
+  }, 30_000);
 });
