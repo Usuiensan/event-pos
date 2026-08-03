@@ -12,6 +12,22 @@ const apps: ReturnType<typeof buildApp>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
 
 describe("server foundation", () => {
+  it("営業日と現金箱から現金セッションを復元し、理論現金と履歴を返す", async () => {
+    const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
+    const scope = { sessionId: "ui-cash-1", eventId: "event-ui", businessDate: "2026-08-03", cashboxId: "register-1" };
+    expect((await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=event-ui&businessDate=2026-08-03&cashboxId=register-1" })).json()).toEqual({ session: null });
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: scope })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { ...scope, sessionId: "duplicate" } })).json()).toMatchObject({ sessionId: "ui-cash-1" });
+    const openingRequest = { method: "POST" as const, url: "/api/v1/cash-sessions/ui-cash-1/checks/opening", headers: { "idempotency-key": "opening-ui-1" }, payload: { counted: [{ denomination: 1000, quantity: 2 }], actorId: "001", terminalId: "register-1" } };
+    const firstOpening = await app.inject(openingRequest); const replayedOpening = await app.inject(openingRequest);
+    expect(replayedOpening.json()).toMatchObject({ printJobId: firstOpening.json().printJobId, countedYen: 2000 });
+    expect(database.prepare("SELECT COUNT(*) AS count FROM cash_checks").get()).toEqual({ count: 1 });
+    const movement = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/ui-cash-1/movements", payload: { type: "pay_in", amountYen: 500, reason: "追加準備金", idempotencyKey: "ui-pay-in", actorId: "001", terminalId: "register-1" } });
+    expect(movement.json()).toMatchObject({ sessionId: "ui-cash-1", openingYen: 2000, theoreticalYen: 2500, checks: [{ kind: "opening", countedYen: 2000 }], movements: [{ type: "pay_in", amountYen: 500 }] });
+    const current = await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=event-ui&businessDate=2026-08-03&cashboxId=register-1" });
+    expect(current.json().session).toMatchObject({ state: "open", theoreticalYen: 2500 });
+  });
+
   it("システムエラーレポートをError IDごとのtxtへ保存する", async () => {
     const reportDirectory = mkdtempSync(join(tmpdir(), "event-pos-error-report-"));
     try {
@@ -75,10 +91,11 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { sessionId: "auth-1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/auth-1/reopen", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { reason: "no" } })).statusCode).toBe(403);
   });
-  it("rejects concurrent duplicate opening", async () => {
+  it("returns the same cash session for concurrent duplicate opening", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
     const responses = await Promise.all([1, 2].map(() => app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "concurrent-1", eventId: "e1", businessDate: "2026-08-02" } })));
-    expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 409]);
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 201]);
+    expect(responses.map((response) => response.json().sessionId)).toEqual(["concurrent-1", "concurrent-1"]);
   });
   it("commits sale transaction and cash movement atomically", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);

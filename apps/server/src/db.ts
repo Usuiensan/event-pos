@@ -7,7 +7,7 @@ import { ensureDefaultReceiptTemplate } from "./receipt-store.js";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { randomUUID } from "node:crypto";
-import { applyBackupArtifactSchema, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
+import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -65,6 +65,8 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
   const checkColumns = db.prepare("PRAGMA table_info(cash_checks)").all() as Array<{ name: string }>;
   if (!checkColumns.some((column) => column.name === "actor_id")) db.exec("ALTER TABLE cash_checks ADD COLUMN actor_id TEXT");
   if (!checkColumns.some((column) => column.name === "terminal_id")) db.exec("ALTER TABLE cash_checks ADD COLUMN terminal_id TEXT");
+  if (!checkColumns.some((column) => column.name === "request_key")) db.exec("ALTER TABLE cash_checks ADD COLUMN request_key TEXT");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_cash_checks_request_key ON cash_checks(request_key) WHERE request_key IS NOT NULL;");
   if (!movementColumns.some((column) => column.name === "actor_id")) db.exec("ALTER TABLE cash_movements ADD COLUMN actor_id TEXT");
   if (!movementColumns.some((column) => column.name === "terminal_id")) db.exec("ALTER TABLE cash_movements ADD COLUMN terminal_id TEXT");
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
@@ -121,6 +123,37 @@ export function createCashSession(db: PosDatabase, sessionId: string, eventId: s
   db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at) VALUES (?, ?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, cashboxId, new Date().toISOString());
 }
 
+export type CashSessionSummary = {
+  sessionId: string;
+  eventId: string;
+  businessDate: string;
+  cashboxId: string;
+  state: "open" | "closed";
+  openingYen: number | null;
+  closingYen: number | null;
+  theoreticalYen: number;
+  createdAt: string;
+  checks: Array<{ id: number; kind: "opening" | "interim" | "closing"; theoreticalYen: number; countedYen: number; differenceYen: number; carryoverYen: number; actorId?: string; terminalId?: string; createdAt: string }>;
+  movements: Array<{ id: number; type: CashMovement["type"]; amountYen: number; transactionId?: string; reason: string; actorId?: string; terminalId?: string; createdAt: string }>;
+};
+
+export function getCashSessionSummary(db: PosDatabase, sessionId: string): CashSessionSummary | undefined {
+  const session = db.prepare("SELECT * FROM cash_sessions WHERE session_id=?").get(sessionId) as Record<string, unknown> | undefined;
+  if (!session) return undefined;
+  const checks = (db.prepare("SELECT id,kind,theoretical_yen,counted_yen,difference_yen,carryover_yen,actor_id,terminal_id,created_at FROM cash_checks WHERE session_id=? ORDER BY id DESC LIMIT 50").all(sessionId) as Array<Record<string, unknown>>).map((row) => ({
+    id: Number(row.id), kind: String(row.kind) as "opening" | "interim" | "closing", theoreticalYen: Number(row.theoretical_yen), countedYen: Number(row.counted_yen), differenceYen: Number(row.difference_yen), carryoverYen: Number(row.carryover_yen), ...(row.actor_id ? { actorId: String(row.actor_id) } : {}), ...(row.terminal_id ? { terminalId: String(row.terminal_id) } : {}), createdAt: String(row.created_at),
+  }));
+  const movements = (db.prepare("SELECT id,type,amount_yen,transaction_id,reason,actor_id,terminal_id,created_at FROM cash_movements WHERE session_id=? ORDER BY id DESC LIMIT 100").all(sessionId) as Array<Record<string, unknown>>).map((row) => ({
+    id: Number(row.id), type: String(row.type) as CashMovement["type"], amountYen: Number(row.amount_yen), ...(row.transaction_id ? { transactionId: String(row.transaction_id) } : {}), reason: String(row.reason), ...(row.actor_id ? { actorId: String(row.actor_id) } : {}), ...(row.terminal_id ? { terminalId: String(row.terminal_id) } : {}), createdAt: String(row.created_at),
+  }));
+  return { sessionId: String(session.session_id), eventId: String(session.event_id), businessDate: String(session.business_date), cashboxId: String(session.cashbox_id), state: String(session.state) as "open" | "closed", openingYen: session.opening_yen === null ? null : Number(session.opening_yen), closingYen: session.closing_yen === null ? null : Number(session.closing_yen), theoreticalYen: getTheoreticalCash(db, sessionId), createdAt: String(session.created_at), checks, movements };
+}
+
+export function findCashSessionSummary(db: PosDatabase, eventId: string, businessDate: string, cashboxId: string): CashSessionSummary | undefined {
+  const row = db.prepare("SELECT session_id FROM cash_sessions WHERE event_id=? AND business_date=? AND cashbox_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(eventId, businessDate, cashboxId) as { session_id: string } | undefined;
+  return row ? getCashSessionSummary(db, row.session_id) : undefined;
+}
+
 export function reopenCashSession(db: PosDatabase, sessionId: string, reason: string, actorId: string | undefined, terminalId: string | undefined): void {
   if (!reason.trim()) throw new Error("再開理由が必要です");
   const session = db.prepare("SELECT event_id, state FROM cash_sessions WHERE session_id = ?").get(sessionId) as { event_id: string; state: string } | undefined;
@@ -136,7 +169,19 @@ export function reopenCashSession(db: PosDatabase, sessionId: string, reason: st
   } catch (error) { db.exec("ROLLBACK;"); throw error; }
 }
 
-export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { printJobId: string; backupArtifact?: BackupArtifactRecord } {
+export function saveCashCheck(db: PosDatabase, check: CashCheck, requestKey?: string): CashCheck & { printJobId: string; backupArtifact?: BackupArtifactRecord } {
+  if (requestKey) {
+    const existing = db.prepare("SELECT * FROM cash_checks WHERE request_key=?").get(requestKey) as Record<string, unknown> | undefined;
+    if (existing) {
+      if (existing.session_id !== check.sessionId || existing.kind !== check.kind || existing.counted_json !== JSON.stringify(check.counted) || Number(existing.carryover_yen) !== (check.carryoverYen ?? 0)) throw new Error("idempotency key payload mismatch");
+      const transactionId = `cash-check:${check.sessionId}:${check.kind}:${String(existing.created_at)}`;
+      const print = db.prepare("SELECT job_id FROM print_jobs WHERE transaction_id=? ORDER BY created_at LIMIT 1").get(transactionId) as { job_id: string } | undefined;
+      const artifact = db.prepare("SELECT artifact_id FROM backup_artifacts WHERE source_cash_check_id=? ORDER BY requested_at LIMIT 1").get(Number(existing.id)) as { artifact_id: string } | undefined;
+      const restored: CashCheck = { sessionId: String(existing.session_id), kind: String(existing.kind) as CashCheck["kind"], counted: JSON.parse(String(existing.counted_json)) as CashCheck["counted"], theoreticalYen: Number(existing.theoretical_yen), carryoverYen: Number(existing.carryover_yen), countedYen: Number(existing.counted_yen), differenceYen: Number(existing.difference_yen), ...(existing.actor_id ? { actorId: String(existing.actor_id) } : {}), ...(existing.terminal_id ? { terminalId: String(existing.terminal_id) } : {}), createdAt: String(existing.created_at) };
+      const backupArtifact = artifact ? getBackupArtifact(db, artifact.artifact_id) : undefined;
+      return { ...restored, printJobId: print?.job_id ?? "", ...(backupArtifact ? { backupArtifact } : {}) };
+    }
+  }
   const session = db.prepare("SELECT event_id, business_date, cashbox_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(check.sessionId) as { event_id: string; business_date: string; cashbox_id: string; state: string; opening_yen: number | null } | undefined;
   if (!session) throw new Error("cash session not found");
   if (session.state !== "open") throw new Error("cash session is closed");
@@ -144,7 +189,7 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck): CashCheck & { 
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
   db.exec("BEGIN;");
   try {
-    const savedCheck = db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt);
+    const savedCheck = db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at, request_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt, requestKey ?? null);
     if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
     if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'cash_check', ?, ?, ?)").run(session.event_id, check.kind, check.sessionId, JSON.stringify(check), check.createdAt);

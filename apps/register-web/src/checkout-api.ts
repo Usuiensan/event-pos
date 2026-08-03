@@ -44,6 +44,12 @@ export type BackupArtifactDto = {
   backupSha256?: string; workbookSha256?: string; manifestSha256?: string; snapshotLogicalSha256?: string; rowCounts?: Record<string, number>; totals?: Record<string, number>;
   errorCode?: string; errorMessage?: string; attemptCount: number; canRegenerate: boolean;
 };
+export type CashSessionDto = {
+  sessionId: string; eventId: string; businessDate: string; cashboxId: string; state: "open" | "closed"; openingYen: number | null; closingYen: number | null; theoreticalYen: number; createdAt: string;
+  checks: Array<{ id: number; kind: "opening" | "interim" | "closing"; theoreticalYen: number; countedYen: number; differenceYen: number; carryoverYen: number; actorId?: string; terminalId?: string; createdAt: string }>;
+  movements: Array<{ id: number; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; actorId?: string; terminalId?: string; createdAt: string }>;
+};
+export type CashCheckResult = { sessionId: string; kind: "opening" | "interim" | "closing"; theoreticalYen: number; countedYen: number; differenceYen: number; carryoverYen?: number; printJobId: string; backupArtifact?: BackupArtifactDto };
 export type CustomerProjection = {
   registerId: string;
   draftId: string;
@@ -74,9 +80,10 @@ export class CheckoutApiError extends Error {
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init, headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...init?.headers } });
-  const body = await response.json().catch(() => null) as { error?: { code?: string; message?: string; details?: Record<string, unknown> } } | T | null;
+  const body = await response.json().catch(() => null) as { error?: string | { code?: string; message?: string; details?: Record<string, unknown> }; message?: string } | T | null;
   if (!response.ok) {
     const error = body && typeof body === "object" && "error" in body ? body.error : undefined;
+    if (typeof error === "string") throw new CheckoutApiError(response.status, error, body && typeof body === "object" && "message" in body && typeof body.message === "string" ? body.message : "会計サーバーとの通信に失敗しました", {});
     throw new CheckoutApiError(response.status, error?.code ?? "CHECKOUT_API_ERROR", error?.message ?? "会計サーバーとの通信に失敗しました", error?.details ?? {});
   }
   return body as T;
@@ -86,6 +93,11 @@ const versionHeaders = (version: number): HeadersInit => ({ "if-match": String(v
 const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
+  getCurrentCashSession: (eventId: string, businessDate: string, cashboxId: string, actorId: string) => request<{ session: CashSessionDto | null }>(`/api/v1/cash-sessions/current?eventId=${encodeURIComponent(eventId)}&businessDate=${encodeURIComponent(businessDate)}&cashboxId=${encodeURIComponent(cashboxId)}`, { headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),
+  createCashSession: (input: { sessionId: string; eventId: string; businessDate: string; cashboxId: string }, actorId: string) => request<CashSessionDto>("/api/v1/cash-sessions", { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
+  saveCashMovement: (sessionId: string, input: { type: "pay_in" | "pay_out"; amountYen: number; reason: string; idempotencyKey: string; terminalId: string }, actorId: string) => request<CashSessionDto>(`/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/movements`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
+  saveCashCheck: (sessionId: string, kind: "opening" | "interim" | "closing", input: { counted: Array<{ denomination: 1 | 5 | 10 | 50 | 100 | 500 | 1000 | 2000 | 5000 | 10000; quantity: number }>; carryoverYen?: number; terminalId: string }, actorId: string, idempotencyKey: string) => request<CashCheckResult>(`/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/${kind}`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId, "idempotency-key": idempotencyKey }, body: body(input) }),
+  reopenCashSession: (sessionId: string, reason: string, terminalId: string, actorId: string) => request<CashSessionDto>(`/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/reopen`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body({ reason, terminalId }) }),
   getRegisterDraft: (registerId: string) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-draft`),
   createDraft: (registerId: string, input: { eventId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-drafts`, { method: "POST", body: body(input) }),
   getDraft: (draftId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`),
