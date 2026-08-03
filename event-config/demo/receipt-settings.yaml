@@ -7,4 +7,4 @@ templates:
     templateKey: return_receipt
     activeVersion: 1
 commonText:
-  footer: ご利用ありがとうございます。
+  footer: ありがとうございました。

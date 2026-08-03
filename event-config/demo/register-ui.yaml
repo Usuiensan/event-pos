@@ -49,8 +49,8 @@ quickEntries:
         quantity: 1
 customerDisplay:
   welcome:
-    circleName: event-pos テストサークル
-    space: 東A-01a
+    circleName: 毎日ぽすPOS健康生活
+    space: 
     message: |-
       いらっしゃいませ
-      新刊・既刊を頒布しています
+      
