@@ -5,14 +5,17 @@ import { checkoutApi, type AuthActor } from "./checkout-api.js";
 type Section = "event" | "products" | "staff" | "screen" | "discounts" | "customer" | "receipt";
 const sections: Array<[Section, string]> = [["event", "イベント・部門"], ["products", "商品マスタ"], ["staff", "スタッフ"], ["screen", "画面・クイック登録"], ["discounts", "自動値引き"], ["customer", "顧客表示"], ["receipt", "レシート"]];
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const nextProductCode = (products: ProductDefinition[]) => String(Math.max(0, ...products.map((product) => /^\d+$/.test(product.productCode) ? Number(product.productCode) : 0)) + 1).padStart(8, "0");
+const priceInclTax = (priceExclTax: number, taxRate: number) => priceExclTax + Math.floor(priceExclTax * taxRate / 100);
 
-function Text({ value, onChange, type = "text" }: { value: string | number; onChange: (value: string) => void; type?: string }) { return <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />; }
+function Text({ value, onChange, type = "text" }: { value: string | number; onChange: (value: string) => void; type?: string }) { const color = typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : null; return <span className="admin-input-with-swatch"><input type={type} value={value} onChange={(event) => onChange(event.target.value)} />{color && <i aria-label={`${color}の色見本`} style={{ background: color }} />}</span>; }
 
 export function AdminSettings({ eventId }: { eventId: string }) {
   const [actor, setActor] = useState<AuthActor | null>(null);
   const [number, setNumber] = useState(""); const [catalog, setCatalog] = useState<EventCatalog | null>(null);
   const [section, setSection] = useState<Section>("event"); const [message, setMessage] = useState("管理者または責任者としてサインオンしてください。");
   const [businessOpen, setBusinessOpen] = useState(false); const [receiptText, setReceiptText] = useState(""); const [receiptKey, setReceiptKey] = useState("sale-receipt"); const [receiptVersion, setReceiptVersion] = useState<number | null>(null);
+  useEffect(() => { setCatalog((current) => { if (!current || !current.products.some((product) => product.productCode.startsWith("NEW"))) return current; const next = clone(current); let number = Math.max(0, ...next.products.filter((product) => !product.productCode.startsWith("NEW") && /^\d+$/.test(product.productCode)).map((product) => Number(product.productCode))); for (const product of next.products) if (product.productCode.startsWith("NEW")) product.productCode = String(++number).padStart(8, "0"); return next; }); }, [catalog?.products.length]);
   const update = (change: (next: EventCatalog) => void) => setCatalog((current) => { if (!current) return current; const next = clone(current); change(next); return next; });
   const load = async () => { const result = await checkoutApi.getManagementConfig(eventId); setCatalog(result.catalog as EventCatalog); setBusinessOpen(result.businessOpen); const templates = await checkoutApi.listReceiptTemplates(); const active = templates.templates.find((template) => template.status === "active") ?? templates.templates[0]; if (active) { setReceiptKey(active.templateKey); setReceiptText(active.sourceText); setReceiptVersion(active.version); } };
   useEffect(() => { void checkoutApi.getAuthSession().then(async (next) => { if (next.role === "operator") throw new Error("manager以上の権限が必要です"); setActor(next); await load(); }).catch((error) => setMessage(error instanceof Error ? error.message : "サインオンしてください")); }, []);
