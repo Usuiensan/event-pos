@@ -8,6 +8,7 @@ import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/re
 import { DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { randomUUID } from "node:crypto";
 import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
+import { applyBusinessSchema } from "./business-schema.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -89,6 +90,7 @@ export function openDatabase(filename = ":memory:"): PosDatabase {
   applyCheckoutSchema(db);
   applyPrintingSchema(db);
   applyBackupArtifactSchema(db);
+  applyBusinessSchema(db);
   ensureDefaultReceiptTemplate(db);
   return db;
 }
@@ -120,7 +122,7 @@ export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: strin
 
 export function createCashSession(db: PosDatabase, sessionId: string, eventId: string, businessDate: string, cashboxId = "default"): void {
   if (!cashboxId.trim()) throw new Error("cashbox id is required");
-  db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at) VALUES (?, ?, ?, ?, 'open', ?)").run(sessionId, eventId, businessDate, cashboxId, new Date().toISOString());
+  db.prepare("INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at) VALUES (?, ?, ?, ?, 'preparing', ?)").run(sessionId, eventId, businessDate, cashboxId, new Date().toISOString());
 }
 
 export type CashSessionSummary = {
@@ -128,7 +130,7 @@ export type CashSessionSummary = {
   eventId: string;
   businessDate: string;
   cashboxId: string;
-  state: "open" | "closed";
+  state: "preparing" | "open" | "closed";
   openingYen: number | null;
   closingYen: number | null;
   theoreticalYen: number;
@@ -146,7 +148,7 @@ export function getCashSessionSummary(db: PosDatabase, sessionId: string): CashS
   const movements = (db.prepare("SELECT id,type,amount_yen,transaction_id,reason,actor_id,terminal_id,created_at FROM cash_movements WHERE session_id=? ORDER BY id DESC LIMIT 100").all(sessionId) as Array<Record<string, unknown>>).map((row) => ({
     id: Number(row.id), type: String(row.type) as CashMovement["type"], amountYen: Number(row.amount_yen), ...(row.transaction_id ? { transactionId: String(row.transaction_id) } : {}), reason: String(row.reason), ...(row.actor_id ? { actorId: String(row.actor_id) } : {}), ...(row.terminal_id ? { terminalId: String(row.terminal_id) } : {}), createdAt: String(row.created_at),
   }));
-  return { sessionId: String(session.session_id), eventId: String(session.event_id), businessDate: String(session.business_date), cashboxId: String(session.cashbox_id), state: String(session.state) as "open" | "closed", openingYen: session.opening_yen === null ? null : Number(session.opening_yen), closingYen: session.closing_yen === null ? null : Number(session.closing_yen), theoreticalYen: getTheoreticalCash(db, sessionId), createdAt: String(session.created_at), checks, movements };
+  return { sessionId: String(session.session_id), eventId: String(session.event_id), businessDate: String(session.business_date), cashboxId: String(session.cashbox_id), state: String(session.state) as "preparing" | "open" | "closed", openingYen: session.opening_yen === null ? null : Number(session.opening_yen), closingYen: session.closing_yen === null ? null : Number(session.closing_yen), theoreticalYen: getTheoreticalCash(db, sessionId), createdAt: String(session.created_at), checks, movements };
 }
 
 export function findCashSessionSummary(db: PosDatabase, eventId: string, businessDate: string, cashboxId: string): CashSessionSummary | undefined {
@@ -156,9 +158,11 @@ export function findCashSessionSummary(db: PosDatabase, eventId: string, busines
 
 export function reopenCashSession(db: PosDatabase, sessionId: string, reason: string, actorId: string | undefined, terminalId: string | undefined): void {
   if (!reason.trim()) throw new Error("再開理由が必要です");
-  const session = db.prepare("SELECT event_id, state FROM cash_sessions WHERE session_id = ?").get(sessionId) as { event_id: string; state: string } | undefined;
+  const session = db.prepare(`SELECT c.event_id,c.state,c.business_session_id,b.state AS business_state
+    FROM cash_sessions c LEFT JOIN business_sessions b ON b.business_session_id=c.business_session_id WHERE c.session_id=?`).get(sessionId) as { event_id: string; state: string; business_session_id: string | null; business_state: string | null } | undefined;
   if (!session) throw new Error("cash session not found");
   if (session.state !== "closed") throw new Error("cash session is not closed");
+  if (session.business_session_id && session.business_state !== "open") throw new Error("BUSINESS_NOT_OPEN: 営業全体を再開してからレジを再開してください");
   const now = new Date().toISOString();
   db.exec("BEGIN;");
   try {
@@ -184,13 +188,18 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck, requestKey?: st
   }
   const session = db.prepare("SELECT event_id, business_date, cashbox_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(check.sessionId) as { event_id: string; business_date: string; cashbox_id: string; state: string; opening_yen: number | null } | undefined;
   if (!session) throw new Error("cash session not found");
-  if (session.state !== "open") throw new Error("cash session is closed");
+  if (check.kind === "opening" && session.state !== "preparing") throw new Error("cash session is not preparing");
+  if (check.kind !== "opening" && session.state !== "open") throw new Error("cash session is closed");
   if (check.kind === "opening" && session.opening_yen !== null) throw new Error("opening check already exists");
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
+  if (check.kind === "closing") {
+    const activeDraft = db.prepare("SELECT draft_id FROM sale_drafts WHERE event_id=? AND register_id=? AND state IN ('editing','payment','finalizing') LIMIT 1").get(session.event_id, session.cashbox_id);
+    if (activeDraft) throw new Error("ACTIVE_DRAFTS_EXIST: 未確定の会計を完了または登録中止してください");
+  }
   db.exec("BEGIN;");
   try {
     const savedCheck = db.prepare("INSERT INTO cash_checks (session_id, kind, counted_json, theoretical_yen, carryover_yen, counted_yen, difference_yen, actor_id, terminal_id, created_at, request_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(check.sessionId, check.kind, JSON.stringify(check.counted), check.theoreticalYen, check.carryoverYen ?? 0, check.countedYen, check.differenceYen, check.actorId ?? null, check.terminalId ?? null, check.createdAt, requestKey ?? null);
-    if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ? WHERE session_id = ?").run(check.countedYen, check.sessionId);
+    if (check.kind === "opening") db.prepare("UPDATE cash_sessions SET opening_yen = ?, state = 'open' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     if (check.kind === "closing") db.prepare("UPDATE cash_sessions SET closing_yen = ?, state = 'closed' WHERE session_id = ?").run(check.countedYen, check.sessionId);
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'cash_check', ?, ?, ?)").run(session.event_id, check.kind, check.sessionId, JSON.stringify(check), check.createdAt);
     const printJobId = enqueueCashCheckReceipt(db, session, check);

@@ -45,10 +45,13 @@ export type BackupArtifactDto = {
   errorCode?: string; errorMessage?: string; attemptCount: number; canRegenerate: boolean;
 };
 export type CashSessionDto = {
-  sessionId: string; eventId: string; businessDate: string; cashboxId: string; state: "open" | "closed"; openingYen: number | null; closingYen: number | null; theoreticalYen: number; createdAt: string;
+  sessionId: string; eventId: string; businessDate: string; cashboxId: string; state: "preparing" | "open" | "closed"; openingYen: number | null; closingYen: number | null; theoreticalYen: number; createdAt: string;
   checks: Array<{ id: number; kind: "opening" | "interim" | "closing"; theoreticalYen: number; countedYen: number; differenceYen: number; carryoverYen: number; actorId?: string; terminalId?: string; createdAt: string }>;
   movements: Array<{ id: number; type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; actorId?: string; terminalId?: string; createdAt: string }>;
 };
+export type AuthActor = { authSessionId: string; staffId: string; eventId: string; responsibleNumber: string; displayName: string; role: "operator" | "manager" | "admin"; terminalId: string; csrfToken: string };
+export type BusinessSessionDto = { businessSessionId: string; eventId: string; businessDate: string; sessionNo: number; state: "open" | "closed"; openedBy: string; openedTerminalId: string; openedAt: string; closedBy?: string; closedTerminalId?: string; closedAt?: string; reopenReason?: string };
+export type RegisterStateDto = { business: BusinessSessionDto; cashSession: null | { session_id: string; cashbox_id: string; state: "preparing" | "open" | "closed"; opening_yen: number | null; closing_yen: number | null; created_at: string } };
 export type CashCheckResult = { sessionId: string; kind: "opening" | "interim" | "closing"; theoreticalYen: number; countedYen: number; differenceYen: number; carryoverYen?: number; printJobId: string; backupArtifact?: BackupArtifactDto };
 export type OperationsDashboardDto = { observedAt: string; database: { state: "ready" | "not_ready"; reason: string | null }; printerHost: { connected: boolean | null; observation: { observedAt: string } }; printJobs: { pending: number; failed: number; unknown: number; lastSuccessfulAt: string | null }; storage: { database: { state: "ok" | "unknown"; path: string | null; freeBytes: number | null; reason: string | null }; artifacts: { state: "ok" | "unknown"; path: string | null; freeBytes: number | null; reason: string | null } }; lastBackup: { completedAt: string; artifactId: string } | null; cash: { sessions: Array<{ cashboxId: string; state: string; openingYen: number | null; closingYen: number | null }>; checks: Array<{ cashboxId: string; kind: string; createdAt: string }> }; registers: Array<{ registerId: string; connected: boolean; terminalId: string | null; lastCommunicationAt: string | null; customerDisplay: { available: boolean; lastSeen?: string } }> };
 export type ReturnableTransactionDto = { transactionId: string; publicReferenceDisplay: string; registerId: string; staffId: string; totalYen: number; paymentKind: string; createdAt: string; returnable: boolean; returnTransactionId?: string };
@@ -80,8 +83,11 @@ export class CheckoutApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown>) { super(message); }
 }
 
+let csrfToken = "";
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", ...init, headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...init?.headers } });
+  const method = (init?.method ?? "GET").toUpperCase();
+  const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...init, headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...(csrfToken && method !== "GET" && method !== "HEAD" ? { "x-csrf-token": csrfToken } : {}), ...init?.headers } });
   const body = await response.json().catch(() => null) as { error?: string | { code?: string; message?: string; details?: Record<string, unknown> }; message?: string } | T | null;
   if (!response.ok) {
     const error = body && typeof body === "object" && "error" in body ? body.error : undefined;
@@ -95,6 +101,16 @@ const versionHeaders = (version: number): HeadersInit => ({ "if-match": String(v
 const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
+  saveCatalog: (eventId: string, catalog: unknown) => request<void>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`, { method: "PUT", body: body(catalog) }),
+  signIn: async (eventId: string, responsibleNumber: string, terminalId: string) => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/sessions", { method: "POST", body: body({ eventId, responsibleNumber, terminalId }) }); csrfToken = result.actor.csrfToken; return result.actor; },
+  getAuthSession: async () => { const result = await request<{ actor: AuthActor }>("/api/v1/auth/session"); csrfToken = result.actor.csrfToken; return result.actor; },
+  signOut: async () => { await request<void>("/api/v1/auth/session", { method: "DELETE" }); csrfToken = ""; },
+  getCurrentBusinessSession: (eventId: string) => request<{ session: BusinessSessionDto | null }>(`/api/v1/business-sessions/current?eventId=${encodeURIComponent(eventId)}`),
+  openBusinessSession: (eventId: string, businessDate: string, terminalId: string) => request<BusinessSessionDto>("/api/v1/business-sessions", { method: "POST", body: body({ eventId, businessDate, terminalId }) }),
+  closeBusinessSession: (businessSessionId: string, terminalId: string) => request<BusinessSessionDto>(`/api/v1/business-sessions/${encodeURIComponent(businessSessionId)}/close`, { method: "POST", body: body({ terminalId }) }),
+  reopenBusinessSession: (businessSessionId: string, reason: string, terminalId: string) => request<BusinessSessionDto>(`/api/v1/business-sessions/${encodeURIComponent(businessSessionId)}/reopen`, { method: "POST", body: body({ reason, terminalId }) }),
+  getRegisterState: (businessSessionId: string, registerId: string) => request<RegisterStateDto>(`/api/v1/business-sessions/${encodeURIComponent(businessSessionId)}/register-state?registerId=${encodeURIComponent(registerId)}`),
+  prepareRegister: (businessSessionId: string, registerId: string, terminalId: string) => request<{ sessionId: string }>(`/api/v1/business-sessions/${encodeURIComponent(businessSessionId)}/registers/${encodeURIComponent(registerId)}/prepare`, { method: "POST", body: body({ terminalId }) }),
   getCurrentCashSession: (eventId: string, businessDate: string, cashboxId: string, actorId: string) => request<{ session: CashSessionDto | null }>(`/api/v1/cash-sessions/current?eventId=${encodeURIComponent(eventId)}&businessDate=${encodeURIComponent(businessDate)}&cashboxId=${encodeURIComponent(cashboxId)}`, { headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),
   createCashSession: (input: { sessionId: string; eventId: string; businessDate: string; cashboxId: string }, actorId: string) => request<CashSessionDto>("/api/v1/cash-sessions", { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
   saveCashMovement: (sessionId: string, input: { type: "pay_in" | "pay_out"; amountYen: number; reason: string; idempotencyKey: string; terminalId: string }, actorId: string) => request<CashSessionDto>(`/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/movements`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),

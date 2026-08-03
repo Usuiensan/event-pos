@@ -4,7 +4,7 @@ export { durablePrintJobStates, isPrintJobState, legacyPrintJobStates, normalize
 export type { AttemptPhase, Capability, DeliveryCertainty, DurablePrintJobState, LegacyPrintJobState, PrinterStatusObservation, PrintJob, PrintJobRequest, PrinterDispatchFailure, PrinterDispatchResult, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
 export { formatJapaneseYenSpeech, readJapaneseYen } from "./japanese-money.js";
 export { exportEventCatalog, importEventCatalog, taxCategories, taxCategoryLabel, taxRateForCategory, validateEventCatalog } from "./catalog.js";
-export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry, StaffMember, StaffPermission, TaxCategory } from "./catalog.js";
+export type { EventCatalog, ProductDefinition, ProductTab, QuickEntry, StaffMember, StaffPermission, StaffRole, TaxCategory } from "./catalog.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
 export { calculateSale, SaleCalculationError } from "./checkout.js";

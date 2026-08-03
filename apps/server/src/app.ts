@@ -12,9 +12,12 @@ import { registerPrintingRoutes } from "./printing-routes.js";
 import { BackupArtifactWorker, type BackupArtifactFailureInjector } from "./backup-artifacts.js";
 import { getBackupArtifact, listBackupArtifacts, reserveBackupArtifactRegeneration } from "./backup-artifact-schema.js";
 import { registerOperationsDashboard } from "./operations-dashboard.js";
+import { registerBusinessRoutes } from "./business-routes.js";
+import { synchronizeCatalogStaff } from "./business-store.js";
+import { AuthError, requireAuthActor } from "./auth.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer } };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer } };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -26,15 +29,9 @@ function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
 }
 
 type CashRole = "operator" | "manager";
-function cashAuth(request: { headers: Record<string, string | string[] | undefined> }, required: CashRole, enabled: boolean): { ok: true; actorId?: string } | { ok: false; status: number; error: string } {
-  if (!enabled) return { ok: true };
-  const role = request.headers["x-pos-role"];
-  const actorId = request.headers["x-pos-actor-id"];
-  const value = Array.isArray(role) ? role[0] : role;
-  const actor = Array.isArray(actorId) ? actorId[0] : actorId;
-  if (!actor || (value !== "operator" && value !== "manager")) return { ok: false, status: 401, error: "cash_auth_required" };
-  if (required === "manager" && value !== "manager") return { ok: false, status: 403, error: "cash_manager_required" };
-  return { ok: true, actorId: actor };
+function cashAuth(db: PosDatabase, request: { method: string; headers: Record<string, string | string[] | undefined> }, required: CashRole, enabled: boolean): { ok: true; actorId: string } | { ok: false; status: number; error: string } {
+  try { const actor = requireAuthActor(db, request, required, enabled); return { ok: true, actorId: actor.staffId }; }
+  catch (error) { return error instanceof AuthError ? { ok: false, status: error.status, error: error.code } : { ok: false, status: 401, error: "AUTH_REQUIRED" }; }
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -43,7 +40,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const printQueue = options.printerHost ? new PersistentPrintQueue(options.database, options.printerHost) : undefined;
   const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector, options.artifactMinimumFreeBytes) : undefined;
   app.register(websocket);
-  app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub));
+  registerBusinessRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, secureCookie: !!options.https, realtimeHub });
+  app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub, options.requireAuth ?? false));
   let latestEmergencyAlert: EmergencyAlert | null = null;
   app.addHook("onClose", async () => { await printQueue?.stop(); await backupArtifactWorker?.stop(); options.database.close(); });
   app.get("/health/live", async () => ({ status: "ok" }));
@@ -67,7 +65,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.code(201).send({ errorId });
   });
   app.post<{ Body: { sessionId: string; eventId: string; businessDate: string; cashboxId?: string } }>("/api/v1/cash-sessions", async (request, reply) => {
-    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    if (options.requireAuth) return reply.code(410).send({ error: { code: "LEGACY_CASH_SESSION_ENDPOINT_DISABLED", message: "営業画面からレジ準備を開始してください", details: {}, requestId: request.id } });
     if (!request.body?.sessionId || !request.body.eventId || !request.body.businessDate) return reply.code(400).send({ error: "invalid_cash_session" });
     const cashboxId = request.body.cashboxId ?? "default";
     const existing = findCashSessionSummary(options.database, request.body.eventId, request.body.businessDate, cashboxId);
@@ -75,16 +74,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
     try { createCashSession(options.database, request.body.sessionId, request.body.eventId, request.body.businessDate, cashboxId); return reply.code(201).send(getCashSessionSummary(options.database, request.body.sessionId)); } catch { return reply.code(409).send({ error: "cash_session_exists" }); }
   });
   app.get<{ Querystring: { eventId?: string; businessDate?: string; cashboxId?: string } }>("/api/v1/cash-sessions/current", async (request, reply) => {
-    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!request.query.eventId || !request.query.businessDate || !request.query.cashboxId) return reply.code(400).send({ error: "cash_session_scope_required" });
     return { session: findCashSessionSummary(options.database, request.query.eventId, request.query.businessDate, request.query.cashboxId) ?? null };
   });
   app.get<{ Params: { sessionId: string } }>("/api/v1/cash-sessions/:sessionId", async (request, reply) => {
-    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     return getCashSessionSummary(options.database, request.params.sessionId) ?? reply.code(404).send({ error: "cash_session_not_found" });
   });
   app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
-    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     try {
       if (!request.body?.idempotencyKey) return reply.code(400).send({ error: "idempotency_key_required" });
       const movement = { ...request.body, ...(auth.actorId ? { actorId: auth.actorId } : {}), sessionId: request.params.sessionId, createdAt: new Date().toISOString() };
@@ -96,34 +95,40 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
   app.post<{ Params: { sessionId: string }; Body: { transactionId: string; amountYen: number; idempotencyKey: string; reason?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/transactions/sale", async (request, reply) => {
-    const auth = cashAuth(request, "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     try {
       const result = saveSaleTransaction(options.database, { ...request.body, sessionId: request.params.sessionId, reason: request.body.reason ?? "sale", ...(auth.actorId ? { actorId: auth.actorId } : {}) });
       return reply.code(201).send(result);
     } catch (error) { const message = error instanceof Error ? error.message : "invalid_sale"; return reply.code(message.includes("idempotency") ? 409 : 400).send({ error: "invalid_sale", message }); }
   });
   app.post<{ Params: { sessionId: string }; Body: { transactionId: string; amountYen: number; idempotencyKey: string; reason?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/transactions/return", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     try {
       const result = saveReturnTransaction(options.database, { ...request.body, sessionId: request.params.sessionId, reason: request.body.reason ?? "return", ...(auth.actorId ? { actorId: auth.actorId } : {}) });
       return reply.code(201).send(result);
     } catch (error) { const message = error instanceof Error ? error.message : "invalid_return"; return reply.code(message.includes("idempotency") ? 409 : 400).send({ error: "invalid_return", message }); }
   });
   app.post<{ Params: { sessionId: string }; Body: { reason: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/reopen", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     try { reopenCashSession(options.database, request.params.sessionId, request.body?.reason ?? "", auth.actorId ?? request.body?.actorId, request.body?.terminalId); return getCashSessionSummary(options.database, request.params.sessionId); }
     catch (error) { return reply.code(400).send({ error: "invalid_reopen", message: error instanceof Error ? error.message : "invalid_reopen" }); }
   });
   app.post<{ Params: { sessionId: string; kind: string }; Body: { counted: Array<{ denomination: number; quantity: number }>; carryoverYen?: number; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/checks/:kind", async (request, reply) => {
-    const auth = cashAuth(request, request.params.kind === "closing" ? "manager" : "operator", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, request.params.kind === "closing" ? "manager" : "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!["opening", "interim", "closing"].includes(request.params.kind)) return reply.code(400).send({ error: "invalid_cash_check_kind" });
     try {
       const input = { sessionId: request.params.sessionId, kind: request.params.kind as CashCheckKind, counted: request.body.counted as never, theoreticalYen: getTheoreticalCash(options.database, request.params.sessionId), ...(request.body.carryoverYen === undefined ? {} : { carryoverYen: request.body.carryoverYen }), ...(auth.actorId ? { actorId: auth.actorId } : request.body.actorId ? { actorId: request.body.actorId } : {}), ...(request.body.terminalId ? { terminalId: request.body.terminalId } : {}) };
       const check = createCashCheck(input);
       const rawKey = request.headers["idempotency-key"]; const requestKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
       const saved = saveCashCheck(options.database, check, requestKey ? `cash-check:${requestKey}` : undefined); printQueue?.trigger(); backupArtifactWorker?.trigger();
+      const cashSession = getCashSessionSummary(options.database, request.params.sessionId);
+      if (cashSession) realtimeHub.notifyAll({ type: "register-state.changed", registerId: cashSession.cashboxId, businessSessionId: String((options.database.prepare("SELECT business_session_id FROM cash_sessions WHERE session_id=?").get(request.params.sessionId) as { business_session_id?: string } | undefined)?.business_session_id ?? "") });
       return reply.code(201).send(saved);
-    } catch (error) { return reply.code(400).send({ error: "invalid_cash_check", message: error instanceof Error ? error.message : "invalid_cash_check" }); }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "現金実査を保存できません";
+      if (message.includes("ACTIVE_DRAFTS_EXIST")) return reply.code(409).send({ error: { code: "ACTIVE_DRAFTS_EXIST", message: "未確定取引があるため精算できません", details: {}, requestId: request.id } });
+      return reply.code(400).send({ error: { code: "INVALID_CASH_CHECK", message, details: {}, requestId: request.id } });
+    }
   });
   app.get<{ Params: { sessionId: string }; Querystring: { differenceYen?: string; limit?: string; from?: string; to?: string; occurredAt?: string; actorId?: string; terminalId?: string; type?: "sale" | "return" | "pay_in" | "pay_out" } }>("/api/v1/cash-sessions/:sessionId/journal-candidates", async (request, reply) => {
     const differenceYen = Number(request.query.differenceYen);
@@ -135,7 +140,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     } catch (error) { return reply.code(400).send({ error: "journal_search_failed", message: error instanceof Error ? error.message : "journal_search_failed" }); }
   });
   app.post<{ Params: { sessionId: string }; Body: { candidateId: number; note?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/journal-candidates/confirm", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!Number.isSafeInteger(request.body?.candidateId)) return reply.code(400).send({ error: "candidate_id_required" });
     const now = new Date().toISOString();
     options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_candidate_confirm', 'cash_movement', ?, ?, ?)").run(String(request.body.candidateId), JSON.stringify({ sessionId: request.params.sessionId, note: request.body.note ?? "", actorId: auth.actorId ?? request.body.actorId, terminalId: request.body.terminalId }), now);
@@ -150,21 +155,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
     try {
       const catalog = "json" in (request.body ?? {}) ? importEventCatalog(String((request.body as { json: string }).json)) : importEventCatalog(JSON.stringify(request.body));
       if (catalog.eventId !== request.params.eventId) return reply.code(400).send({ error: "event_id_mismatch" });
+      const existingStaff = options.database.prepare("SELECT 1 FROM event_staff_assignments WHERE event_id=? LIMIT 1").get(catalog.eventId);
+      if (options.requireAuth && existingStaff) requireAuthActor(options.database, request, "admin", true);
       const record = saveCatalog(options.database, catalog.eventId, exportEventCatalog(catalog));
+      synchronizeCatalogStaff(options.database, catalog);
       return reply.code(200).send({ catalog, updatedAt: record.updatedAt });
     } catch (error) { return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
   });
   app.get<{ Querystring: { eventId?: string; businessDate?: string; cashboxId?: string } }>("/api/v1/backup-artifacts", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     if (!request.query.eventId) return reply.code(400).send({ error: "event_id_required" });
     return { artifacts: listBackupArtifacts(options.database, { eventId: request.query.eventId, ...(request.query.businessDate ? { businessDate: request.query.businessDate } : {}), ...(request.query.cashboxId ? { cashboxId: request.query.cashboxId } : {}) }) };
   });
   app.get<{ Params: { artifactId: string } }>("/api/v1/backup-artifacts/:artifactId", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     return getBackupArtifact(options.database, request.params.artifactId) ?? reply.code(404).send({ error: "backup_artifact_not_found" });
   });
   app.post<{ Params: { artifactId: string } }>("/api/v1/backup-artifacts/:artifactId/regenerate", async (request, reply) => {
-    const auth = cashAuth(request, "manager", options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     const rawKey = request.headers["idempotency-key"]; const requestKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
     if (!requestKey?.trim()) return reply.code(400).send({ error: "idempotency_key_required" });
     try {
@@ -201,7 +209,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const job = updatePrintJob(options.database, request.params.jobId, request.body);
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
-  registerCheckoutRoutes(app, { database: options.database, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
+  registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
   registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });

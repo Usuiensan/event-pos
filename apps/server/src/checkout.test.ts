@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { createPublicReference } from "@event-pos/contracts";
 import { buildApp } from "./app.js";
 import { openDatabase, type PosDatabase } from "./db.js";
+import { openRegisterForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -21,6 +22,7 @@ const catalog = {
     { id: "bad-set", label: "停止商品セット", components: [{ productCode: "00000001", quantity: 1 }, { productCode: "00000004", quantity: 1 }] },
   ],
   autoDiscountRules: [{ id: "pair", label: "2個で20円引き", requiredProducts: [{ productCode: "00000001", quantity: 2 }], discountYen: 20, priority: 10 }],
+  staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
 function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Parameters<NonNullable<Parameters<typeof buildApp>[0]["checkoutFailureInjector"]>>[0]) => void, drawerEnabled = false): { app: FastifyInstance; db: PosDatabase } {
@@ -35,6 +37,7 @@ async function installCatalog(app: FastifyInstance): Promise<void> {
 }
 
 async function startDraft(app: FastifyInstance, registerId = "register-1"): Promise<any> {
+  await openRegisterForTest(app, catalog.eventId, "2026-08-02", registerId);
   const response = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId: catalog.eventId, staffId: "staff-1", terminalId: registerId, businessDate: "2026-08-02", sessionNo: 1 } });
   expect(response.statusCode).toBe(201);
   return response.json();
@@ -61,8 +64,7 @@ describe("durable checkout API", () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft, "00000001", 1); draft = await addPayment(app, draft, "cash", 110, 500);
     const sale = await finalize(app, draft, "return-source"); expect(sale.statusCode).toBe(201); const originalId = sale.json().transactionId as string;
-    const sessionId = "checkout:checkout-event:2026-08-02:register-1";
-    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/opening`, headers: { "idempotency-key": "return-opening" }, payload: { counted: [], actorId: "manager-1", terminalId: "register-1" } })).statusCode).toBe(201);
+    const sessionId = (await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=checkout-event&businessDate=2026-08-02&cashboxId=register-1" })).json().session.sessionId as string;
     const headers = { "x-pos-role": "manager", "x-pos-actor-id": "manager-1", "idempotency-key": "full-return-1" };
     const returned = await app.inject({ method: "POST", url: `/api/v1/transactions/${originalId}/full-return`, headers, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "商品不良" } });
     if (returned.statusCode !== 201) throw new Error(returned.body); const result = returned.json(); expect(result).toMatchObject({ originalTransactionId: originalId, totalYen: -110 });
@@ -106,7 +108,7 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='sale_finalize'").get()).toMatchObject({ count: 1 });
-    expect(db.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "drawer", sequence: 1 }, { kind: "print", sequence: 2 }]);
+    expect(db.prepare("SELECT o.kind FROM printer_operations o JOIN print_jobs j ON j.job_id=o.payload_ref WHERE j.transaction_id=? ORDER BY o.sequence").all(result.transactionId)).toEqual([{ kind: "drawer" }, { kind: "print" }]);
     expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }) });
     const transaction = await app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` });
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
@@ -116,7 +118,7 @@ describe("durable checkout API", () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
     expect((await finalize(app, draft, "drawer-disabled")).statusCode).toBe(201);
-    expect(db.prepare("SELECT kind FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "print" }]);
+    expect(db.prepare("SELECT o.kind FROM printer_operations o JOIN print_jobs j ON j.job_id=o.payload_ref WHERE j.document_type='receipt' ORDER BY o.sequence").all()).toEqual([{ kind: "print" }]);
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
   });
 
@@ -308,7 +310,8 @@ describe("durable checkout API", () => {
     const { app, db } = makeApp(openDatabase(), (step) => { if (step === "after_inventory") throw new Error("injected"); }); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
     const response = await finalize(app, draft, "rollback-key"); expect(response.statusCode).toBe(500);
-    for (const table of ["transactions", "transaction_lines", "payments", "tax_summaries", "inventory_movements", "idempotency_records", "printer_operations"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get()).toMatchObject({ count: 0 });
+    for (const table of ["transactions", "transaction_lines", "payments", "tax_summaries", "inventory_movements", "idempotency_records"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get()).toMatchObject({ count: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM printer_operations").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE product_id=?").get(`${catalog.eventId}:00000001`)).toMatchObject({ on_hand: 0 });
     expect((await app.inject({ method: "GET", url: `/api/v1/sale-drafts/${draft.draftId}` })).json().state).toBe("payment");
   });
@@ -370,7 +373,10 @@ describe("durable checkout API", () => {
       let draft = await startDraft(app, `load-register-${index}`); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
       expect((await finalize(app, draft, `load-${index}`)).statusCode).toBe(201);
     }
-    for (const table of ["transactions", "transaction_lines", "payments", "inventory_movements", "idempotency_records", "print_jobs", "printer_operations"]) expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}${table === "print_jobs" ? " WHERE document_type='receipt'" : ""}`).get()).toMatchObject({ count: 60 });
+    for (const table of ["transactions", "transaction_lines", "payments", "inventory_movements", "idempotency_records", "print_jobs", "printer_operations"]) {
+      const filter = table === "print_jobs" ? " WHERE document_type='receipt'" : table === "printer_operations" ? " WHERE payload_ref IN (SELECT job_id FROM print_jobs WHERE document_type='receipt')" : "";
+      expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}${filter}`).get()).toMatchObject({ count: 60 });
+    }
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toMatchObject({ count: 0 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 60 });
   });
