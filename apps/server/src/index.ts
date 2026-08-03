@@ -3,16 +3,17 @@ import { openDatabase } from "./db.js";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { readFile } from "node:fs/promises";
 import { join, basename, dirname } from "node:path";
+import { productionArtifactConfig } from "./artifact-config.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "127.0.0.1";
 const databasePath = process.env.POS_DATABASE_PATH ?? "./data/event-pos.sqlite";
 const errorReportDirectory = process.env.POS_ERROR_REPORT_DIR ?? join(dirname(databasePath), "error-reports");
-const artifactRoot = process.env.POS_ARTIFACT_ROOT ?? join(dirname(databasePath), "artifacts");
+const artifactConfig = productionArtifactConfig(databasePath, process.env.POS_ARTIFACT_ROOT, process.env.NODE_ENV);
 const printerHostUrl = process.env.PRINTER_HOST_URL;
 const requireCashAuth = process.env.POS_REQUIRE_CASH_AUTH === "1" || process.env.POS_REQUIRE_CASH_AUTH === "true";
 const drawerEnabled = process.env.DRAWER_ENABLED === "1" || process.env.DRAWER_ENABLED === "true";
-const app = buildApp({ database: openDatabase(databasePath), requireCashAuth, drawerEnabled, errorReportDirectory, artifactRoot, ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl) } : {}) });
+const app = buildApp({ database: openDatabase(databasePath), requireCashAuth, drawerEnabled, errorReportDirectory, artifactRoot: artifactConfig.artifactRoot, artifactMinimumFreeBytes: artifactConfig.minimumFreeBytes, ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl) } : {}) });
 const registerWebDist = process.env.REGISTER_WEB_DIST ?? "/app/register-web";
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".wav": "audio/wav", ".mp3": "audio/mpeg" };
 const sendAsset = async (file: string, reply: { type(value: string): { send(value: Buffer): unknown }; code(value: number): { send(value: unknown): unknown } }) => {

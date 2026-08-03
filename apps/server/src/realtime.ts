@@ -14,7 +14,7 @@ export type RealtimeNotification =
   | { type: "audio-announcement.changed"; registerId: string; sequence: number }
   | { type: "age-confirmation.changed"; registerId: string; requestId: string };
 
-type Subscription = { socket: WebSocket; registerId: string; terminalId: string; role: "staff" | "customer" };
+type Subscription = { socket: WebSocket; registerId: string; terminalId: string; role: "staff" | "customer"; connectedAt: number };
 type Heartbeat = { terminalId: string; registerId: string; lastSeenMs: number };
 
 export type CustomerDisplayAvailability = {
@@ -31,11 +31,17 @@ export class RealtimeHub {
 
   constructor(private readonly now: () => number = Date.now, readonly heartbeatTtlMs = CUSTOMER_HEARTBEAT_TTL_MS) {}
 
-  subscribe(socket: WebSocket, scope: Omit<Subscription, "socket">): void {
-    const subscription = { socket, ...scope };
+  subscribe(socket: WebSocket, scope: Omit<Subscription, "socket" | "connectedAt">): void {
+    const subscription = { socket, ...scope, connectedAt: this.now() };
     this.#subscriptions.add(subscription);
     socket.once("close", () => this.#subscriptions.delete(subscription));
     socket.once("error", () => this.#subscriptions.delete(subscription));
+  }
+
+  connections(): Array<{ registerId: string; terminalId: string; role: "staff" | "customer"; connectedAt: string }> {
+    return [...this.#subscriptions]
+      .filter((subscription) => subscription.socket.readyState === 1)
+      .map(({ registerId, terminalId, role, connectedAt }) => ({ registerId, terminalId, role, connectedAt: new Date(connectedAt).toISOString() }));
   }
 
   notify(notification: RealtimeNotification): void {

@@ -34,6 +34,9 @@ async function waitForArtifact(db: ReturnType<typeof openDatabase>, artifactId: 
 async function createSale(app: ReturnType<typeof buildApp>): Promise<void> {
   expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-backup/catalog", payload: catalog })).statusCode).toBe(200);
   const created = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-1", terminalId: "register-1", businessDate: "2026-08-03", sessionNo: 1 } })).json();
+  const sessionId = "checkout:event-backup:2026-08-03:register-1";
+  const opening = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/opening`, headers: { "idempotency-key": "backup-opening-1" }, payload: { counted: [], actorId: "staff-1", terminalId: "register-1" } });
+  expect(opening.statusCode).toBe(201);
   const withLine = (await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/lines`, headers: { "if-match": String(created.version) }, payload: { productCode: "00000001", quantity: 2, source: "manual" } })).json();
   const withPayment = (await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/payments`, headers: { "if-match": String(withLine.version) }, payload: { kind: "cash", amountYen: 220, tenderedYen: 500 } })).json();
   const finalized = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/finalize`, headers: { "idempotency-key": "backup-sale-1" }, payload: { version: withPayment.version } });
@@ -51,7 +54,7 @@ describe("Goal 8 backup artifacts", () => {
     expect(interimResponse.statusCode).toBe(201);
     const interimId = interimResponse.json().backupArtifact.artifactId as string;
     const interim = await waitForArtifact(db, interimId, "completed");
-    expect(interim).toMatchObject({ eventId: "event-backup", businessDate: "2026-08-03", cashboxId: "register-1", triggerKind: "interim", canRegenerate: false, rowCounts: { transactions: 1, transaction_lines: 1, payments: 1, inventory_movements: 1, cash_movements: 1, cash_checks: 1 } });
+    expect(interim).toMatchObject({ eventId: "event-backup", businessDate: "2026-08-03", cashboxId: "register-1", triggerKind: "interim", canRegenerate: false, rowCounts: { transactions: 1, transaction_lines: 1, payments: 1, inventory_movements: 1, cash_movements: 1, cash_checks: 2 } });
     for (const path of [interim.backupPath!, interim.workbookPath!, interim.manifestPath!]) expect(existsSync(path)).toBe(true);
 
     const workbook = new ExcelJS.Workbook(); await workbook.xlsx.readFile(interim.workbookPath!);
@@ -77,7 +80,7 @@ describe("Goal 8 backup artifacts", () => {
     const closingResponse = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/closing`, payload: { counted: [{ denomination: 100, quantity: 2 }, { denomination: 10, quantity: 2 }], carryoverYen: 220, actorId: "manager-1", terminalId: "register-1" } });
     expect(closingResponse.statusCode).toBe(201);
     const closing = await waitForArtifact(db, closingResponse.json().backupArtifact.artifactId, "completed");
-    expect(closing).toMatchObject({ triggerKind: "closing", state: "completed", rowCounts: { cash_checks: 2 } });
+    expect(closing).toMatchObject({ triggerKind: "closing", state: "completed", rowCounts: { cash_checks: 3 } });
     expect(db.prepare("SELECT COUNT(*) AS count FROM backup_artifacts WHERE trigger_kind IN ('interim','closing')").get()).toEqual({ count: 2 });
   }, 30_000);
 

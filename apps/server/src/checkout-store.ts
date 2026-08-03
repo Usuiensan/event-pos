@@ -175,8 +175,8 @@ function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
 
 function ensureCashSession(db: PosDatabase, eventId: string, businessDate: string, registerId: string, now: string): string {
   const sessionId = `checkout:${eventId}:${businessDate}:${registerId}`;
-  db.prepare(`INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, opening_yen, created_at)
-    VALUES (?, ?, ?, ?, 'open', 0, ?) ON CONFLICT(session_id) DO NOTHING`).run(sessionId, eventId, businessDate, registerId, now);
+  db.prepare(`INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at)
+    VALUES (?, ?, ?, ?, 'open', ?) ON CONFLICT(session_id) DO NOTHING`).run(sessionId, eventId, businessDate, registerId, now);
   return sessionId;
 }
 

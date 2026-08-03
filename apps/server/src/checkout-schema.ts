@@ -267,6 +267,8 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   addColumn(db, "transactions", "payment_kind TEXT");
   addColumn(db, "transactions", "draft_id TEXT");
   addColumn(db, "transactions", "draft_version INTEGER");
+  addColumn(db, "transactions", "original_transaction_id TEXT");
+  addColumn(db, "transactions", "reason_text TEXT");
   addColumn(db, "register_audio_settings", "system_error_volume INTEGER NOT NULL DEFAULT 100");
   addColumn(db, "sale_draft_lines", "unit_price_incl_tax INTEGER");
   addColumn(db, "sale_draft_lines", "tax_rate_bps INTEGER");
@@ -278,6 +280,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
         tax_category = COALESCE(tax_category, (SELECT tax_category FROM event_products WHERE product_id = sale_draft_lines.product_id))
     WHERE unit_price_incl_tax IS NULL OR tax_rate_bps IS NULL OR tax_category IS NULL;`);
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_public_reference ON transactions(event_id, public_reference) WHERE public_reference IS NOT NULL;");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_full_return ON transactions(original_transaction_id) WHERE type='return' AND original_transaction_id IS NOT NULL;");
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_print_jobs_original_receipt ON print_jobs(transaction_id) WHERE document_type = 'receipt';");
   db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
   db.prepare("INSERT INTO app_metadata (key, value) VALUES ('schema_version', '4') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
