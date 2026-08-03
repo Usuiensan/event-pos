@@ -8,7 +8,8 @@ import type { RealtimeHub } from "./realtime.js";
 const unknownObservation = (reason: string): PrinterStatusObservation => ({ observedAt: new Date().toISOString(), reachable: { support: "unknown", reason }, online: { support: "unknown", reason }, coverOpen: { support: "unknown", reason }, paper: { support: "unknown", reason }, error: { support: "unknown", reason }, raw: null });
 async function capacity(path: string | undefined) {
   if (!path) return { state: "unknown" as const, path: null, freeBytes: null, totalBytes: null, reason: "保存先未設定" };
-  try { const value = await statfs(resolve(path)); return { state: "ok" as const, path: resolve(path), freeBytes: Number(value.bavail) * Number(value.bsize), totalBytes: Number(value.blocks) * Number(value.bsize), reason: null }; }
+  const requestedPath = resolve(path); let probePath = requestedPath;
+  try { let value; while (true) { try { value = await statfs(probePath); break; } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT" || dirname(probePath) === probePath) throw error; probePath = dirname(probePath); } } return { state: "ok" as const, path: requestedPath, freeBytes: Number(value.bavail) * Number(value.bsize), totalBytes: Number(value.blocks) * Number(value.bsize), reason: probePath === requestedPath ? null : `未作成のため ${probePath} の容量を表示` }; }
   catch (error) { return { state: "unknown" as const, path: resolve(path), freeBytes: null, totalBytes: null, reason: error instanceof Error ? error.message : "容量を取得できません" }; }
 }
 

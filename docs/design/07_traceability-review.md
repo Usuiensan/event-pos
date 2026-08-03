@@ -256,3 +256,17 @@ Human Reviewは未完了である。template preview APIの人間可読内容、
 2026-08-03時点の`pnpm check`は全workspaceのbuild・typecheck、147件の自動試験、built/deployed PrinterHost smokeに成功した。xlsxは自動読戻しに加え、実生成ファイルの10シートをartifact rendererで描画して列見出し・日本語・金額・hash/JSON列を確認した。実ブラウザーのad hoc静的配信では既存の`sw.js` 404だけがconsoleへ残り、成果物API・画面操作のerrorはなかった。
 
 今回の機能証拠だけでGoal 8全体を完了扱いにしない。暗号化event archive、保持期限後の削除runbook、本番Windows ACL/空き容量監視、未実装の返品・取り置き・締めissue、CL-01〜10の総合R証拠は残る。
+
+## 13. 2026-08-03 次回即売会向け運用画面・全部返品・本番保存先
+
+対象commitは設計`66f9983`、現金管理`8090fcf`、運用ダッシュボード`f04e44b`、全部返品`f1d84df`、本番保存先`3dcb7c8`。自動試験の正本は`apps/server/src/app.test.ts`、`operations-dashboard.test.ts`、`checkout.test.ts`、`backup-artifacts.test.ts`、`artifact-config.test.ts`、`apps/register-web/src/checkout-api.test.ts`である。
+
+| 対象 | 実装・受入証拠 | 判定 |
+| --- | --- | --- |
+| 開局・現金管理 | 営業日・cashboxからsessionをDB復元し、準備金、入出金、10金種、理論現金、実在高、過不足、中間点検、翌日残し付き精算、理由・責任者付き再開、操作前確認を業務メニューへ追加 | A合格。実ブラウザーで10金種、10,000円準備金、確認画面、確定後の営業中・理論現金を確認 |
+| 精算後成果物 | 中間点検・精算の応答を会計確定と分離してpending表示し、既存の成果物pollでcompleted/failed、保存先、3 hash、再生成可否を表示 | A合格。Goal 8のxlsx読戻し・別DB restore試験を継続通過 |
+| 運用ダッシュボード | DB quick_check、PrinterHost観測、印刷待機/失敗/unknown、最終成功、DB/成果物容量、最終backup、点検状態、staff WebSocket、customer heartbeatを責任者APIと5秒更新画面へ集約 | A合格。実ブラウザーでDB正常、PrinterHost不明、印刷待機、開局済、レジ接続、顧客画面切断を確認 |
+| 全部返品 | 元売上検索、返品済み判定、新return取引、負数明細・支払・税、正数在庫戻し・現金返金、監査、返品receipt jobを一つのDB transactionで追記。同じkeyを冪等再生 | A合格。API自動試験で元売上不変と全逆仕訳を照合し、実ブラウザーで業務メニューから検索画面まで確認 |
+| 本番保存先 | productionでは絶対`POS_ARTIFACT_ROOT`を必須化し、relative/root/DB自身を拒否。既定2 GiBの生成前空き容量検査、専用ACL・mode・日計後照合runbookを追加 | A合格。Windows ACLの実適用と別disk運用はR未実施 |
+
+2026-08-03時点の`pnpm check`は全workspace build・typecheck、153件の自動試験、built/deployed PrinterHost smokeに成功した。実ブラウザーでは業務メニューの3導線と主要状態を確認した。TM-T70IIの返品紙面、現金点検紙面、Windows/Linux双方のUSB・status・障害復旧、Windows ACL実適用、別disk容量不足は実機・本番Rとして残る。

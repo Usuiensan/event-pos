@@ -145,6 +145,15 @@
 - 2026-08-03に設計`0ab56bf`、実装`3e68808`・`e7dc997`で採用した。随時CSV exportの将来契約は残し、中間計・精算の自動成果物には単一xlsx契約を優先する。
 - 詳細設計は `17_goal8-backup-excel.md` を正本とする。
 
+#### 2026-08-03 次回即売会運用追補: 現金管理・全部返品・本番成果物保存先
+
+- 状態: `Accepted`（利用者指定、2026-08-03）
+- 開局・入出金・中間点検・精算・再開はSQLiteのcash sessionを正本とし、画面再読込時もevent・営業日・cashboxから復元する。金種実査には2,000円を含む10金種を使用する。
+- 全部返品は元売上を更新せず、元transaction IDを参照する新しいreturn取引と相殺明細・支払・税、在庫戻し、現金返金、監査、返品receiptを同一DB transactionで追記する。初期版では部分返品を扱わない。
+- 外部決済の返金成功をPOSが推測してはならない。この版の実運用UIは現金返品を受入対象とし、credit・売掛の外部返金連携は別受入まで運用停止とする。
+- 本番は絶対パスの`POS_ARTIFACT_ROOT`を必須とし、filesystem root、DBファイル自身、相対パスを拒否する。空き容量閾値の既定は2 GiBとし、不足時も点検・精算確定を失敗扱いにしない。
+- Windows ACLの適用成功、PrinterHostや保存先の取得不能を推測せず、`unknown`または成果物failedとして責任者へ表示する。詳細は`18_event-operations-ui.md`と`docs/operations/backup-storage.md`を参照する。
+
 ## 4. Accepted: 推奨案の採用
 
 ### ADR-D013 自動値引きの重複
