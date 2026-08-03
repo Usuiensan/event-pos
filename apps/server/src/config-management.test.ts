@@ -19,12 +19,22 @@ function git(repository: string, args: string[]): string {
   return execFileSync("git", args, { cwd: repository, encoding: "utf8" }).trim();
 }
 
+function copyCommittedDemo(destination: string): void {
+  const sourceRepository = resolve(import.meta.dirname, "../../..");
+  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "event-config/demo"], { cwd: sourceRepository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  for (const file of files) {
+    const path = join(destination, file.slice("event-config/demo/".length));
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, execFileSync("git", ["show", `HEAD:${file}`], { cwd: sourceRepository, encoding: "utf8" }), "utf8");
+  }
+}
+
 function createConfigRepository(): { repository: string; configDirectory: string; otherConfigDirectory: string } {
   const repository = mkdtempSync(join(tmpdir(), "event-pos-config-management-"));
   directories.push(repository);
   const configDirectory = join(repository, "event-config", "demo");
   const otherConfigDirectory = join(repository, "event-config", "other");
-  cpSync(resolve(import.meta.dirname, "../../../event-config/demo"), configDirectory, { recursive: true });
+  copyCommittedDemo(configDirectory);
   cpSync(configDirectory, otherConfigDirectory, { recursive: true });
   writeFileSync(join(repository, "notes.txt"), "initial\n", "utf8");
   git(repository, ["init"]);

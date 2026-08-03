@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { parse, stringify } from "yaml";
 import { validateEventCatalog } from "@event-pos/contracts";
@@ -40,7 +40,8 @@ export async function writeCatalog(configDirectory: string, catalog: EventCatalo
   const root = resolve(configDirectory); const checked = validateEventCatalog(catalog);
   const sourceByCode = new Map<string, string>();
   const productDir = join(root, "products");
-  for (const name of await readdir(productDir).catch(() => [])) {
+  const existingProductFiles = (await readdir(productDir).catch(() => [])).filter((name) => /\.ya?ml$/i.test(name));
+  for (const name of existingProductFiles) {
     if (!/\.ya?ml$/i.test(name)) continue;
     const doc = await yamlFile(root, `products/${name}`);
     for (const product of Array.isArray(doc.products) ? doc.products : []) if (isRecord(product) && typeof product.productCode === "string") sourceByCode.set(product.productCode, name);
@@ -57,6 +58,7 @@ export async function writeCatalog(configDirectory: string, catalog: EventCatalo
     const departmentId = products[0]?.departmentId ?? checked.departments?.[0]?.departmentId ?? "default";
     await writeYaml(root, `products/${file}`, { schemaVersion, departmentId, products: products.map((product, sortOrder) => ({ productCode: product.productCode, name: product.name, shortName: product.name, priceYen: product.priceInclTax, ...(product.priceExclTax === undefined ? {} : { priceExclYen: product.priceExclTax }), ...(product.gs1 ? { gs1: product.gs1 } : {}), ...(product.isdn ? { isdn: product.isdn } : {}), tax: { category: product.taxCategory.startsWith("exclusive_") ? "tax_excluded" : "tax_included", ratePercent: product.taxRate }, ageRestriction: { category: product.ageCheck === "18" ? "r18" : product.ageCheck === "20" ? "r20" : "general" }, inventory: { openingQuantity: 0, allowNegative: true }, display: { tabId: product.tabId ?? checked.productTabs?.[0]?.id ?? "all", buttonLabel: product.name, sortOrder, ...(product.displayColor ? { color: product.displayColor } : {}) }, sales: { enabled: product.saleState === "on_sale" } })) });
   }
+  await Promise.all(existingProductFiles.filter((file) => !grouped.has(file)).map((file) => unlink(join(productDir, file))));
 }
 
 export async function buildCatalog(configDirectory: string): Promise<EventCatalog> {

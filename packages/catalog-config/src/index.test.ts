@@ -1,16 +1,27 @@
 import { createHash } from "node:crypto";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCatalog, deterministicCatalogJson } from "./index.js";
+import { buildCatalog, deterministicCatalogJson, writeCatalog } from "./index.js";
 
 describe("分割イベント設定", () => {
   const temporaryDirectories: string[] = [];
   afterEach(async () => { await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
-  async function copiedDemo(): Promise<string> { const directory = await mkdtemp(join(tmpdir(), "event-pos-catalog-")); temporaryDirectories.push(directory); await cp(resolve(import.meta.dirname, "../../../event-config/demo"), directory, { recursive: true }); return directory; }
+  async function copiedDemo(): Promise<string> {
+    const directory = await mkdtemp(join(tmpdir(), "event-pos-catalog-")); temporaryDirectories.push(directory);
+    const repository = resolve(import.meta.dirname, "../../..");
+    const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "event-config/demo"], { cwd: repository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+    await Promise.all(files.map(async (file) => {
+      const destination = join(directory, file.slice("event-config/demo/".length));
+      await mkdir(join(destination, ".."), { recursive: true });
+      await writeFile(destination, execFileSync("git", ["show", `HEAD:${file}`], { cwd: repository, encoding: "utf8" }), "utf8");
+    }));
+    return directory;
+  }
   it("demo設定を決定的な既存互換カタログへ統合する", async () => {
-    const directory = resolve(import.meta.dirname, "../../../event-config/demo");
+    const directory = await copiedDemo();
     const first = deterministicCatalogJson(await buildCatalog(directory));
     const second = deterministicCatalogJson(await buildCatalog(directory));
     expect(first).toBe(second);
@@ -48,5 +59,13 @@ describe("分割イベント設定", () => {
     const quickPath = join(duplicateQuickDirectory, "register-ui.yaml");
     await writeFile(quickPath, (await readFile(quickPath, "utf8")).replace("quickEntryId: adult-new", "quickEntryId: book-pair"), "utf8");
     await expect(buildCatalog(duplicateQuickDirectory)).rejects.toThrow("register-ui.yaml:quickEntries: quickEntryIdが重複しています: book-pair");
+  });
+
+  it("商品をすべて削除した設定では古い商品YAMLも削除する", async () => {
+    const directory = await copiedDemo();
+    const original = await buildCatalog(directory);
+    await writeCatalog(directory, { ...original, departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
+    expect((await readdir(join(directory, "products"))).filter((name) => /\.ya?ml$/i.test(name))).toEqual([]);
+    await expect(buildCatalog(directory)).resolves.toMatchObject({ departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
   });
 });

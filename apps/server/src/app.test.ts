@@ -5,13 +5,24 @@ import { bytesSha256 } from "@event-pos/escpos";
 import { calculateMod10CheckDigit } from "@event-pos/contracts";
 import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { signInForTest } from "./test-support.js";
 
 const apps: ReturnType<typeof buildApp>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
+
+function copyCommittedDemo(destination: string): void {
+  const repository = resolve(import.meta.dirname, "../../..");
+  const files = execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD", "event-config/demo"], { cwd: repository, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+  for (const file of files) {
+    const path = join(destination, file.slice("event-config/demo/".length));
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, execFileSync("git", ["show", `HEAD:${file}`], { cwd: repository, encoding: "utf8" }), "utf8");
+  }
+}
 
 describe("server foundation", () => {
   it("営業日と現金箱から現金セッションを復元し、理論現金と履歴を返す", async () => {
@@ -149,7 +160,9 @@ describe("server foundation", () => {
   });
 
   it("開局前に分割YAMLからカタログを再読み込みする", async () => {
-    const app = buildApp({ database: openDatabase(), eventConfigDirectory: resolve(import.meta.dirname, "../../../event-config/demo") }); apps.push(app);
+    const configDirectory = mkdtempSync(join(tmpdir(), "event-pos-app-config-"));
+    copyCommittedDemo(configDirectory);
+    const app = buildApp({ database: openDatabase(), eventConfigDirectory: configDirectory }); apps.push(app);
     const response = await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} });
     expect(response.statusCode).toBe(200);
     const body = response.json();
@@ -158,6 +171,7 @@ describe("server foundation", () => {
     expect(body.catalog.products).toEqual(expect.arrayContaining([expect.objectContaining({ productCode: "T0000121" })]));
     expect((await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers: { "x-pos-role": "admin" }, payload: { eventId: "demo-event-large", businessDate: "2026-08-03", terminalId: "register-1" } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} })).statusCode).toBe(409);
+    rmSync(configDirectory, { recursive: true, force: true });
   });
 
   it("管理画面向けにGS1事業者コード台帳を返す", async () => {
