@@ -1,4 +1,4 @@
-import type { Gs1CompanyPrefixRegistry, IsdnProductInfo, ManualDiscountInput, SaleCalculation, TaxCategory } from "@event-pos/contracts";
+import type { Gs1CompanyPrefixRegistry, IsdnProductInfo, ManualDiscountInput, ProductLookupResult, SaleCalculation, TaxCategory } from "@event-pos/contracts";
 
 export type CheckoutDraftLine = {
   lineId: string;
@@ -107,6 +107,7 @@ export const checkoutApi = {
   getGs1CompanyPrefixes: (eventId: string) => request<{ registry: Gs1CompanyPrefixRegistry }>(`/api/v1/events/${encodeURIComponent(eventId)}/gs1-company-prefixes`),
   getIsdnProduct: (code: string) => request<{ info: IsdnProductInfo }>(`/api/v1/isdn/${encodeURIComponent(code)}`),
   getIsbnProduct: (code: string) => request<{ info: import("@event-pos/contracts").IsbnProductInfo }>(`/api/v1/isbn/${encodeURIComponent(code)}`),
+  lookupProduct: (eventId: string, code: string) => request<ProductLookupResult>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/${encodeURIComponent(code)}`),
   saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
   listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string }> }>("/api/v1/receipt-templates"),
   createReceiptTemplate: (templateKey: string, sourceText: string) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText }) }),

@@ -9,6 +9,7 @@ import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
 import { fetchNdlIsbnProduct } from "./isbn.js";
+import { lookupProductCandidates } from "./product-lookup.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -72,6 +73,14 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       requireAuthActor(options.database, request, "manager", options.authRequired);
       if (!/^97[89]\d{10}$/.test(request.params.code)) return reply.code(400).send({ error: { code: "INVALID_ISBN", message: "ISBNは978または979で始まる13桁の番号です", details: {}, requestId: request.id } });
       return { info: await fetchNdlIsbnProduct(request.params.code) };
+    } catch (error) { return failure(reply, error); }
+  });
+
+  app.get<{ Params: { eventId: string; code: string } }>("/api/v1/events/:eventId/product-lookup/:code", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
+      if (actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
+      return await lookupProductCandidates(options.database, request.params.eventId, options.configDirectory, request.params.code);
     } catch (error) { return failure(reply, error); }
   });
 

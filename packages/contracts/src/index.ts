@@ -11,6 +11,7 @@ export { calculateMod10CheckDigit, normalizeBarcodeInput, parseBarcode, parsePay
 export type { BarcodeKind, BarcodeParseResult, BookPriceInfo, PaymentSlipCode, PeriodicalInfo } from "./barcode.js";
 export type { IsdnProductInfo } from "./isdn.js";
 export type { IsbnProductInfo } from "./isbn.js";
+export type { ProductLookupCandidate, ProductLookupResult } from "./product-lookup.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
 export { calculateSale, SaleCalculationError } from "./checkout.js";
