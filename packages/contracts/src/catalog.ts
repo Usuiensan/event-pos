@@ -62,6 +62,17 @@ export type EventCatalog = { eventId: string; event?: EventDetails; products: Pr
 
 function fail(message: string): never { throw new Error(message); }
 
+function validGs1Prefix(prefix: number): boolean { return (prefix >= 0 && prefix <= 49) || (prefix >= 60 && prefix <= 139) || (prefix >= 200 && prefix <= 969) || (prefix >= 977 && prefix <= 999); }
+function validGtinCheckDigit(code: string): boolean { let sum = 0; let weight = 3; for (let index = code.length - 2; index >= 0; index -= 1) { sum += Number(code[index]) * weight; weight = weight === 3 ? 1 : 3; } return (10 - (sum % 10)) % 10 === Number(code.at(-1)); }
+function validateExternalProductCode(code: string, index: number): void {
+  if (!/^\d+$/.test(code) || (code.length !== 12 && code.length !== 13)) return;
+  if (!validGtinCheckDigit(code)) fail(`products[${index}].productCodeのチェックデジットが不正です（${code.length === 12 ? "UPC-A" : "EAN/JAN-13"}）`);
+  const prefix = Number(code.slice(0, 3));
+  if (!validGs1Prefix(prefix)) fail(`products[${index}].productCodeのGS1プレフィックス（国・地域番号）が不正です: ${code.slice(0, 3)}`);
+  const companyCode = code.length === 13 ? code.slice(3, -1) : code.slice(2, -1);
+  if (!/[1-9]/.test(companyCode)) fail(`products[${index}].productCodeの事業者コードが不正です`);
+}
+
 export function validateEventCatalog(input: unknown): EventCatalog {
   if (!input || typeof input !== "object") fail("カタログはJSONオブジェクトで指定してください");
   const value = input as Partial<EventCatalog>;
@@ -70,6 +81,7 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   const products = value.products.map((raw, index) => {
     const p = raw as Partial<ProductDefinition>;
     if (typeof p.productCode !== "string" || !p.productCode.trim()) fail(`products[${index}].productCodeが必要です`);
+    validateExternalProductCode(p.productCode, index);
     if (typeof p.name !== "string" || !p.name.trim()) fail(`products[${index}].nameが必要です`);
     if (typeof p.priceInclTax !== "number" || !Number.isSafeInteger(p.priceInclTax) || p.priceInclTax < 0) fail(`products[${index}].priceInclTaxは0以上の整数です`);
     if (typeof p.taxRate !== "number" || p.taxRate < 0 || p.taxRate > 100) fail(`products[${index}].taxRateが不正です`);
