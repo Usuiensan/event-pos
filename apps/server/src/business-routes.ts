@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type { PosDatabase } from "./db.js";
 import { AuthError, clearAuthCookie, createAuthSession, findAuthActor, requireAuthActor, revokeAuthSession, setAuthCookie } from "./auth.js";
 import { CheckoutError } from "./checkout-store.js";
-import { closeBusinessSession, getBusinessSession, getOpenBusinessSession, openBusinessSession, prepareCashSession, reopenBusinessSession } from "./business-store.js";
+import { cancelBusinessOpening, closeBusinessSession, getBusinessSession, getOpenBusinessSession, openBusinessSession, prepareCashSession, reopenBusinessSession } from "./business-store.js";
 import type { RealtimeHub } from "./realtime.js";
 
 export type BusinessRouteOptions = { database: PosDatabase; authRequired: boolean; secureCookie: boolean; realtimeHub?: RealtimeHub };
@@ -39,6 +39,10 @@ export function registerBusinessRoutes(app: FastifyInstance, options: BusinessRo
   });
   app.post<{ Params: { businessSessionId: string }; Body: { terminalId?: string } }>("/api/v1/business-sessions/:businessSessionId/close", async (request, reply) => {
     try { const actor = requireAuthActor(options.database, request, "manager", options.authRequired); const session = closeBusinessSession(options.database, request.params.businessSessionId, { actorId: actor.staffId, terminalId: request.body?.terminalId ?? actor.terminalId }); options.realtimeHub?.notifyAll({ type: "business-state.changed", eventId: session.eventId, businessSessionId: session.businessSessionId }); return session; }
+    catch (error) { return errorReply(reply, error); }
+  });
+  app.post<{ Params: { businessSessionId: string }; Body: { reason?: string; terminalId?: string } }>("/api/v1/business-sessions/:businessSessionId/cancel-opening", async (request, reply) => {
+    try { const actor = requireAuthActor(options.database, request, "admin", options.authRequired); const session = cancelBusinessOpening(options.database, request.params.businessSessionId, { actorId: actor.staffId, terminalId: request.body?.terminalId ?? actor.terminalId, reason: request.body?.reason ?? "" }); options.realtimeHub?.notifyAll({ type: "business-state.changed", eventId: session.eventId, businessSessionId: session.businessSessionId }); return session; }
     catch (error) { return errorReply(reply, error); }
   });
   app.post<{ Params: { businessSessionId: string }; Body: { reason?: string; terminalId?: string } }>("/api/v1/business-sessions/:businessSessionId/reopen", async (request, reply) => {

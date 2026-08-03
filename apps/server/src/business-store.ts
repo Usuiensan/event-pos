@@ -112,6 +112,31 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   return getBusinessSession(db, businessSessionId)!;
 }
 
+export function cancelBusinessOpening(db: PosDatabase, businessSessionId: string, input: { actorId: string; terminalId: string; reason: string }): BusinessSessionDto {
+  const business = getBusinessSession(db, businessSessionId);
+  if (!business) throw new CheckoutError(404, "BUSINESS_SESSION_NOT_FOUND", "営業セッションが見つかりません");
+  if (business.state !== "open") throw new CheckoutError(409, "BUSINESS_NOT_OPEN", "営業開始中の営業セッションではありません");
+  if (!input.reason.trim()) throw new CheckoutError(400, "CANCEL_OPENING_REASON_REQUIRED", "開局取消理由が必要です");
+  const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing')
+    AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
+      OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(business.eventId);
+  if (activeDraft) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "未確定の会計が残っています");
+  const activeHold = db.prepare("SELECT hold_id FROM holds WHERE business_session_id=? AND state='active' LIMIT 1").get(businessSessionId);
+  if (activeHold) throw new CheckoutError(409, "ACTIVE_HOLDS_EXIST", "未解決の取り置きが残っています");
+  const confirmed = db.prepare("SELECT cashbox_id FROM cash_sessions WHERE business_session_id=? AND (state='open' OR opening_yen IS NOT NULL) LIMIT 1").get(businessSessionId);
+  if (confirmed) throw new CheckoutError(409, "OPENING_ALREADY_CONFIRMED", "準備金確定後は開局取消できません。レジ精算・営業終了を使用してください");
+  const now = new Date().toISOString();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("UPDATE cash_sessions SET state='closed',closed_by=?,closed_terminal_id=?,closed_at=? WHERE business_session_id=? AND state='preparing'").run(input.actorId, input.terminalId, now, businessSessionId);
+    db.prepare("UPDATE business_sessions SET state='closed',closed_by=?,closed_terminal_id=?,closed_at=? WHERE business_session_id=? AND state='open'").run(input.actorId, input.terminalId, now, businessSessionId);
+    db.prepare("UPDATE staff_auth_sessions SET revoked_at=?,revoke_reason='business_opening_cancelled' WHERE event_id=? AND revoked_at IS NULL").run(now, business.eventId);
+    db.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'business_opening_cancelled','business_session',?,?,?)").run(business.eventId, businessSessionId, JSON.stringify(input), now);
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
+  return getBusinessSession(db, businessSessionId)!;
+}
+
 export function reopenBusinessSession(db: PosDatabase, businessSessionId: string, input: { actorId: string; terminalId: string; reason: string }): BusinessSessionDto {
   const business = getBusinessSession(db, businessSessionId);
   if (!business) throw new CheckoutError(404, "BUSINESS_SESSION_NOT_FOUND", "営業セッションが見つかりません");
