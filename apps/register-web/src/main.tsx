@@ -271,6 +271,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     refresh(); const timer = window.setInterval(refresh, 2_000);
     return () => { stopped = true; window.clearInterval(timer); };
   }, [showBusinessMenu, role, catalog.eventId, registerId, signedInResponsibleNumber]);
+  useEffect(() => { if (!showBusinessMenu || role !== "staff") return; const menu = document.querySelector<HTMLElement>(".business-menu"); if (!menu || menu.querySelector(".business-menu-top-link")) return; const link = document.createElement("a"); link.className = "business-menu-top-link"; link.href = "/"; link.textContent = "トップページへ"; menu.appendChild(link); return () => link.remove(); }, [showBusinessMenu, role]);
   useEffect(() => {
     let stopped = false;
     const refresh = () => { void checkoutApi.getAudioSettings(registerId).then((settings) => { if (!stopped) setAudioSettings((current) => { const next = normalizeAudioSettings(settings); if (next.version === 0 && current.version === 0 && (current.tapVolume !== 100 || current.errorVolume !== 100 || current.systemErrorVolume !== 100 || current.speechVolume !== 100 || current.speakerId !== 3)) { void checkoutApi.saveAudioSettings(registerId, current).then((saved) => setAudioSettings(normalizeAudioSettings(saved))); return current; } return next.version >= current.version ? next : current; }); }).catch(() => { /* 保存済み設定を維持する */ }); };
