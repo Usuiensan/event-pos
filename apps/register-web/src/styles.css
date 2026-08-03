@@ -188,6 +188,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 
 .lifecycle-header .status-online { margin-left: auto; color: #7ee2a8; }
 .lifecycle-header .status-offline { margin-left: auto; color: #ff9b9b; }
+.lifecycle-top-link { padding: .45rem .75rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: white; color: #17212b; font-weight: 700; text-decoration: none; white-space: nowrap; }
 
 .lifecycle-card,
 .lifecycle-sign-in {
