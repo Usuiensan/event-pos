@@ -1,10 +1,2 @@
 schemaVersion: 1
-templates:
-  salesReceipt:
-    templateKey: sales_receipt
-    activeVersion: 1
-  returnReceipt:
-    templateKey: return_receipt
-    activeVersion: 1
-commonText:
-  footer: ありがとうございました。
+templates: {}
