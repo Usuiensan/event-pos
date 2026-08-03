@@ -154,7 +154,9 @@ describe("server foundation", () => {
     const body = response.json();
     expect(body.source).toBe("yaml");
     expect(body.catalog.eventId).toBe("demo-event-large");
-    expect(body.catalog.products[0]).toMatchObject({ productCode: "T0000121" });
+    expect(body.catalog.products).toEqual(expect.arrayContaining([expect.objectContaining({ productCode: "T0000121" })]));
+    expect((await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers: { "x-pos-role": "admin" }, payload: { eventId: "demo-event-large", businessDate: "2026-08-03", terminalId: "register-1" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} })).statusCode).toBe(409);
   });
 
   it("rejects invalid catalog references and duplicate product codes", async () => {
