@@ -87,7 +87,8 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
   app.post<{ Params: { eventId: string }; Body: { productCode?: string; fieldName?: string; candidate?: unknown } }>("/api/v1/events/:eventId/product-lookup/adoptions", async (request, reply) => {
     try {
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
-      if (actor.eventId !== request.params.eventId || !request.body?.productCode || !request.body.fieldName || !request.body.candidate || typeof request.body.candidate !== "object") throw new Error("候補採用情報が不正です");
+      const allowedFields = new Set(["name", "seller", "manufacturer", "brand", "producer", "specification"]);
+      if (actor.eventId !== request.params.eventId || !request.body?.productCode || !request.body.fieldName || !allowedFields.has(request.body.fieldName) || !request.body.candidate || typeof request.body.candidate !== "object") throw new Error("候補採用情報が不正です");
       recordProductLookupAdoption(options.database, request.params.eventId, request.body.productCode, request.body.fieldName, request.body.candidate as never, actor.staffId);
       return { recorded: true };
     } catch (error) { return failure(reply, error); }
