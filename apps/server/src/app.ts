@@ -14,7 +14,7 @@ import { getBackupArtifact, listBackupArtifacts, reserveBackupArtifactRegenerati
 import { registerOperationsDashboard } from "./operations-dashboard.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; backupArtifactFailureInjector?: BackupArtifactFailureInjector };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -41,7 +41,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
   const realtimeHub = options.realtimeHub ?? new RealtimeHub();
   const printQueue = options.printerHost ? new PersistentPrintQueue(options.database, options.printerHost) : undefined;
-  const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector) : undefined;
+  const backupArtifactWorker = options.artifactRoot ? new BackupArtifactWorker(options.database, options.artifactRoot, options.backupArtifactFailureInjector, options.artifactMinimumFreeBytes) : undefined;
   app.register(websocket);
   app.register(async (realtimeApp) => registerRealtimeRoutes(realtimeApp, options.database, realtimeHub));
   let latestEmergencyAlert: EmergencyAlert | null = null;

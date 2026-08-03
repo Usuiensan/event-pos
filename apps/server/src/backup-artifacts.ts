@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, rm, statfs, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import ExcelJS from "exceljs";
@@ -179,6 +179,7 @@ function errorCode(error: unknown): string {
   if (code === "ENOSPC") return "STORAGE_FULL";
   if (code === "EACCES" || code === "EPERM") return "PERMISSION_DENIED";
   if (code === "EEXIST") return "OVERWRITE_BLOCKED";
+  if (code === "STORAGE_LOW") return "STORAGE_LOW";
   return "GENERATION_FAILED";
 }
 
@@ -186,7 +187,7 @@ export class BackupArtifactWorker {
   private draining: Promise<void> | null = null;
   private stopping = false;
 
-  constructor(private readonly db: PosDatabase, private readonly rootDirectory: string, private readonly failureInjector?: BackupArtifactFailureInjector) {
+  constructor(private readonly db: PosDatabase, private readonly rootDirectory: string, private readonly failureInjector?: BackupArtifactFailureInjector, private readonly minimumFreeBytes = 0) {
     recoverInterruptedBackupArtifacts(db);
   }
 
@@ -232,6 +233,8 @@ export class BackupArtifactWorker {
     const stagingBackup = join(stagingDirectory, backupName); const stagingWorkbook = join(stagingDirectory, workbookName); const stagingManifest = join(stagingDirectory, manifestName);
     try {
       await mkdir(resolve(this.rootDirectory), { recursive: true, mode: 0o700 });
+      const filesystem = await statfs(resolve(this.rootDirectory)); const freeBytes = Number(filesystem.bavail) * Number(filesystem.bsize);
+      if (freeBytes < this.minimumFreeBytes) throw Object.assign(new Error(`成果物保存先の空き容量が不足しています（空き ${freeBytes} bytes／必要 ${this.minimumFreeBytes} bytes）`), { code: "STORAGE_LOW" });
       await mkdir(stagingDirectory, { recursive: false, mode: 0o700 });
       this.db.prepare("VACUUM INTO ?").run(stagingBackup);
       await chmod(stagingBackup, 0o600);
