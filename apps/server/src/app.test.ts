@@ -6,7 +6,7 @@ import Fastify from "fastify";
 import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { signInForTest } from "./test-support.js";
 
 const apps: ReturnType<typeof buildApp>[] = [];
@@ -145,6 +145,16 @@ describe("server foundation", () => {
     expect((await app2.inject({ method: "GET", url: "/api/v1/events/event-catalog/catalog" })).json().catalog).toEqual(catalog);
     await app2.close(); apps.splice(apps.indexOf(app2), 1);
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
+  });
+
+  it("開局前に分割YAMLからカタログを再読み込みする", async () => {
+    const app = buildApp({ database: openDatabase(), eventConfigDirectory: resolve(import.meta.dirname, "../../../event-config/demo") }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.source).toBe("yaml");
+    expect(body.catalog.eventId).toBe("demo-event-large");
+    expect(body.catalog.products[0]).toMatchObject({ productCode: "T0000121" });
   });
 
   it("rejects invalid catalog references and duplicate product codes", async () => {

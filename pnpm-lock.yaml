@@ -70,6 +70,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@event-pos/catalog-config':
+        specifier: workspace:*
+        version: link:../../packages/catalog-config
       '@event-pos/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -101,6 +104,28 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.1
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.3)(tsx@4.23.1)(yaml@2.9.0)
+
+  packages/catalog-config:
+    dependencies:
+      '@event-pos/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.13.3
       tsx:
         specifier: ^4.20.3
         version: 4.23.1

@@ -13,11 +13,12 @@ const artifactConfig = productionArtifactConfig(databasePath, process.env.POS_AR
 const printerHostUrl = process.env.PRINTER_HOST_URL;
 const requireAuth = process.env.POS_REQUIRE_AUTH !== "0" && process.env.POS_REQUIRE_AUTH !== "false";
 const drawerEnabled = process.env.DRAWER_ENABLED === "1" || process.env.DRAWER_ENABLED === "true";
+const eventConfigDirectory = process.env.POS_EVENT_CONFIG_DIR;
 const tlsCertPath = process.env.POS_TLS_CERT_PATH; const tlsKeyPath = process.env.POS_TLS_KEY_PATH;
 if ((tlsCertPath && !tlsKeyPath) || (!tlsCertPath && tlsKeyPath)) throw new Error("POS_TLS_CERT_PATHとPOS_TLS_KEY_PATHは両方指定してください");
 if ((process.env.POS_REQUIRE_HTTPS === "1" || process.env.POS_REQUIRE_HTTPS === "true") && !tlsCertPath) throw new Error("本番HTTPSが必須ですがTLS証明書が指定されていません");
 const https = tlsCertPath && tlsKeyPath ? { cert: await readFile(tlsCertPath), key: await readFile(tlsKeyPath) } : undefined;
-const app = buildApp({ database: openDatabase(databasePath), requireAuth, drawerEnabled, errorReportDirectory, artifactRoot: artifactConfig.artifactRoot, artifactMinimumFreeBytes: artifactConfig.minimumFreeBytes, ...(https ? { https } : {}), ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl) } : {}) });
+const app = buildApp({ database: openDatabase(databasePath), requireAuth, drawerEnabled, errorReportDirectory, artifactRoot: artifactConfig.artifactRoot, artifactMinimumFreeBytes: artifactConfig.minimumFreeBytes, ...(eventConfigDirectory ? { eventConfigDirectory } : {}), ...(https ? { https } : {}), ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl) } : {}) });
 const registerWebDist = process.env.REGISTER_WEB_DIST ?? "/app/register-web";
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".wav": "audio/wav", ".mp3": "audio/mpeg" };
 const sendAsset = async (file: string, reply: { type(value: string): { send(value: Buffer): unknown }; code(value: number): { send(value: unknown): unknown } }) => {

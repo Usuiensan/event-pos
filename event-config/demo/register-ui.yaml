@@ -1,0 +1,26 @@
+schemaVersion: 1
+tabs:
+  - tabId: books
+    label: 本
+    sortOrder: 10
+    color: "#dbeafe"
+  - tabId: adult
+    label: 成人向
+    sortOrder: 20
+    color: "#fbcfe8"
+quickEntries:
+  - quickEntryId: book-pair
+    label: 新刊 小説A+B
+    tabId: books
+    components:
+      - productCode: T0000121
+        quantity: 1
+      - productCode: T0000122
+        quantity: 1
+customerDisplay:
+  welcome:
+    circleName: event-pos テストサークル
+    space: 東A-01a
+    message: |-
+      いらっしゃいませ
+      新刊・既刊を頒布しています
