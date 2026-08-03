@@ -49,6 +49,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   });
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [lastAdded, setLastAdded] = useState<{ name: string; quantity: number; unitPrice: number } | null>(null);
+  const [lastAddedShortcut, setLastAddedShortcut] = useState<{ lineId: string; eligible: boolean } | null>(null);
   const [panel, setPanel] = useState<"detail" | "products">("detail");
   const [productTab, setProductTab] = useState("all");
   const [showSignIn, setShowSignIn] = useState(true);
@@ -152,7 +153,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setPaymentFinished(draft.state === "completed");
     if (draft.state === "payment" && draft.payments.length === 0) setShowPayment(true);
     if (draft.state === "completed") { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
-    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setLastAdded(null); setReceived(0); setInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
+    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setLastAdded(null); setLastAddedShortcut(null); setReceived(0); setInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
     const verified = draft.ageVerifications.filter((item) => item.result === "passed" && (item.method === "appearance" || item.method === "id_visual")).reduce<0 | 18 | 20>((maximum, item) => Math.max(maximum, item.minimumAge) as 0 | 18 | 20, 0);
     setAgeVerified(verified > 0); setAgeVerifiedMinimum(verified);
   };
@@ -201,7 +202,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   }), [speech, registerId, customerDisplayAvailable]);
   const startNextTransaction = async (): Promise<boolean> => {
     if (!checkoutLocked && draftRef.current?.state !== "completed") return true;
-    setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null);
+    setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setLastAdded(null); setLastAddedShortcut(null); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); setInputBuffer(""); setAgeVerified(false); setAgeVerifiedMinimum(0); setAgeFlowState("idle"); setAgeConfirmationRequest(null);
     try { await openDraft(); return true; } catch (error) { showSystemError(errorMessage(error), error); return false; }
   };
   const clearFinishedTransaction = () => { void startNextTransaction(); };
@@ -357,6 +358,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       if (showSignIn || selectedLine !== null || isFormInput) return;
       if (checkoutLocked && !/^[0-9]$/.test(event.key) && event.key !== "Enter" && event.key !== "Escape" && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt" && event.key !== "Meta") { event.preventDefault(); return; }
       if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setInputBuffer((value) => value + event.key); return; }
+      if (event.key === "*" || event.key === "Multiply") { event.preventDefault(); if (inputBuffer === "4") applyLastAddedQuantityShortcut(); setInputBuffer(""); return; }
       if (event.key === "Escape") { setInputBuffer(""); return; }
       if (event.key === "Enter" && inputBuffer) {
         event.preventDefault();
@@ -367,7 +369,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [checkoutLocked, inputBuffer, role, selectedLine, showSignIn, total, catalog.products]);
+  }, [checkoutLocked, inputBuffer, lastAddedShortcut, role, selectedLine, showSignIn, total, catalog.products]);
   useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
   useEffect(() => {
     const transactionId = serverDraft?.completedTransactionId;
@@ -380,12 +382,29 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   useEffect(() => { let stopped = false; const poll = () => { void fetch("/api/v1/emergency-alerts/latest", { cache: "no-store" }).then(async (response) => response.ok ? await response.json() as { alert: EmergencyAlert | null } : null).then((result) => { const alert = result?.alert; if (stopped || !alert || alert.id === lastEmergencyAlertIdRef.current) return; lastEmergencyAlertIdRef.current = alert.id; setEmergencyAlert(alert); speakEmergencyAlertReceived(routedSpeech); }).catch(() => { /* 次回のポーリングで復旧する */ }); }; poll(); const timer = window.setInterval(poll, 1000); return () => { stopped = true; window.clearInterval(timer); }; }, [routedSpeech]);
   const saveCatalog = async (next: EventCatalog) => { await checkoutApi.saveCatalog(next.eventId, JSON.parse(exportEventCatalog(next))); setCatalog(next); };
   const highlightLine = (productCode: string, state: "active" | "cancelled" = "active") => { const highlightKey = `${state}:${productCode}`; triggerHighlight(highlightKey); localStorage.setItem(storageKey("line-highlight"), JSON.stringify({ highlightKey, productCode, at: Date.now() })); };
+  function applyLastAddedQuantityShortcut() {
+    const shortcut = lastAddedShortcut;
+    if (!shortcut?.eligible || checkoutLocked || draftRef.current?.state === "completed") return false;
+    const line = cart.find((candidate) => candidate.lineId === shortcut.lineId);
+    if (!line || line.cancelled || !line.lineId) return false;
+    void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, line.lineId!, draft.version, { quantity: 4 })).then((next) => {
+      if (!next) return;
+      setLastAddedShortcut({ lineId: shortcut.lineId, eligible: false });
+      triggerHighlight(line.product.productCode);
+    });
+    return true;
+  }
   useEffect(() => {
     if (panel !== "detail" || !highlighted) return;
     const productCode = highlighted.slice(highlighted.indexOf(":") + 1);
     const row = Array.from(detailPanelRef.current?.querySelectorAll<HTMLElement>(".detail-row[data-product-code]") ?? []).find((candidate) => candidate.dataset.productCode === productCode);
     row?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [highlighted, panel, cart.length]);
+  useEffect(() => {
+    if (!lastAddedShortcut?.eligible) return;
+    const line = cart.find((candidate) => candidate.lineId === lastAddedShortcut.lineId);
+    if (!line || line.cancelled) setLastAddedShortcut({ lineId: lastAddedShortcut.lineId, eligible: false });
+  }, [cart, lastAddedShortcut]);
   const addProduct = (product: ProductDefinition, quantity = 1, announce = true, ageCheckBypass = false, startedNextTransaction = false) => {
     if ((checkoutLocked || draftRef.current?.state === "completed") && !startedNextTransaction) { void startNextTransaction().then((ready) => { if (ready) addProduct(product, quantity, announce, ageCheckBypass, true); }); return; }
     if (product.saleState !== "on_sale") return showOperationError("この商品は販売停止中のため登録できません。");
@@ -395,7 +414,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       void openDraft().then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge)).then((request) => { setAgeConfirmationRequest(request); speakAgeCheckRequired(routedSpeech); }).catch((error) => { setAgeProduct(null); setAgeFlowState("idle"); showSystemError(errorMessage(error), error); });
       return;
     }
-    void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
+    void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); setLastAdded({ name: product.name, quantity, unitPrice: product.priceInclTax }); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
   };
   const handleBarcode = (raw: string) => {
     const parsed = parseBarcode(raw);
@@ -416,7 +435,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       if (info.priceExclTaxYen === null) return showOperationError(`定期刊行物JAN：雑誌コード ${info.magazineCode}／${info.issueLabel}。本体価格がバーコード上で0000のため、売価を確定できません。商品マスタから登録してください。`);
       const priceInclTaxYen = info.priceExclTaxYen + Math.floor(info.priceExclTaxYen * 0.1);
       setScanNotice(`定期刊行物JAN：雑誌コード ${info.magazineCode}／${info.issueLabel}／税抜${info.priceExclTaxYen.toLocaleString()}円（税込${priceInclTaxYen.toLocaleString()}円）。この18桁の号を登録します。`);
-      void runDraftMutation((draft) => checkoutApi.addPeriodicalLine(draft.draftId, draft.version, parsed.normalized)).then((next) => { if (!next) return; setLastAdded({ name: `定期刊行物 ${info.magazineCode} ${info.issueLabel}`, quantity: 1, unitPrice: priceInclTaxYen }); playOperationSound("register", audioSettings.tapVolume); });
+      void runDraftMutation((draft) => checkoutApi.addPeriodicalLine(draft.draftId, draft.version, parsed.normalized)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.status === "active" && candidate.name === `定期刊行物 ${info.magazineCode} ${info.issueLabel}`); setLastAdded({ name: `定期刊行物 ${info.magazineCode} ${info.issueLabel}`, quantity: 1, unitPrice: priceInclTaxYen }); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); });
       return;
     }
     const productCode = parsed.gtin;
@@ -436,9 +455,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     if (restricted) { addProduct(restricted, components.find((component) => component.productCode === restricted.productCode)?.quantity ?? 1, false, false, startedNextTransaction); return; }
     const addedTotal = components.reduce((sum, component) => sum + (catalog.products.find((product) => product.productCode === component.productCode)?.priceInclTax ?? 0) * component.quantity, 0);
     const operation = quick.components ? (draft: CheckoutDraft) => checkoutApi.addBundle(draft.draftId, draft.version, quick.id) : (draft: CheckoutDraft) => checkoutApi.addLine(draft.draftId, draft.version, quick.productCode!, quick.quantity ?? 1);
-    void runDraftMutation(operation).then((next) => { if (next && addedTotal > 0) { playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(addedTotal)); } });
+    void runDraftMutation(operation).then((next) => { if (!next) return; setLastAddedShortcut(null); if (addedTotal > 0) { playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(addedTotal)); } });
   };
-  const setQuantity = (lineIndex: number) => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。数量は変更できません。"); const line = cart[lineIndex]; if (!line?.lineId) return; const value = window.prompt("数量を入力", String(line.quantity)); const quantity = Number(value); if (Number.isSafeInteger(quantity) && quantity > 0) void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, line.lineId!, draft.version, { quantity })).then((next) => { if (next) highlightLine(line.product.productCode, line.cancelled ? "cancelled" : "active"); }); };
+  const setQuantity = (lineIndex: number) => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。数量は変更できません。"); const line = cart[lineIndex]; if (!line?.lineId) return; const value = window.prompt("数量を入力", String(line.quantity)); const quantity = Number(value); if (Number.isSafeInteger(quantity) && quantity > 0) { if (lastAddedShortcut?.lineId === line.lineId) setLastAddedShortcut({ lineId: line.lineId, eligible: false }); void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, line.lineId!, draft.version, { quantity })).then((next) => { if (next) highlightLine(line.product.productCode, line.cancelled ? "cancelled" : "active"); }); } };
   const signOut = () => { if (activeCart.length > 0) return showOperationError("登録中の商品があるため責任者を解除できません。登録を完了または中止してください。"); void checkoutApi.signOut().catch(() => undefined).finally(() => { setShowBusinessMenu(false); setResponsibleNumber(""); setSignedInResponsibleNumber("---"); setSignedInUser("---"); setAuthActor(null); setBusinessSession(null); setRegisterState(null); setShowSignIn(true); }); };
   const signIn = () => {
     const normalized = normalizeResponsibleNumber(responsibleNumber);
@@ -452,7 +471,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const closePriceChange = () => { setShowPriceChange(false); setDiscountMode(null); setDiscountInput(""); };
   const applySelectedDiscount = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。売価・値引きは変更できません。"); if (!selectedLineItem?.lineId || selectedLine === null || priceChangePreview === null || !discountMode) return showOperationError(discountMode === "percent" ? "値引率は0～100％で入力してください。" : "値引額は現在の単価以下で入力してください。"); const value = Number(discountInput); void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, selectedLineItem.lineId!, draft.version, { manualDiscount: { kind: discountMode === "percent" ? "rate" : "amount", value } })).then((next) => { if (!next) return; highlightLine(selectedLineItem.product.productCode, selectedLineItem.cancelled ? "cancelled" : "active"); closePriceChange(); setSelectedLine(null); }); };
   useEffect(() => { if (!showPriceChange) return; const onDiscountKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setDiscountInput((current) => `${current}${event.key}`.replace(/^0+(?=\d)/, "").slice(0, 7)); } else if (event.key === "Backspace") { event.preventDefault(); setDiscountInput((current) => current.slice(0, -1)); } else if (event.key === "Escape") { event.preventDefault(); closePriceChange(); } else if (event.key === "Enter" && discountMode) { event.preventDefault(); applySelectedDiscount(); } }; window.addEventListener("keydown", onDiscountKey); return () => window.removeEventListener("keydown", onDiscountKey); }, [showPriceChange, discountMode, discountInput, priceChangePreview, selectedLine]);
-  const confirmAge = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。年齢確認は変更できません。"); const product = ageProduct; const verifiedMinimum = product ? (ageRequirement(product) ?? 20) : 20; if (!product) return; void runDraftMutation(async (draft) => { const verified = await checkoutApi.addAgeVerification(draft.draftId, draft.version, { minimumAge: verifiedMinimum, method: "id_visual", result: "passed", confirmerId: signedInResponsibleNumber, terminalId: registerId }); return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, 1); }).then((next) => { if (!next) return; if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeVerified(true); setAgeVerifiedMinimum(verifiedMinimum); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); setLastAdded({ name: product.name, quantity: 1, unitPrice: product.priceInclTax }); playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); }); };
+  const confirmAge = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。年齢確認は変更できません。"); const product = ageProduct; const verifiedMinimum = product ? (ageRequirement(product) ?? 20) : 20; if (!product) return; void runDraftMutation(async (draft) => { const verified = await checkoutApi.addAgeVerification(draft.draftId, draft.version, { minimumAge: verifiedMinimum, method: "id_visual", result: "passed", confirmerId: signedInResponsibleNumber, terminalId: registerId }); return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, 1); }).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeVerified(true); setAgeVerifiedMinimum(verifiedMinimum); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); setLastAdded({ name: product.name, quantity: 1, unitPrice: product.priceInclTax }); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); }); };
   const updateAudioSetting = (key: "tapVolume" | "errorVolume" | "systemErrorVolume" | "speechVolume" | "speakerId", value: number) => {
     const requested = normalizeAudioSettings({ ...audioSettings, [key]: value });
     setAudioSettings(requested);
