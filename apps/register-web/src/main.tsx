@@ -412,12 +412,18 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       else setScanNotice(`${detail}上段ISBNを読み取ってください。`);
       return;
     }
-    const productCode = parsed.kind === "periodical" ? [parsed.normalized, parsed.periodical?.coreCode].find((code) => code && catalog.products.some((item) => item.productCode === code)) : parsed.gtin;
+    if (parsed.kind === "periodical" && parsed.periodical) {
+      const info = parsed.periodical;
+      if (info.priceExclTaxYen === null) return showOperationError(`定期刊行物JAN：雑誌コード ${info.magazineCode}／${info.issueLabel}。本体価格がバーコード上で0000のため、売価を確定できません。商品マスタから登録してください。`);
+      const priceInclTaxYen = info.priceExclTaxYen + Math.floor(info.priceExclTaxYen * 0.1);
+      setScanNotice(`定期刊行物JAN：雑誌コード ${info.magazineCode}／${info.issueLabel}／税抜${info.priceExclTaxYen.toLocaleString()}円（税込${priceInclTaxYen.toLocaleString()}円）。この18桁の号を登録します。`);
+      void runDraftMutation((draft) => checkoutApi.addPeriodicalLine(draft.draftId, draft.version, parsed.normalized)).then((next) => { if (!next) return; setLastAdded({ name: `定期刊行物 ${info.magazineCode} ${info.issueLabel}`, quantity: 1, unitPrice: priceInclTaxYen }); playOperationSound("register", audioSettings.tapVolume); });
+      return;
+    }
+    const productCode = parsed.gtin;
     if (parsed.kind === "book-isbn") {
       setPendingBook((current) => ({ ...current, isbn: parsed.normalized }));
       setScanNotice(pendingBook?.priceCode ? "書籍JANの上下段を確認しました。1冊として商品登録します。" : "書籍JAN上段（ISBN）を読み取りました。下段の分類・価格コードも読み取ってください。商品登録します。 ");
-    } else if (parsed.kind === "periodical" && parsed.periodical) {
-      setScanNotice(`定期刊行物JAN：号コード ${parsed.periodical.issueCode}／税抜${parsed.periodical.priceExclTaxYen === null ? "10,000円以上（バーコード上は0000）" : `${parsed.periodical.priceExclTaxYen.toLocaleString()}円`}`);
     }
     const product = productCode ? catalog.products.find((candidate) => candidate.productCode === productCode) : undefined;
     if (product) { addProduct(product); if (parsed.kind === "book-isbn" && pendingBook?.priceCode) setPendingBook(null); return; }

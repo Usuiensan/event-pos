@@ -4,6 +4,7 @@ import {
   createPublicReference,
   formatPublicReference,
   importEventCatalog,
+  parseBarcode,
   type EventCatalog,
   type ManualDiscountInput,
   type SaleCalculation,
@@ -238,6 +239,28 @@ export function addDraftLine(db: PosDatabase, draftId: string, version: number, 
     }
     bump(db, draftId, version, "editing");
     return updateProjection(db, draftId);
+  });
+}
+
+/** 定期刊行物は13桁本体ではなく、読取った18桁ごとに売価と号を固定する。 */
+export function addPeriodicalDraftLine(db: PosDatabase, draftId: string, version: number, code: string): SaleDraftDto {
+  const detected = parseBarcode(code);
+  if (detected.kind !== "periodical" || !detected.periodical) throw new CheckoutError(400, "INVALID_PERIODICAL_CODE", "定期刊行物JANコードを正しく読み取れませんでした");
+  const info = detected.periodical;
+  if (info.priceExclTaxYen === null) throw new CheckoutError(409, "PERIODICAL_PRICE_NOT_ENCODED", "本体価格が10,000円以上の定期刊行物はバーコードから売価を確定できません。商品マスタで登録してください");
+  const priceExclTax = info.priceExclTaxYen;
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version); const now = new Date().toISOString();
+    let product = db.prepare("SELECT * FROM event_products WHERE event_id=? AND product_code=?").get(String(row.event_id), code) as Record<string, unknown> | undefined;
+    if (!product) {
+      const productId = `${row.event_id}:periodical:${code}`; const name = `定期刊行物 ${info.magazineCode} ${info.issueLabel}`; const priceInclTax = priceExclTax + Math.floor(priceExclTax * 0.1);
+      db.prepare("INSERT INTO event_products (product_id,event_id,product_code,name,price_incl_tax,price_excl_tax,tax_rate_bps,tax_category,age_requirement,inventory_tracked,sale_state,updated_at) VALUES (?,?,?,?,?,?,1000,'exclusive_10',0,0,'on_sale',?)").run(productId, String(row.event_id), code, name, priceInclTax, priceExclTax, now);
+      product = db.prepare("SELECT * FROM event_products WHERE product_id=?").get(productId) as Record<string, unknown>;
+    }
+    // 登録済みの同一18桁商品があっても、売価はこの号のバーコード値を正とする。
+    const barcodeProduct = { ...product, name: `定期刊行物 ${info.magazineCode} ${info.issueLabel}`, price_incl_tax: priceExclTax + Math.floor(priceExclTax * 0.1), price_excl_tax: priceExclTax, tax_rate_bps: 1000, tax_category: "exclusive_10" };
+    if (!addToMatchingLine(db, draftId, barcodeProduct, 1, "{}")) insertLine(db, draftId, barcodeProduct, 1, "scan", null, "{}", now);
+    bump(db, draftId, version, "editing"); return updateProjection(db, draftId);
   });
 }
 

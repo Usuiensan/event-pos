@@ -2,7 +2,8 @@ export type BarcodeKind = "gtin" | "book-isbn" | "book-price" | "periodical" | "
 
 export type BookPriceInfo = { cCode: string; salesTarget: string; publicationForm: string; subject: string; priceExclTaxYen: number };
 export type PaymentSlipCode = { rawCode: string; issuerCode: string; gs1CompanyPrefix7: string; freeField: string; reissueCount: number; dueDate: { kind: "date"; raw: string; isoDate: string } | { kind: "not-specified"; raw: "999999" }; stampFlag: "not-required" | "required-200-yen" | "reserved"; amount: number; amountRaw: string; checkDigit: number; checkDigitValid: true };
-export type BarcodeParseResult = { kind: BarcodeKind; normalized: string; gtin?: string; bookPrice?: BookPriceInfo; periodical?: { coreCode: string; issueCode: string; priceExclTaxYen: number | null }; paymentSlip?: PaymentSlipCode; error?: string };
+export type PeriodicalInfo = { coreCode: string; magazineCode: string; year: number; issueCode: string; publicationType: "monthly" | "weekly" | "direct" | "other"; issueLabel: string; priceExclTaxYen: number | null };
+export type BarcodeParseResult = { kind: BarcodeKind; normalized: string; gtin?: string; bookPrice?: BookPriceInfo; periodical?: PeriodicalInfo; paymentSlip?: PaymentSlipCode; error?: string };
 
 const SALES_TARGET: Record<string, string> = { "0": "一般", "1": "教養", "2": "実用", "3": "専門", "5": "婦人", "6": "学参I（小中）", "7": "学参II（高校）", "8": "児童", "9": "雑誌扱い" };
 const PUBLICATION_FORM: Record<string, string> = { "0": "単行本", "1": "文庫", "2": "新書", "3": "全集・双書", "4": "ムック・その他", "5": "事・辞典", "6": "図鑑", "7": "絵本", "8": "磁性媒体など", "9": "コミック" };
@@ -41,7 +42,12 @@ export function parseBarcode(input: string): BarcodeParseResult {
   // 読み取り後はマスタ照合を優先して上下段を案内する（手入力時も同じ導線）。
   if (/^192\d{10}$/.test(code)) { const cCode = code.slice(3, 7); return { kind: "book-price", normalized: code, bookPrice: { cCode, salesTarget: SALES_TARGET[cCode[0]!] ?? "不明", publicationForm: PUBLICATION_FORM[cCode[1]!] ?? "不明", subject: SUBJECT[cCode.slice(2)] ?? "不明", priceExclTaxYen: Number(code.slice(7, 12)) } }; }
   if (/^97[89]\d{10}$/.test(code)) return { kind: "book-isbn", normalized: code, gtin: code };
-  if (/^491\d{10}\d{5}$/.test(code) && validGtin(code.slice(0, 13))) { const priceRaw = code.slice(14); return { kind: "periodical", normalized: code, gtin: code, periodical: { coreCode: code.slice(0, 13), issueCode: code.slice(11, 13), priceExclTaxYen: priceRaw === "0000" ? null : Number(priceRaw) } }; }
+  if (/^491\d{10}\d{5}$/.test(code) && validGtin(code.slice(0, 13))) {
+    const magazineCode = code.slice(4, 9); const issueCode = code.slice(9, 11); const year = 2000 + Number(code[3]) * 10 + Number(code[11]); const z1 = magazineCode[0]!;
+    const publicationType = z1 === "0" || z1 === "1" || ["80", "81", "86", "87", "89"].includes(magazineCode.slice(0, 2)) ? "monthly" : z1 === "2" || z1 === "3" || ["82", "83", "84", "88"].includes(magazineCode.slice(0, 2)) ? "weekly" : z1 === "8" ? "direct" : "other";
+    const issueLabel = publicationType === "monthly" ? `${year}年${Number(issueCode)}月号` : publicationType === "weekly" ? `${year}年${Number(issueCode)}号` : `${year}年 ${issueCode}号`;
+    const priceRaw = code.slice(14); return { kind: "periodical", normalized: code, gtin: code, periodical: { coreCode: code.slice(0, 13), magazineCode, year, issueCode, publicationType, issueLabel, priceExclTaxYen: priceRaw === "0000" ? null : Number(priceRaw) } };
+  }
   if (validGtin(code)) return { kind: "gtin", normalized: code, gtin: code };
   return { kind: "unknown", normalized: code, error: paymentError };
 }
