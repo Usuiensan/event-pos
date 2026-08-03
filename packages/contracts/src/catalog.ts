@@ -1,6 +1,7 @@
 export type ProductDefinition = {
   productCode: string;
   name: string;
+  departmentId?: string;
   priceInclTax: number;
   taxRate: number;
   taxCategory: TaxCategory;
@@ -84,8 +85,8 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (p.saleState !== "on_sale" && p.saleState !== "off_sale") fail(`products[${index}].saleStateが不正です`);
     const priceInclTax = p.priceInclTax as number;
     if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
-    for (const key of ["displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
-    return { productCode: p.productCode, name: p.name, priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
+    for (const key of ["departmentId", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
+    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);
