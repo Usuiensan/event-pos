@@ -11,6 +11,7 @@ import { PersistentPrintQueue, type PrinterHost } from "./print-queue.js";
 import { registerPrintingRoutes } from "./printing-routes.js";
 import { BackupArtifactWorker, type BackupArtifactFailureInjector } from "./backup-artifacts.js";
 import { getBackupArtifact, listBackupArtifacts, reserveBackupArtifactRegeneration } from "./backup-artifact-schema.js";
+import { registerOperationsDashboard } from "./operations-dashboard.js";
 
 export type { PrinterHost } from "./print-queue.js";
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; backupArtifactFailureInjector?: BackupArtifactFailureInjector };
@@ -202,6 +203,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerCheckoutRoutes(app, { database: options.database, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
+  registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
   registerPrintingRoutes(app, { database: options.database, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
   backupArtifactWorker?.trigger();
