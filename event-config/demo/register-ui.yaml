@@ -1,12 +1,36 @@
 schemaVersion: 1
 tabs:
+  - tabId: vegetables
+    label: 野菜
+    sortOrder: 10
+    color: "#dcfce7"
+  - tabId: fruit
+    label: 青果
+    sortOrder: 20
+    color: "#fef9c3"
+  - tabId: fish
+    label: 鮮魚
+    sortOrder: 30
+    color: "#cffafe"
+  - tabId: meat
+    label: 精肉
+    sortOrder: 40
+    color: "#fee2e2"
+  - tabId: deli
+    label: 惣菜
+    sortOrder: 50
+    color: "#ffedd5"
+  - tabId: gift
+    label: ギフト
+    sortOrder: 60
+    color: "#f3e8ff"
   - tabId: books
     label: 本
-    sortOrder: 10
+    sortOrder: 70
     color: "#dbeafe"
   - tabId: adult
     label: 成人向
-    sortOrder: 20
+    sortOrder: 80
     color: "#fbcfe8"
 quickEntries:
   - quickEntryId: book-pair
@@ -16,6 +40,12 @@ quickEntries:
       - productCode: T0000121
         quantity: 1
       - productCode: T0000122
+        quantity: 1
+  - quickEntryId: adult-new
+    label: R18新刊 小説A
+    tabId: adult
+    components:
+      - productCode: T0000141
         quantity: 1
 customerDisplay:
   welcome:

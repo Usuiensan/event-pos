@@ -1,0 +1,383 @@
+schemaVersion: 1
+departmentId: own
+products:
+  - productCode: T0000061
+    name: 国産牛切落し
+    shortName: 国産牛切落し
+    priceYen: 980
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 国産牛切落し
+      sortOrder: 10
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000062
+    name: 牛ももステーキ
+    shortName: 牛ももステーキ
+    priceYen: 1280
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 牛ももステーキ
+      sortOrder: 20
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000063
+    name: 牛焼肉用
+    shortName: 牛焼肉用
+    priceYen: 1180
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 牛焼肉用
+      sortOrder: 30
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000064
+    name: 豚ロース薄切り
+    shortName: 豚ロース薄切り
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 豚ロース薄切り
+      sortOrder: 40
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000065
+    name: 豚バラ薄切り
+    shortName: 豚バラ薄切り
+    priceYen: 458
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 豚バラ薄切り
+      sortOrder: 50
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000066
+    name: 豚こま切れ
+    shortName: 豚こま切れ
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 豚こま切れ
+      sortOrder: 60
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000067
+    name: 豚ひき肉
+    shortName: 豚ひき肉
+    priceYen: 358
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 豚ひき肉
+      sortOrder: 70
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000068
+    name: 鶏もも肉
+    shortName: 鶏もも肉
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 鶏もも肉
+      sortOrder: 80
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000069
+    name: 鶏むね肉
+    shortName: 鶏むね肉
+    priceYen: 298
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 鶏むね肉
+      sortOrder: 90
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000070
+    name: 鶏ささみ
+    shortName: 鶏ささみ
+    priceYen: 358
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 鶏ささみ
+      sortOrder: 100
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000071
+    name: 手羽先
+    shortName: 手羽先
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 手羽先
+      sortOrder: 110
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000072
+    name: 合挽き肉
+    shortName: 合挽き肉
+    priceYen: 458
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 合挽き肉
+      sortOrder: 120
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000073
+    name: ラム焼肉用
+    shortName: ラム焼肉用
+    priceYen: 798
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: ラム焼肉用
+      sortOrder: 130
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000074
+    name: ロースハム
+    shortName: ロースハム
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: ロースハム
+      sortOrder: 140
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000075
+    name: ベーコン
+    shortName: ベーコン
+    priceYen: 358
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: ベーコン
+      sortOrder: 150
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000076
+    name: あらびきウインナー
+    shortName: あらびきウインナー
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: あらびきウインナー
+      sortOrder: 160
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000077
+    name: 生ハンバーグ
+    shortName: 生ハンバーグ
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 生ハンバーグ
+      sortOrder: 170
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000078
+    name: 味付け焼肉
+    shortName: 味付け焼肉
+    priceYen: 698
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 味付け焼肉
+      sortOrder: 180
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000079
+    name: 焼鳥セット
+    shortName: 焼鳥セット
+    priceYen: 598
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: 焼鳥セット
+      sortOrder: 190
+      color: "#fee2e2"
+    sales:
+      enabled: true
+  - productCode: T0000080
+    name: ローストビーフ
+    shortName: ローストビーフ
+    priceYen: 980
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: meat
+      buttonLabel: ローストビーフ
+      sortOrder: 200
+      color: "#fee2e2"
+    sales:
+      enabled: true

@@ -1,0 +1,383 @@
+schemaVersion: 1
+departmentId: own
+products:
+  - productCode: T0000141
+    name: R18新刊 小説A
+    shortName: R18新刊 小説A
+    priceYen: 1000
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊 小説A
+      sortOrder: 10
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000142
+    name: R18新刊 小説B
+    shortName: R18新刊 小説B
+    priceYen: 1200
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊 小説B
+      sortOrder: 20
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000143
+    name: R18新刊 漫画A
+    shortName: R18新刊 漫画A
+    priceYen: 800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊 漫画A
+      sortOrder: 30
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000144
+    name: R18新刊 漫画B
+    shortName: R18新刊 漫画B
+    priceYen: 1000
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊 漫画B
+      sortOrder: 40
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000145
+    name: R18既刊 小説1
+    shortName: R18既刊 小説1
+    priceYen: 800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18既刊 小説1
+      sortOrder: 50
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000146
+    name: R18既刊 小説2
+    shortName: R18既刊 小説2
+    priceYen: 800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18既刊 小説2
+      sortOrder: 60
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000147
+    name: R18既刊 漫画1
+    shortName: R18既刊 漫画1
+    priceYen: 700
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18既刊 漫画1
+      sortOrder: 70
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000148
+    name: R18既刊 漫画2
+    shortName: R18既刊 漫画2
+    priceYen: 700
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18既刊 漫画2
+      sortOrder: 80
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000149
+    name: R18総集編 上巻
+    shortName: R18総集編 上巻
+    priceYen: 1800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18総集編 上巻
+      sortOrder: 90
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000150
+    name: R18総集編 下巻
+    shortName: R18総集編 下巻
+    priceYen: 1800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18総集編 下巻
+      sortOrder: 100
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000151
+    name: R18イラスト集A
+    shortName: R18イラスト集A
+    priceYen: 1200
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18イラスト集A
+      sortOrder: 110
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000152
+    name: R18イラスト集B
+    shortName: R18イラスト集B
+    priceYen: 1500
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18イラスト集B
+      sortOrder: 120
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000153
+    name: R18写真集
+    shortName: R18写真集
+    priceYen: 2000
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18写真集
+      sortOrder: 130
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000154
+    name: R18合同誌
+    shortName: R18合同誌
+    priceYen: 1500
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18合同誌
+      sortOrder: 140
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000155
+    name: R18コピー本
+    shortName: R18コピー本
+    priceYen: 400
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18コピー本
+      sortOrder: 150
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000156
+    name: R18特装版
+    shortName: R18特装版
+    priceYen: 2800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18特装版
+      sortOrder: 160
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000157
+    name: R18新刊セットA
+    shortName: R18新刊セットA
+    priceYen: 1800
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊セットA
+      sortOrder: 170
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000158
+    name: R18新刊セットB
+    shortName: R18新刊セットB
+    priceYen: 2000
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18新刊セットB
+      sortOrder: 180
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000159
+    name: R18既刊セット
+    shortName: R18既刊セット
+    priceYen: 2400
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18既刊セット
+      sortOrder: 190
+      color: "#fbcfe8"
+    sales:
+      enabled: true
+  - productCode: T0000160
+    name: R18全巻セット
+    shortName: R18全巻セット
+    priceYen: 5000
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: r18
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: adult
+      buttonLabel: R18全巻セット
+      sortOrder: 200
+      color: "#fbcfe8"
+    sales:
+      enabled: true

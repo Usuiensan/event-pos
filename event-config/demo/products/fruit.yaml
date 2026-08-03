@@ -1,0 +1,383 @@
+schemaVersion: 1
+departmentId: own
+products:
+  - productCode: T0000021
+    name: ふじりんご
+    shortName: ふじりんご
+    priceYen: 158
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: ふじりんご
+      sortOrder: 10
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000022
+    name: 王林りんご
+    shortName: 王林りんご
+    priceYen: 178
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: 王林りんご
+      sortOrder: 20
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000023
+    name: みかん 1袋
+    shortName: みかん 1袋
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: みかん 1袋
+      sortOrder: 30
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000024
+    name: バナナ 1房
+    shortName: バナナ 1房
+    priceYen: 198
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: バナナ 1房
+      sortOrder: 40
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000025
+    name: いちご 1パック
+    shortName: いちご 1パック
+    priceYen: 598
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: いちご 1パック
+      sortOrder: 50
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000026
+    name: シャインマスカット
+    shortName: シャインマスカット
+    priceYen: 1580
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: シャインマスカット
+      sortOrder: 60
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000027
+    name: 巨峰
+    shortName: 巨峰
+    priceYen: 980
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: 巨峰
+      sortOrder: 70
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000028
+    name: 桃 2個
+    shortName: 桃 2個
+    priceYen: 698
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: 桃 2個
+      sortOrder: 80
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000029
+    name: 梨 2個
+    shortName: 梨 2個
+    priceYen: 598
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: 梨 2個
+      sortOrder: 90
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000030
+    name: 柿 3個
+    shortName: 柿 3個
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: 柿 3個
+      sortOrder: 100
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000031
+    name: キウイ 4個
+    shortName: キウイ 4個
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: キウイ 4個
+      sortOrder: 110
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000032
+    name: グレープフルーツ
+    shortName: グレープフルーツ
+    priceYen: 198
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: グレープフルーツ
+      sortOrder: 120
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000033
+    name: オレンジ 3個
+    shortName: オレンジ 3個
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: オレンジ 3個
+      sortOrder: 130
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000034
+    name: レモン 3個
+    shortName: レモン 3個
+    priceYen: 298
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: レモン 3個
+      sortOrder: 140
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000035
+    name: パイナップル
+    shortName: パイナップル
+    priceYen: 498
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: パイナップル
+      sortOrder: 150
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000036
+    name: すいか 1/8
+    shortName: すいか 1/8
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: すいか 1/8
+      sortOrder: 160
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000037
+    name: メロン
+    shortName: メロン
+    priceYen: 1280
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: メロン
+      sortOrder: 170
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000038
+    name: ブルーベリー
+    shortName: ブルーベリー
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: ブルーベリー
+      sortOrder: 180
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000039
+    name: アボカド
+    shortName: アボカド
+    priceYen: 158
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: アボカド
+      sortOrder: 190
+      color: "#fef9c3"
+    sales:
+      enabled: true
+  - productCode: T0000040
+    name: カットフルーツ
+    shortName: カットフルーツ
+    priceYen: 398
+    tax:
+      category: tax_included
+      ratePercent: 8
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fruit
+      buttonLabel: カットフルーツ
+      sortOrder: 200
+      color: "#fef9c3"
+    sales:
+      enabled: true
