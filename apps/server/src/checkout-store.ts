@@ -369,7 +369,7 @@ function validatedPayments(payments: DraftPaymentDto[], calculation: SaleCalcula
   });
 }
 
-function allocatePublicReference(db: PosDatabase, eventId: string, businessDate: string, sessionNo: number): { raw: string; display: string } {
+export function allocatePublicReference(db: PosDatabase, eventId: string, businessDate: string, sessionNo: number): { raw: string; display: string } {
   db.prepare("INSERT INTO public_reference_counters (event_id,business_date,session_no,next_sequence) VALUES (?,?,?,1) ON CONFLICT(event_id,business_date,session_no) DO NOTHING").run(eventId, businessDate, sessionNo);
   const counter = db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?");
   const advance = db.prepare("UPDATE public_reference_counters SET next_sequence=next_sequence+1 WHERE event_id=? AND business_date=? AND session_no=?");

@@ -78,7 +78,19 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT total_yen,type FROM transactions WHERE transaction_id=?").get(originalId)).toEqual({ total_yen: 110, type: "sale" });
     const search = await app.inject({ method: "GET", url: `/api/v1/transactions/returnable?eventId=checkout-event&query=${encodeURIComponent(sale.json().publicReference)}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } }); expect(search.json().transactions[0]).toMatchObject({ transactionId: originalId, returnable: false, returnTransactionId: result.transactionId });
     let creditDraft = await startDraft(app, "register-credit-return"); creditDraft = await addLine(app, creditDraft); creditDraft = await addPayment(app, creditDraft, "credit", 110); const creditSale = await finalize(app, creditDraft, "credit-return-source");
-    const rejected = await app.inject({ method: "POST", url: `/api/v1/transactions/${creditSale.json().transactionId}/full-return`, headers: { ...headers, "idempotency-key": "credit-return-1" }, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "商品不良" } }); expect(rejected.statusCode).toBe(409); expect(rejected.json().error.code).toBe("EXTERNAL_REFUND_NOT_ACCEPTED");
+    const creditReturn = await app.inject({ method: "POST", url: `/api/v1/transactions/${creditSale.json().transactionId}/full-return`, headers: { "idempotency-key": "credit-return-1" }, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "紙面へ手書き" } }); expect(creditReturn.statusCode).toBe(201);
+    expect(db.prepare("SELECT external_result FROM payments WHERE transaction_id=?").get(creditReturn.json().transactionId)).toEqual({ external_result: "reversed" });
+  });
+  it("権限制限なしで商品指定または金額指定の例外返金を追記し署名欄付きレシートを作る", async () => {
+    const { app, db } = makeApp(); await installCatalog(app); const sessionId="manual-refund-session";
+    await app.inject({method:"POST",url:"/api/v1/cash-sessions",payload:{sessionId,eventId:catalog.eventId,businessDate:"2026-08-02",cashboxId:"register-1"}});
+    await app.inject({method:"POST",url:`/api/v1/cash-sessions/${sessionId}/checks/opening`,payload:{counted:[{denomination:1000,quantity:2}]}});
+    const response=await app.inject({method:"POST",url:"/api/v1/refunds/manual",headers:{"idempotency-key":"manual-refund-1"},payload:{eventId:catalog.eventId,cashSessionId:sessionId,terminalId:"register-1",description:"マスタ異常商品の返金",amountYen:350,paymentKind:"cash"}});
+    expect(response.statusCode).toBe(201); const id=response.json().transactionId;
+    expect(db.prepare("SELECT type,total_yen,staff_id FROM transactions WHERE transaction_id=?").get(id)).toEqual({type:"return",total_yen:-350,staff_id:"unsigned-operator"});
+    expect(db.prepare("SELECT type,amount_yen FROM cash_movements WHERE transaction_id=?").get(id)).toEqual({type:"return",amount_yen:350});
+    const snapshot=JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(id) as {receipt_snapshot_json:string}).receipt_snapshot_json));
+    expect(snapshot.footer).toContain("扱い者署名"); expect(snapshot.footer).toContain("返品理由");
   });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);

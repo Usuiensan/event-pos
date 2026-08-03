@@ -22,7 +22,7 @@ import {
   type PaymentKind,
 } from "./checkout-store.js";
 import type { RealtimeHub } from "./realtime.js";
-import { createFullReturn, searchReturnableTransactions } from "./returns.js";
+import { createFullReturn, createManualRefund, searchReturnableTransactions } from "./returns.js";
 
 type PrintQueue = { trigger(): void };
 export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean };
@@ -63,16 +63,18 @@ function draftReply(reply: FastifyReply, draft: ReturnType<typeof getSaleDraft>)
 
 export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRouteOptions): void {
   app.get<{ Querystring: { eventId?: string; query?: string } }>("/api/v1/transactions/returnable", async (request, reply) => {
-    const actorId = headerValue(request.headers["x-pos-actor-id"]); const role = headerValue(request.headers["x-pos-role"]);
-    if (!actorId || role !== "manager") return sendError(reply, new CheckoutError(role ? 403 : 401, "RETURN_MANAGER_REQUIRED", "責任者権限が必要です"));
     if (!request.query.eventId || !request.query.query?.trim()) return sendError(reply, new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です"));
     return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };
   });
   app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
-    const actorId = headerValue(request.headers["x-pos-actor-id"]); const role = headerValue(request.headers["x-pos-role"]); const key = headerValue(request.headers["idempotency-key"]);
-    if (!actorId || role !== "manager") return sendError(reply, new CheckoutError(role ? 403 : 401, "RETURN_MANAGER_REQUIRED", "責任者権限が必要です"));
+    const actorId = headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
     try { const result = createFullReturn(options.database, { originalTransactionId: request.params.transactionId, cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", reason: request.body?.reason ?? "", idempotencyKey: key ?? "" }); options.printQueue?.trigger(); return reply.code(201).send(result); }
     catch (error) { return sendError(reply, error instanceof CheckoutError ? error : new CheckoutError(500, "RETURN_FAILED", error instanceof Error ? error.message : "返品処理に失敗しました")); }
+  });
+  app.post<{ Body: { eventId?: string; cashSessionId?: string; terminalId?: string; description?: string; amountYen?: number; productCode?: string; quantity?: number; paymentKind?: "cash" | "credit" | "accounts_receivable" } }>("/api/v1/refunds/manual", async (request, reply) => {
+    const actorId = headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
+    try { const result = createManualRefund(options.database, { eventId: request.body?.eventId ?? "", cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", description: request.body?.description ?? "", amountYen: Number(request.body?.amountYen), ...(request.body?.productCode ? { productCode: request.body.productCode } : {}), ...(request.body?.quantity ? { quantity: request.body.quantity } : {}), paymentKind: request.body?.paymentKind ?? "cash", idempotencyKey: key ?? "" }); options.printQueue?.trigger(); return reply.code(201).send(result); }
+    catch (error) { return sendError(reply, error instanceof CheckoutError ? error : new CheckoutError(500, "MANUAL_REFUND_FAILED", error instanceof Error ? error.message : "例外返金に失敗しました")); }
   });
   app.get<{ Querystring: { eventId?: string; code?: string } }>("/api/v1/products", async (request, reply) => {
     if (!request.query.eventId || !request.query.code) return sendError(reply, new CheckoutError(400, "PRODUCT_QUERY_REQUIRED", "eventIdとcodeが必要です"));

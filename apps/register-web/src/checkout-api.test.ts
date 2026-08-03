@@ -30,9 +30,10 @@ describe("checkout API client", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/cash-sessions/checkout%3Aevent%3A2026-08-03%3Aregister-1/checks/closing", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-role": "manager", "x-pos-actor-id": "001", "idempotency-key": "closing-1" }) }));
   });
 
-  it("全部返品へ責任者と冪等キーを送る", async () => {
+  it("全部返品へ扱い者と冪等キーを送りroleでは制限しない", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "return-1" }) }); vi.stubGlobal("fetch", fetchMock);
     await checkoutApi.createFullReturn("sale-1", { cashSessionId: "cash-1", terminalId: "register-1", reason: "商品不良" }, "001", "return-key-1");
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/transactions/sale-1/full-return", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-role": "manager", "x-pos-actor-id": "001", "idempotency-key": "return-key-1" }) }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/transactions/sale-1/full-return", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-actor-id": "001", "idempotency-key": "return-key-1" }) }));
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("x-pos-role");
   });
 });
