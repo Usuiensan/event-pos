@@ -1,7 +1,2 @@
 schemaVersion: 1
-departments:
-  - departmentId: own
-    code: "01"
-    name: 自サークル
-    settlementOwnerId: self
-    enabled: true
+departments: []

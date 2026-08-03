@@ -1,26 +1,11 @@
 schemaVersion: 1
 staff:
-  - staffId: manager-1
+  - staffId: "001"
     responsibleNumber: "001"
-    displayName: 管理者
+    displayName: テスト管理者
     role: admin
     enabled: true
-    permissions: [catalog_import, refund, void, reprint, cash_check, business_close]
-  - staffId: yorumiya
-    responsibleNumber: "002"
-    displayName: よるみや
-    role: operator
-    enabled: true
-    permissions: []
-  - staffId: staff003
-    responsibleNumber: "003"
-    displayName: うすいえんさん
-    role: admin
-    enabled: true
-    permissions: [catalog_import, refund, void, reprint, cash_check, business_close]
-  - staffId: staff004
-    responsibleNumber: "004"
-    displayName: スタッフ004
-    role: operator
-    enabled: true
-    permissions: []
+    permissions:
+      - catalog_import
+      - refund
+      - reprint
