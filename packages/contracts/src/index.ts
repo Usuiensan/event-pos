@@ -10,6 +10,7 @@ export type { Gs1CompanyPrefixRecord, Gs1CompanyPrefixRegistry, Gs1ProductCodeIn
 export { calculateMod10CheckDigit, normalizeBarcodeInput, parseBarcode, parsePaymentSlipCode, validGtin } from "./barcode.js";
 export type { BarcodeKind, BarcodeParseResult, BookPriceInfo, PaymentSlipCode, PeriodicalInfo } from "./barcode.js";
 export type { IsdnProductInfo } from "./isdn.js";
+export type { IsbnProductInfo } from "./isbn.js";
 export { calculateAutoDiscounts } from "./auto-discount.js";
 export type { AppliedAutoDiscount, AutoDiscountRule } from "./auto-discount.js";
 export { calculateSale, SaleCalculationError } from "./checkout.js";

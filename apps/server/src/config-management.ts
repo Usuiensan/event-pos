@@ -8,6 +8,7 @@ import { getOpenBusinessSession, synchronizeCatalogStaff } from "./business-stor
 import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
+import { fetchNdlIsbnProduct } from "./isbn.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -63,6 +64,14 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       requireAuthActor(options.database, request, "manager", options.authRequired);
       if (!/^\d{13}$/.test(request.params.code) || !request.params.code.startsWith("278")) return reply.code(400).send({ error: { code: "INVALID_ISDN", message: "ISDNは278で始まる13桁の番号です", details: {}, requestId: request.id } });
       return { info: await fetchIsdnProduct(request.params.code) };
+    } catch (error) { return failure(reply, error); }
+  });
+
+  app.get<{ Params: { code: string } }>("/api/v1/isbn/:code", async (request, reply) => {
+    try {
+      requireAuthActor(options.database, request, "manager", options.authRequired);
+      if (!/^97[89]\d{10}$/.test(request.params.code)) return reply.code(400).send({ error: { code: "INVALID_ISBN", message: "ISBNは978または979で始まる13桁の番号です", details: {}, requestId: request.id } });
+      return { info: await fetchNdlIsbnProduct(request.params.code) };
     } catch (error) { return failure(reply, error); }
   });
 
