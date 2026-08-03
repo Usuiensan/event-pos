@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import websocket from "@fastify/websocket";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { createCashSession, createPrintJob, findCashJournalCandidates, findCashSessionSummary, getCashSessionSummary, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashSession, createPrintJob, findCashJournalCandidates, findCashSessionSummary, getCashSessionSummary, getCashSettlementSummary, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
 import { registerCheckoutRoutes } from "./checkout-routes.js";
 import type { FailureInjector } from "./checkout-store.js";
@@ -81,6 +81,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.get<{ Params: { sessionId: string } }>("/api/v1/cash-sessions/:sessionId", async (request, reply) => {
     const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
     return getCashSessionSummary(options.database, request.params.sessionId) ?? reply.code(404).send({ error: "cash_session_not_found" });
+  });
+  app.get<{ Params: { sessionId: string } }>("/api/v1/cash-sessions/:sessionId/settlement-summary", async (request, reply) => {
+    const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });
+    if (!getCashSessionSummary(options.database, request.params.sessionId)) return reply.code(404).send({ error: "cash_session_not_found" });
+    return getCashSettlementSummary(options.database, request.params.sessionId);
   });
   app.post<{ Params: { sessionId: string }; Body: { type: "sale" | "return" | "pay_in" | "pay_out"; amountYen: number; transactionId?: string; reason: string; idempotencyKey?: string; actorId?: string; terminalId?: string } }>("/api/v1/cash-sessions/:sessionId/movements", async (request, reply) => {
     const auth = cashAuth(options.database, request, "operator", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { cashDenominations, calculateCashActual, type CashCount, type CashDenomination } from "@event-pos/contracts";
-import { checkoutApi, type BackupArtifactDto, type CashSessionDto } from "./checkout-api.js";
+import { checkoutApi, type BackupArtifactDto, type CashSessionDto, type CashSettlementSummary } from "./checkout-api.js";
 
 type CheckKind = "opening" | "interim" | "closing";
 type PendingAction =
@@ -25,6 +25,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [lastArtifact, setLastArtifact] = useState<BackupArtifactDto | null>(null);
+  const [settlementSummary, setSettlementSummary] = useState<CashSettlementSummary | null>(null);
 
   const refresh = async () => {
     const result = await checkoutApi.getCurrentCashSession(eventId, businessDate, cashboxId, actorId);
@@ -69,6 +70,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
         const result = await checkoutApi.saveCashCheck(current.sessionId, pending.checkKind, { counted: pending.counted, ...(pending.carryoverYen === undefined ? {} : { carryoverYen: pending.carryoverYen }), terminalId }, actorId, idempotencyKey);
         localStorage.removeItem(storageKey);
         if (result.backupArtifact) { setLastArtifact(result.backupArtifact); onArtifact?.(result.backupArtifact); }
+        if (pending.checkKind !== "opening") setSettlementSummary(await checkoutApi.getCashSettlementSummary(current.sessionId));
       } else if (pending.kind === "movement") {
         if (!session) throw new Error("営業開始後に入出金してください");
         const storageKey = `event-pos-cash-movement-${session.sessionId}`; const idempotencyKey = localStorage.getItem(storageKey) ?? crypto.randomUUID(); localStorage.setItem(storageKey, idempotencyKey);
@@ -87,6 +89,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
     {loading ? <p>現金セッションを確認しています…</p> : <>
       <div className="cash-summary"><div><span>状態</span><strong>{!session ? "未開局" : session.state === "closed" ? "精算済み" : session.openingYen === null ? "準備金未登録" : "営業中"}</strong></div><div><span>理論現金</span><strong>{yen(theoreticalYen)}</strong></div><div><span>直近過不足</span><strong className={(latestCheck?.differenceYen ?? 0) === 0 ? "cash-ok" : "cash-warning"}>{latestCheck ? yen(latestCheck.differenceYen) : "—"}</strong></div></div>
       {lastArtifact && <div className="cash-artifact-result"><strong>成果物: {lastArtifact.state === "completed" ? "成功" : lastArtifact.state === "failed" ? "失敗" : "生成待ち"}</strong><span>成果物ID {lastArtifact.artifactId}</span></div>}
+      {settlementSummary && <section className="cash-settlement-summary" aria-label="中間計・精算集計"><h3>中間計・精算集計</h3><p>取引 {settlementSummary.salesCount}件／売上 {yen(settlementSummary.salesYen)}</p><SummaryRows title="商品別" rows={settlementSummary.products.map((row) => `${row.name} ×${row.quantity}　${yen(row.salesYen)}`)} /><SummaryRows title="担当者別" rows={settlementSummary.staff.map((row) => `${row.staffId} ${row.salesCount}件　${yen(row.salesYen)}`)} /><SummaryRows title="決済手段別" rows={settlementSummary.payments.map((row) => `${row.methodName} ${row.salesCount}件　${yen(row.salesYen)}`)} /><SummaryRows title="時間帯別（JST）" rows={settlementSummary.timeBands.map((row) => `${row.timeBand} ${row.salesCount}件　${yen(row.salesYen)}`)} /></section>}
       {!checkKind && !movementType && <div className="cash-actions">
         {(!session || session.openingYen === null) && <button onClick={() => beginCheck("opening")}>営業開始・準備金入力</button>}
         {session?.state === "open" && session.openingYen !== null && <><button onClick={() => setMovementType("pay_in")}>入金</button><button onClick={() => setMovementType("pay_out")}>出金</button><button onClick={() => beginCheck("interim")}>中間点検</button><button className="cash-danger" onClick={() => beginCheck("closing")}>精算</button></>}
@@ -100,3 +103,5 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
     </>}
   </section></div>;
 }
+
+function SummaryRows({ title, rows }: { title: string; rows: string[] }) { return <div className="cash-summary-group"><h4>{title}</h4>{rows.length ? <ul>{rows.map((row) => <li key={row}>{row}</li>)}</ul> : <p>該当なし</p>}</div>; }

@@ -141,6 +141,25 @@ export type CashSessionSummary = {
   movements: Array<{ id: number; type: CashMovement["type"]; amountYen: number; transactionId?: string; reason: string; actorId?: string; terminalId?: string; createdAt: string }>;
 };
 
+export type CashSettlementSummary = {
+  cashSessionId: string; salesCount: number; salesYen: number;
+  products: Array<{ productCode: string; name: string; quantity: number; salesYen: number }>;
+  staff: Array<{ staffId: string; salesCount: number; salesYen: number }>;
+  payments: Array<{ methodName: string; salesCount: number; salesYen: number }>;
+  timeBands: Array<{ timeBand: string; salesCount: number; salesYen: number }>;
+};
+
+export function getCashSettlementSummary(db: PosDatabase, sessionId: string): CashSettlementSummary {
+  const overall = db.prepare("SELECT COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=?").get(sessionId) as { sales_count: number; sales_yen: number };
+  const products = db.prepare(`SELECT l.product_code AS product_code,l.product_name AS name,SUM(l.quantity) AS quantity,SUM(l.net_yen) AS sales_yen
+    FROM transaction_lines l JOIN transactions t ON t.transaction_id=l.transaction_id WHERE t.session_id=? GROUP BY l.product_code,l.product_name ORDER BY l.product_code`).all(sessionId) as Array<{ product_code: string; name: string; quantity: number; sales_yen: number }>;
+  const staff = db.prepare("SELECT COALESCE(staff_id,'未設定') AS staff_id,COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=? GROUP BY staff_id ORDER BY staff_id").all(sessionId) as Array<{ staff_id: string; sales_count: number; sales_yen: number }>;
+  const payments = db.prepare(`SELECT p.method_name_snapshot AS method_name,COUNT(DISTINCT p.transaction_id) AS sales_count,COALESCE(SUM(p.amount_yen),0) AS sales_yen
+    FROM payments p JOIN transactions t ON t.transaction_id=p.transaction_id WHERE t.session_id=? GROUP BY p.method_name_snapshot ORDER BY p.method_name_snapshot`).all(sessionId) as Array<{ method_name: string; sales_count: number; sales_yen: number }>;
+  const timeBands = db.prepare("SELECT strftime('%H:00',created_at,'+9 hours') AS time_band,COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=? GROUP BY time_band ORDER BY time_band").all(sessionId) as Array<{ time_band: string; sales_count: number; sales_yen: number }>;
+  return { cashSessionId: sessionId, salesCount: Number(overall.sales_count), salesYen: Number(overall.sales_yen), products: products.map((row) => ({ productCode: row.product_code, name: row.name, quantity: Number(row.quantity), salesYen: Number(row.sales_yen) })), staff: staff.map((row) => ({ staffId: row.staff_id, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), payments: payments.map((row) => ({ methodName: row.method_name, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), timeBands: timeBands.map((row) => ({ timeBand: row.time_band, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })) };
+}
+
 export function getCashSessionSummary(db: PosDatabase, sessionId: string): CashSessionSummary | undefined {
   const session = db.prepare("SELECT * FROM cash_sessions WHERE session_id=?").get(sessionId) as Record<string, unknown> | undefined;
   if (!session) return undefined;
@@ -220,15 +239,24 @@ function yen(value: number): string { return `¥${value.toLocaleString("ja-JP")}
 function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; business_date: string; cashbox_id: string }, check: CashCheck): string {
   const labels = { opening: "開局", interim: "中間計", closing: "精算" } as const;
   const lines = check.counted.map((item) => ({ kind: "row" as const, left: `${item.denomination.toLocaleString("ja-JP")}円 × ${item.quantity}`, right: yen(item.denomination * item.quantity) }));
+  const summary = check.kind === "opening" ? undefined : getCashSettlementSummary(db, check.sessionId);
+  const section = (title: string, rows: Array<{ left: string; right: string }>) => [{ kind: "rule" as const, style: "double" as const }, { kind: "text" as const, value: title }, ...(rows.length ? rows.map((row) => ({ kind: "row" as const, ...row })) : [{ kind: "text" as const, value: "該当なし" }])];
   const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [
     { kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: `${labels[check.kind]}レシート` }, { kind: "emphasis", bold: false, underline: false, invert: false },
     { kind: "align", value: "left" }, { kind: "text", value: `営業日 ${session.business_date}` }, { kind: "text", value: `現金箱 ${session.cashbox_id}` }, { kind: "rule", style: "single" },
     ...lines, { kind: "rule", style: "single" }, { kind: "row", left: "理論現金", right: yen(check.theoreticalYen) }, { kind: "row", left: "実在高", right: yen(check.countedYen) }, { kind: "row", left: "過不足", right: yen(check.differenceYen) },
     ...(check.kind === "closing" ? [{ kind: "row" as const, left: "翌日残し", right: yen(check.carryoverYen ?? 0) }] : []), { kind: "feed", lines: 8 }, { kind: "cut", mode: "partial" },
   ] };
+  if (summary) document.nodes.splice(-2, 0,
+    ...section("売上集計", [{ left: "取引件数", right: `${summary.salesCount}件` }, { left: "売上合計", right: yen(summary.salesYen) }]),
+    ...section("商品別", summary.products.map((row) => ({ left: `${row.name.slice(0, 14)} ×${row.quantity}`, right: yen(row.salesYen) }))),
+    ...section("担当者別", summary.staff.map((row) => ({ left: `${row.staffId} ${row.salesCount}件`, right: yen(row.salesYen) }))),
+    ...section("決済手段別", summary.payments.map((row) => ({ left: `${row.methodName.slice(0, 14)} ${row.salesCount}件`, right: yen(row.salesYen) }))),
+    ...section("時間帯別（JST）", summary.timeBands.map((row) => ({ left: `${row.timeBand} ${row.salesCount}件`, right: yen(row.salesYen) }))),
+  );
   const canonicalIr = canonicalizeReceiptDocument(document); const bytes = receiptDocumentToEscPos(document); const jobId = randomUUID(); const operationId = randomUUID();
   db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,finishing_policy_id,finishing_policy_version,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')")
-    .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v2", bytesSha256(bytes), DEFAULT_FINISHING_POLICY.id, DEFAULT_FINISHING_POLICY.version, canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
+    .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, settlementSummary: summary, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v3", bytesSha256(bytes), DEFAULT_FINISHING_POLICY.id, DEFAULT_FINISHING_POLICY.version, canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
   const sequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
   db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'print','receipt-1',?,'pending',?,0,4,?,?)").run(operationId, sequence, jobId, check.createdAt, check.createdAt, check.createdAt);
   return jobId;
