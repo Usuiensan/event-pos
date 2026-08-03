@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": { target: process.env.POS_API_PROXY_TARGET ?? "http://127.0.0.1:3000", changeOrigin: true, ws: true },
       "/health": { target: process.env.POS_API_PROXY_TARGET ?? "http://127.0.0.1:3000", changeOrigin: true },
+      "/training-api": { target: process.env.POS_TRAINING_API_PROXY_TARGET ?? "http://127.0.0.1:3002", changeOrigin: true, ws: true, rewrite: (path) => path.replace(/^\/training-api/, "") },
     },
   },
   define: {

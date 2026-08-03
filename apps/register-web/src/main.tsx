@@ -5,7 +5,7 @@ import { createSpeechPlayer, playOperationSound, previewSystemErrorSound, speakA
 import { demoCatalog } from "./demo-catalog.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
 import { convertToTenThousands } from "./tender-input.js";
-import { CheckoutApiError, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CustomerProjection, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
+import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CustomerProjection, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
 import { connectRealtime } from "./realtime-client.js";
 import { ageSkipRemainingSeconds, canSkipCustomerAgeConfirmation } from "./age-skip.js";
@@ -371,7 +371,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [checkoutLocked, inputBuffer, lastAddedShortcut, role, selectedLine, showSignIn, total, catalog.products]);
-  useEffect(() => { fetch(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
+  useEffect(() => { fetch(apiUrl(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`)).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
   useEffect(() => {
     const transactionId = serverDraft?.completedTransactionId;
     if (!transactionId) { setCurrentTransactionId(null); setCurrentPublicReference(""); setPrintJob(null); return; }
@@ -380,7 +380,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     refreshTransaction(); const timer = window.setInterval(() => { if (jobId) void checkoutApi.getPrintJob(jobId).then((job) => { if (!stopped) setPrintJob(job); }).catch(() => undefined); else refreshTransaction(); }, 1000);
     return () => { stopped = true; window.clearInterval(timer); };
   }, [serverDraft?.completedTransactionId]);
-  useEffect(() => { let stopped = false; const poll = () => { void fetch("/api/v1/emergency-alerts/latest", { cache: "no-store" }).then(async (response) => response.ok ? await response.json() as { alert: EmergencyAlert | null } : null).then((result) => { const alert = result?.alert; if (stopped || !alert || alert.id === lastEmergencyAlertIdRef.current) return; lastEmergencyAlertIdRef.current = alert.id; setEmergencyAlert(alert); speakEmergencyAlertReceived(routedSpeech); }).catch(() => { /* 次回のポーリングで復旧する */ }); }; poll(); const timer = window.setInterval(poll, 1000); return () => { stopped = true; window.clearInterval(timer); }; }, [routedSpeech]);
+  useEffect(() => { let stopped = false; const poll = () => { void fetch(apiUrl("/api/v1/emergency-alerts/latest"), { cache: "no-store" }).then(async (response) => response.ok ? await response.json() as { alert: EmergencyAlert | null } : null).then((result) => { const alert = result?.alert; if (stopped || !alert || alert.id === lastEmergencyAlertIdRef.current) return; lastEmergencyAlertIdRef.current = alert.id; setEmergencyAlert(alert); speakEmergencyAlertReceived(routedSpeech); }).catch(() => { /* 次回のポーリングで復旧する */ }); }; poll(); const timer = window.setInterval(poll, 1000); return () => { stopped = true; window.clearInterval(timer); }; }, [routedSpeech]);
   const saveCatalog = async (next: EventCatalog) => { await checkoutApi.saveCatalog(next.eventId, JSON.parse(exportEventCatalog(next))); setCatalog(next); };
   const highlightLine = (productCode: string, state: "active" | "cancelled" = "active") => { const highlightKey = `${state}:${productCode}`; triggerHighlight(highlightKey); localStorage.setItem(storageKey("line-highlight"), JSON.stringify({ highlightKey, productCode, at: Date.now() })); };
   function applyLastAddedQuantityShortcut() {
@@ -539,8 +539,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
 
 function Launcher() {
   const [registerNumber, setRegisterNumber] = useState(1);
-  const openRegister = (role: RegisterRole) => { const url = new URL(window.location.href); url.search = new URLSearchParams({ register: String(registerNumber), role }).toString(); window.location.assign(url); };
-  return <main className="launcher-screen"><section className="launcher-card"><div className="launcher-mark">POS</div><h1>event-pos</h1><p>使用するレジ番号と画面を選択してください。</p><fieldset><legend>レジ番号</legend><div className="register-selector">{[1, 2, 3, 4].map((number) => <button key={number} className={registerNumber === number ? "active" : ""} onClick={() => setRegisterNumber(number)}>レジ{number}</button>)}</div></fieldset><div className="role-selector"><button className="staff-launch" onClick={() => openRegister("staff")}><strong>店員側画面</strong><span>商品登録・会計操作</span></button><button className="customer-launch" onClick={() => openRegister("customer")}><strong>顧客側画面</strong><span>明細・合計・年齢確認</span></button><button className="admin-launch" onClick={() => window.location.assign("/?role=admin")}><strong>管理画面</strong><span>マスタ・帳票・運用設定</span></button></div><small>ホーム画面から起動した場合も、この画面で使用するレジを選択します。</small></section></main>;
+  const openRegister = (role: RegisterRole, mode?: "training") => { const url = new URL(window.location.href); url.search = new URLSearchParams({ register: String(registerNumber), role, ...(mode ? { mode } : {}) }).toString(); window.location.assign(url); };
+  return <main className="launcher-screen"><section className="launcher-card"><div className="launcher-mark">POS</div><h1>event-pos</h1><p>使用するレジ番号と画面を選択してください。</p><fieldset><legend>レジ番号</legend><div className="register-selector">{[1, 2, 3, 4].map((number) => <button key={number} className={registerNumber === number ? "active" : ""} onClick={() => setRegisterNumber(number)}>レジ{number}</button>)}</div></fieldset><div className="role-selector"><button className="staff-launch" onClick={() => openRegister("staff")}><strong>店員側画面</strong><span>商品登録・会計操作</span></button><button className="customer-launch" onClick={() => openRegister("customer")}><strong>顧客側画面</strong><span>明細・合計・年齢確認</span></button><button className="admin-launch" onClick={() => window.location.assign("/?role=admin")}><strong>管理画面</strong><span>マスタ・帳票・運用設定</span></button></div><button className="training-launch" onClick={() => openRegister("staff", "training")}><strong>トレーニングモード</strong><span>本番DBを変更せず、会計・印刷を練習</span></button><small>ホーム画面から起動した場合も、この画面で使用するレジを選択します。</small></section></main>;
 }
 
 function Root() {

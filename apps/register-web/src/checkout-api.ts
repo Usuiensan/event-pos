@@ -87,9 +87,14 @@ export class CheckoutApiError extends Error {
 
 let csrfToken = "";
 
+export function apiUrl(url: string): string {
+  const training = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "training";
+  return training ? `/training-api${url}` : url;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
-  const response = await fetch(url, { cache: "no-store", credentials: "same-origin", ...init, headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...(csrfToken && method !== "GET" && method !== "HEAD" ? { "x-csrf-token": csrfToken } : {}), ...init?.headers } });
+  const response = await fetch(apiUrl(url), { cache: "no-store", credentials: "same-origin", ...init, headers: { ...(init?.body ? { "content-type": "application/json" } : {}), ...(csrfToken && method !== "GET" && method !== "HEAD" ? { "x-csrf-token": csrfToken } : {}), ...init?.headers } });
   const body = await response.json().catch(() => null) as { error?: string | { code?: string; message?: string; details?: Record<string, unknown> }; message?: string } | T | null;
   if (!response.ok) {
     const error = body && typeof body === "object" && "error" in body ? body.error : undefined;

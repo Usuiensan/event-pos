@@ -43,5 +43,34 @@ services:
         - action: rebuild
           path: event-config
 
+  pos-training:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      POS_TRAINING_MODE: "1"
+      POS_TRAINING_SOURCE_URL: http://pos:3000
+      POS_TRAINING_EVENT_ID: demo-event-large
+      POS_REQUIRE_AUTH: "1"
+      POS_DATABASE_PATH: ":memory:"
+      POS_EVENT_CONFIG_DIR: /workspace/event-config/demo
+      POS_ARTIFACT_ROOT: /tmp/event-pos-training-artifacts
+      PRINTER_HOST_URL: http://host.docker.internal:4318
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./event-config:/workspace/event-config:ro
+    depends_on:
+      pos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pos-data:
