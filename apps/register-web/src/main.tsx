@@ -19,6 +19,7 @@ import { OperationsDashboard } from "./operations-dashboard.js";
 import { ReturnOperations } from "./return-operations.js";
 import { HoldOperations } from "./hold-operations.js";
 import { AdminSettings } from "./admin-settings.js";
+import { createUuid } from "./uuid.js";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = demoCatalog;
@@ -106,7 +107,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const key = storageKey("customer-terminal-id");
     const existing = localStorage.getItem(key);
     if (existing) return existing;
-    const created = `customer-${registerNumber}-${crypto.randomUUID()}`;
+    const created = `customer-${registerNumber}-${createUuid()}`;
     localStorage.setItem(key, created);
     return created;
   });
@@ -223,7 +224,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   };
   const regenerateBackupArtifact = (artifact: BackupArtifactDto) => {
     if (!artifact.canRegenerate || regeneratingArtifactId) return;
-    const keyName = storageKey(`backup-regenerate-${artifact.artifactId}`); const idempotencyKey = localStorage.getItem(keyName) ?? crypto.randomUUID(); localStorage.setItem(keyName, idempotencyKey);
+    const keyName = storageKey(`backup-regenerate-${artifact.artifactId}`); const idempotencyKey = localStorage.getItem(keyName) ?? createUuid(); localStorage.setItem(keyName, idempotencyKey);
     setRegeneratingArtifactId(artifact.artifactId);
     void checkoutApi.regenerateBackupArtifact(artifact.artifactId, signedInResponsibleNumber, idempotencyKey)
       .then((created) => { localStorage.removeItem(keyName); setBackupArtifacts((current) => [created, ...current.filter((item) => item.artifactId !== created.artifactId)]); setBackupArtifactsError(""); })
@@ -243,7 +244,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       let draft = await openDraft();
       const kind: PaymentKind = ({ "現金": "cash", "クレジット": "credit", "売掛": "accounts_receivable", "無配": "no_charge" } as const)[method];
       if (draft.payments.length === 0) { draft = await checkoutApi.addPayment(draft.draftId, draft.version, { kind, amountYen: kind === "no_charge" ? 0 : total, ...(kind === "cash" ? { tenderedYen: amount } : {}) }); applyDraft(draft); }
-      const keyName = storageKey(`finalize-${draft.draftId}`); const idempotencyKey = localStorage.getItem(keyName) ?? crypto.randomUUID(); localStorage.setItem(keyName, idempotencyKey);
+      const keyName = storageKey(`finalize-${draft.draftId}`); const idempotencyKey = localStorage.getItem(keyName) ?? createUuid(); localStorage.setItem(keyName, idempotencyKey);
       await checkoutApi.finalize(draft.draftId, draft.version, idempotencyKey);
       const completed = await checkoutApi.getDraft(draft.draftId); applyDraft(completed);
       setReceived(amount); setCompletedPaymentLabel(method); setPaymentFinished(true); setShowPayment(false); updateInputBuffer(""); playOperationSound("complete", audioSettings.tapVolume); localStorage.removeItem(keyName);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cashDenominations, calculateCashActual, type CashCount, type CashDenomination } from "@event-pos/contracts";
 import { checkoutApi, type BackupArtifactDto, type CashSessionDto, type CashSettlementSummary } from "./checkout-api.js";
+import { createUuid } from "./uuid.js";
 
 type CheckKind = "opening" | "interim" | "closing";
 type PendingAction =
@@ -66,14 +67,14 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
         }
         if (!current) throw new Error("レジの準備を開始できませんでした");
         const storageKey = `event-pos-cash-check-${current.sessionId}-${pending.checkKind}`;
-        const idempotencyKey = localStorage.getItem(storageKey) ?? crypto.randomUUID(); localStorage.setItem(storageKey, idempotencyKey);
+        const idempotencyKey = localStorage.getItem(storageKey) ?? createUuid(); localStorage.setItem(storageKey, idempotencyKey);
         const result = await checkoutApi.saveCashCheck(current.sessionId, pending.checkKind, { counted: pending.counted, ...(pending.carryoverYen === undefined ? {} : { carryoverYen: pending.carryoverYen }), terminalId }, actorId, idempotencyKey);
         localStorage.removeItem(storageKey);
         if (result.backupArtifact) { setLastArtifact(result.backupArtifact); onArtifact?.(result.backupArtifact); }
         if (pending.checkKind !== "opening") setSettlementSummary(await checkoutApi.getCashSettlementSummary(current.sessionId));
       } else if (pending.kind === "movement") {
         if (!session) throw new Error("営業開始後に入出金してください");
-        const storageKey = `event-pos-cash-movement-${session.sessionId}`; const idempotencyKey = localStorage.getItem(storageKey) ?? crypto.randomUUID(); localStorage.setItem(storageKey, idempotencyKey);
+        const storageKey = `event-pos-cash-movement-${session.sessionId}`; const idempotencyKey = localStorage.getItem(storageKey) ?? createUuid(); localStorage.setItem(storageKey, idempotencyKey);
         await checkoutApi.saveCashMovement(session.sessionId, { type: pending.movementType, amountYen: pending.amountYen, reason: pending.reason, idempotencyKey, terminalId }, actorId); localStorage.removeItem(storageKey);
       } else {
         if (!session) throw new Error("現金セッションがありません");

@@ -1,8 +1,9 @@
 import type { PosError } from "./error-dialog.js";
+import { createUuid } from "./uuid.js";
 
 export type SystemErrorReport = { errorId: string; occurredAt: string; content: string };
 
-function errorId(): string { return crypto.randomUUID(); }
+function errorId(): string { return createUuid(); }
 
 export function createSystemErrorReport(message: string, error?: unknown): SystemErrorReport {
   const id = errorId();
