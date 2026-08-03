@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   calculateSale,
   createPublicReference,
@@ -12,6 +12,8 @@ import {
 import { getCatalog, type PosDatabase } from "./db.js";
 import { renderReceipt } from "./receipt-store.js";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
+import { assertRegisterOpen } from "./business-store.js";
+import { uuidV7 } from "./ids.js";
 
 export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
@@ -58,15 +60,7 @@ export class CheckoutError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown> = {}) { super(message); }
 }
 
-export function uuidV7(): string {
-  const bytes = randomBytes(16);
-  let timestamp = BigInt(Date.now());
-  for (let index = 5; index >= 0; index -= 1) { bytes[index] = Number(timestamp & 0xffn); timestamp >>= 8n; }
-  bytes[6] = (bytes[6]! & 0x0f) | 0x70;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
+export { uuidV7 } from "./ids.js";
 
 function immediate<T>(db: PosDatabase, work: () => T): T {
   db.exec("BEGIN IMMEDIATE;");
@@ -173,24 +167,17 @@ function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
   return draft;
 }
 
-function ensureCashSession(db: PosDatabase, eventId: string, businessDate: string, registerId: string, now: string): string {
-  const sessionId = `checkout:${eventId}:${businessDate}:${registerId}`;
-  db.prepare(`INSERT INTO cash_sessions (session_id, event_id, business_date, cashbox_id, state, created_at)
-    VALUES (?, ?, ?, ?, 'open', ?) ON CONFLICT(session_id) DO NOTHING`).run(sessionId, eventId, businessDate, registerId, now);
-  return sessionId;
-}
-
 export function createSaleDraft(db: PosDatabase, input: { eventId: string; registerId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }): SaleDraftDto {
   if (!input.eventId || !input.registerId || !input.staffId || !input.terminalId || !/^\d{4}-\d{2}-\d{2}$/.test(input.businessDate)) throw new CheckoutError(400, "INVALID_DRAFT", "ドラフト開始情報が不正です");
   catalogFor(db, input.eventId);
   return immediate(db, () => {
     const existing = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id = ? AND state IN ('editing','payment','finalizing')").get(input.registerId) as { draft_id: string } | undefined;
     if (existing) return getSaleDraft(db, existing.draft_id);
+    const register = assertRegisterOpen(db, input.eventId, input.registerId);
     const now = new Date().toISOString();
     const draftId = uuidV7();
-    const cashSessionId = ensureCashSession(db, input.eventId, input.businessDate, input.registerId, now);
     db.prepare(`INSERT INTO sale_drafts (draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,1,'editing',?,?)`).run(draftId, input.eventId, input.registerId, input.staffId, input.terminalId, input.businessDate, input.sessionNo ?? 1, cashSessionId, now, now);
+      VALUES (?,?,?,?,?,?,?,?,1,'editing',?,?)`).run(draftId, input.eventId, input.registerId, input.staffId, input.terminalId, register.businessDate, register.sessionNo, register.cashSessionId, now, now);
     return updateProjection(db, draftId);
   });
 }
@@ -200,9 +187,11 @@ export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleD
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
 
-function assertMutable(row: Record<string, unknown>, expectedVersion: number): void {
+function assertMutable(db: PosDatabase, row: Record<string, unknown>, expectedVersion: number): void {
   if (Number(row.version) !== expectedVersion) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています", { latestVersion: Number(row.version), draftId: String(row.draft_id) });
   if (row.state !== "editing" && row.state !== "payment") throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは変更できません", { state: row.state });
+  const register = assertRegisterOpen(db, String(row.event_id), String(row.register_id));
+  if (register.cashSessionId !== row.cash_session_id) throw new CheckoutError(409, "BUSINESS_CLOSED", "この会計を開始した営業は終了しています");
 }
 
 function bump(db: PosDatabase, draftId: string, version: number, state?: "editing" | "payment"): void {
@@ -240,7 +229,7 @@ function addToMatchingLine(db: PosDatabase, draftId: string, product: Record<str
 
 export function addDraftLine(db: PosDatabase, draftId: string, version: number, input: { productCode: string; quantity?: number; source?: "manual" | "scan"; productOptions?: ProductOptions }): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const product = productByCode(db, String(row.event_id), input.productCode);
     const quantity = input.quantity ?? 1;
     const productOptionsJson = canonicalProductOptions(input.productOptions);
@@ -252,9 +241,44 @@ export function addDraftLine(db: PosDatabase, draftId: string, version: number, 
   });
 }
 
+export function addHoldLinesToDraft(db: PosDatabase, draftId: string, version: number, lines: Array<{ productId: string; quantity: number }>): SaleDraftDto {
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    if (!lines.length) throw new CheckoutError(400, "HOLD_EMPTY", "取り置き明細がありません");
+    for (const line of lines) {
+      const product = db.prepare("SELECT * FROM event_products WHERE product_id=? AND event_id=?").get(line.productId, String(row.event_id)) as Record<string, unknown> | undefined;
+      if (!product) throw new CheckoutError(409, "HOLD_PRODUCT_UNAVAILABLE", "取り置き商品の商品マスタが見つかりません");
+      insertLine(db, draftId, product, line.quantity, "hold", null, "{}", new Date().toISOString());
+    }
+    bump(db, draftId, version, "editing");
+    return updateProjection(db, draftId);
+  });
+}
+
+export function claimHoldToDraft(db: PosDatabase, holdId: string, draftId: string, version: number): SaleDraftDto {
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    const hold = db.prepare("SELECT event_id,state FROM holds WHERE hold_id=?").get(holdId) as { event_id: string; state: string } | undefined;
+    if (!hold) throw new CheckoutError(404, "HOLD_NOT_FOUND", "取り置きが見つかりません");
+    if (hold.event_id !== String(row.event_id) || hold.state !== "active") throw new CheckoutError(409, "HOLD_NOT_CLAIMABLE", "この取り置きは受取会計に使用できません");
+    const lines = db.prepare("SELECT product_id,quantity FROM hold_lines WHERE hold_id=? ORDER BY rowid").all(holdId) as Array<{ product_id: string; quantity: number }>;
+    if (!lines.length) throw new CheckoutError(409, "HOLD_EMPTY", "取り置き明細がありません");
+    for (const line of lines) {
+      const product = db.prepare("SELECT * FROM event_products WHERE product_id=? AND event_id=?").get(line.product_id, String(row.event_id)) as Record<string, unknown> | undefined;
+      if (!product) throw new CheckoutError(409, "HOLD_PRODUCT_UNAVAILABLE", "取り置き商品の商品マスタが見つかりません");
+      insertLine(db, draftId, product, Number(line.quantity), "hold", null, "{}", new Date().toISOString());
+      db.prepare("UPDATE inventory_balances SET reserved=reserved-?,version=version+1 WHERE event_id=? AND product_id=? AND reserved>=?").run(line.quantity, hold.event_id, line.product_id, line.quantity);
+    }
+    const changed = db.prepare("UPDATE holds SET state='claimed',claimed_draft_id=?,claimed_at=? WHERE hold_id=? AND state='active'").run(draftId, new Date().toISOString(), holdId);
+    if (Number(changed.changes) !== 1) throw new CheckoutError(409, "HOLD_CLAIM_CONFLICT", "取り置きが別端末で更新されています");
+    bump(db, draftId, version, "editing");
+    return updateProjection(db, draftId);
+  });
+}
+
 export function addDraftBundle(db: PosDatabase, draftId: string, version: number, bundleId: string): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const entry = catalogFor(db, String(row.event_id)).quickEntries.find((candidate) => candidate.id === bundleId && candidate.components);
     if (!entry?.components) throw new CheckoutError(404, "BUNDLE_NOT_FOUND", "セットが見つかりません");
     const products = entry.components.map((component) => ({ component, product: productByCode(db, String(row.event_id), component.productCode) }));
@@ -267,7 +291,7 @@ export function addDraftBundle(db: PosDatabase, draftId: string, version: number
 
 export function updateDraftLine(db: PosDatabase, draftId: string, lineId: string, version: number, input: { quantity?: number; manualDiscount?: ManualDiscountInput | null }): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const line = db.prepare("SELECT status FROM sale_draft_lines WHERE draft_id=? AND line_id=?").get(draftId, lineId) as { status: string } | undefined;
     if (!line) throw new CheckoutError(404, "DRAFT_LINE_NOT_FOUND", "販売明細が見つかりません");
     if (line.status === "canceled") throw new CheckoutError(409, "DRAFT_LINE_CANCELED", "取消済み明細は変更できません");
@@ -284,7 +308,7 @@ export function updateDraftLine(db: PosDatabase, draftId: string, lineId: string
 
 export function cancelDraftLine(db: PosDatabase, draftId: string, lineId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const result = db.prepare("UPDATE sale_draft_lines SET status='canceled', canceled_at=? WHERE draft_id=? AND line_id=? AND status='active'").run(new Date().toISOString(), draftId, lineId);
     if (Number(result.changes) !== 1) throw new CheckoutError(404, "DRAFT_LINE_NOT_FOUND", "有効な販売明細が見つかりません");
     bump(db, draftId, version, "editing");
@@ -296,7 +320,7 @@ export function addDraftPayment(db: PosDatabase, draftId: string, version: numbe
   const kinds: PaymentKind[] = ["cash", "credit", "accounts_receivable", "no_charge"];
   if (!kinds.includes(input.kind)) throw new CheckoutError(400, "INVALID_PAYMENT_KIND", "支払方法が不正です");
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const lines = readLines(db, draftId);
     if (!lines.some((line) => line.status === "active")) throw new CheckoutError(409, "EMPTY_DRAFT", "商品が登録されていません");
     const existing = readPayments(db, draftId);
@@ -318,7 +342,7 @@ export function addDraftPayment(db: PosDatabase, draftId: string, version: numbe
 
 export function removeDraftPayment(db: PosDatabase, draftId: string, paymentId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const result = db.prepare("DELETE FROM draft_payments WHERE draft_id=? AND payment_id=?").run(draftId, paymentId);
     if (Number(result.changes) !== 1) throw new CheckoutError(404, "DRAFT_PAYMENT_NOT_FOUND", "支払入力が見つかりません");
     bump(db, draftId, version, "editing");
@@ -330,7 +354,7 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
   if (![18, 20].includes(input.minimumAge) || !["appearance", "id_visual", "self_declaration"].includes(input.method) || !["passed", "failed"].includes(input.result) || !input.terminalId) throw new CheckoutError(400, "INVALID_AGE_VERIFICATION", "年齢確認結果が不正です");
   if (input.method !== "self_declaration" && !input.confirmerId) throw new CheckoutError(400, "CONFIRMER_REQUIRED", "担当者による年齢確認が必要です");
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     db.prepare("INSERT INTO draft_age_verifications (verification_id,draft_id,minimum_age,method,result,confirmer_id,terminal_id,verified_at) VALUES (?,?,?,?,?,?,?,?)").run(uuidV7(), draftId, input.minimumAge, input.method, input.result, input.confirmerId ?? null, input.terminalId, new Date().toISOString());
     bump(db, draftId, version);
     return updateProjection(db, draftId);
@@ -339,7 +363,7 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
 
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     bump(db, draftId, version);
     db.prepare("UPDATE sale_drafts SET state='canceled' WHERE draft_id=?").run(draftId);
     return updateProjection(db, draftId);
@@ -373,13 +397,13 @@ export function allocatePublicReference(db: PosDatabase, eventId: string, busine
   db.prepare("INSERT INTO public_reference_counters (event_id,business_date,session_no,next_sequence) VALUES (?,?,?,1) ON CONFLICT(event_id,business_date,session_no) DO NOTHING").run(eventId, businessDate, sessionNo);
   const counter = db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id=? AND business_date=? AND session_no=?");
   const advance = db.prepare("UPDATE public_reference_counters SET next_sequence=next_sequence+1 WHERE event_id=? AND business_date=? AND session_no=?");
-  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? LIMIT 1");
+  const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? UNION SELECT 1 FROM holds WHERE event_id=? AND public_reference=? LIMIT 1");
   while (true) {
     const sequence = (counter.get(eventId, businessDate, sessionNo) as { next_sequence: number }).next_sequence;
     if (sequence > 999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
     const raw = createPublicReference(sessionNo, sequence);
     advance.run(eventId, businessDate, sessionNo);
-    if (!alreadyUsed.get(eventId, raw)) return { raw, display: formatPublicReference(raw) };
+    if (!alreadyUsed.get(eventId, raw, eventId, raw)) return { raw, display: formatPublicReference(raw) };
   }
 }
 
@@ -416,7 +440,7 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
       return JSON.parse(existing.response_json) as FinalizeResult;
     }
     failureInjector?.("after_idempotency_check");
-    const row = draftRow(db, draftId); assertMutable(row, version);
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
     const lines = readLines(db, draftId);
     if (!lines.some((line) => line.status === "active")) throw new CheckoutError(422, "EMPTY_DRAFT", "商品が登録されていません");
     const draftPayments = readPayments(db, draftId);

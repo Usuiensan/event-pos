@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
 import { openDatabase } from "./db.js";
 import { RealtimeHub } from "./realtime.js";
+import { openRegisterForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -11,6 +12,7 @@ const catalog = {
   eventId: "realtime-event",
   products: [{ productCode: "00000001", name: "商品", priceInclTax: 100, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }],
   quickEntries: [],
+  staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
 async function setup(now = { value: Date.parse("2026-08-02T00:00:00.000Z") }) {
@@ -19,6 +21,7 @@ async function setup(now = { value: Date.parse("2026-08-02T00:00:00.000Z") }) {
   apps.push(app);
   await app.ready();
   await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog });
+  await openRegisterForTest(app, catalog.eventId, "2026-08-02", "register-1");
   const draft = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-1", terminalId: "register-1", businessDate: "2026-08-02" } })).json();
   return { app, hub, now, draft };
 }

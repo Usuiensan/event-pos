@@ -12,7 +12,7 @@ const labels = { opening: "営業開始", interim: "中間点検", closing: "精
 const movementLabels = { pay_in: "入金", pay_out: "出金" } as const;
 const yen = (value: number) => `${value.toLocaleString("ja-JP")}円`;
 
-export function CashOperations({ eventId, businessDate, cashboxId, actorId, terminalId, onClose, onArtifact }: { eventId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void; onArtifact?: (artifact: BackupArtifactDto) => void }) {
+export function CashOperations({ eventId, businessSessionId, businessDate, cashboxId, actorId, terminalId, onClose, onArtifact }: { eventId: string; businessSessionId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void; onArtifact?: (artifact: BackupArtifactDto) => void }) {
   const [session, setSession] = useState<CashSessionDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +58,12 @@ export function CashOperations({ eventId, businessDate, cashboxId, actorId, term
     try {
       if (pending.kind === "check") {
         let current = session;
-        if (!current) current = await checkoutApi.createCashSession({ sessionId: `checkout:${eventId}:${businessDate}:${cashboxId}`, eventId, businessDate, cashboxId }, actorId);
+        if (!current) {
+          await checkoutApi.prepareRegister(businessSessionId, cashboxId, terminalId);
+          const refreshed = await checkoutApi.getCurrentCashSession(eventId, businessDate, cashboxId, actorId);
+          current = refreshed.session;
+        }
+        if (!current) throw new Error("レジの準備を開始できませんでした");
         const storageKey = `event-pos-cash-check-${current.sessionId}-${pending.checkKind}`;
         const idempotencyKey = localStorage.getItem(storageKey) ?? crypto.randomUUID(); localStorage.setItem(storageKey, idempotencyKey);
         const result = await checkoutApi.saveCashCheck(current.sessionId, pending.checkKind, { counted: pending.counted, ...(pending.carryoverYen === undefined ? {} : { carryoverYen: pending.carryoverYen }), terminalId }, actorId, idempotencyKey);

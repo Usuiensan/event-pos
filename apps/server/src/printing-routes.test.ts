@@ -4,6 +4,7 @@ import { DEFAULT_RECEIPT_TEMPLATE, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, validateR
 import { buildApp } from "./app.js";
 import { openDatabase, type PosDatabase } from "./db.js";
 import { ensureDefaultReceiptTemplate, renderReceipt } from "./receipt-store.js";
+import { openRegisterForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -13,6 +14,7 @@ const catalog = {
   customerWelcome: { circleName: "レシート試験サークル" },
   products: [{ productCode: "00000001", name: "日本語新刊", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }],
   quickEntries: [], autoDiscountRules: [],
+  staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
 function makeApp(): { app: FastifyInstance; db: PosDatabase } {
@@ -21,6 +23,7 @@ function makeApp(): { app: FastifyInstance; db: PosDatabase } {
 
 async function finalizeSale(app: FastifyInstance): Promise<{ transactionId: string; printJobId: string }> {
   expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+  await openRegisterForTest(app, catalog.eventId, "2026-08-02", "register-1");
   let response = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-001", terminalId: "register-1", businessDate: "2026-08-02", sessionNo: 1 } });
   expect(response.statusCode).toBe(201); let draft = response.json();
   response = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001", quantity: 1 } });

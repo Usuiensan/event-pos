@@ -8,6 +8,7 @@ import { buildApp } from "./app.js";
 import { openDatabase } from "./db.js";
 import { getBackupArtifact, type BackupArtifactRecord } from "./backup-artifact-schema.js";
 import { BackupArtifactWorker, verifySnapshotDatabase } from "./backup-artifacts.js";
+import { openRegisterForTest } from "./test-support.js";
 
 const apps: ReturnType<typeof buildApp>[] = [];
 const directories: string[] = [];
@@ -19,6 +20,7 @@ afterEach(async () => {
 const catalog = {
   eventId: "event-backup", customerWelcome: { circleName: "バックアップ試験" },
   products: [{ productCode: "00000001", name: "新刊", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", internalToken: "P1BACKUP" }], quickEntries: [], autoDiscountRules: [],
+  staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
 async function waitForArtifact(db: ReturnType<typeof openDatabase>, artifactId: string, state: "completed" | "failed"): Promise<BackupArtifactRecord> {
@@ -33,10 +35,8 @@ async function waitForArtifact(db: ReturnType<typeof openDatabase>, artifactId: 
 
 async function createSale(app: ReturnType<typeof buildApp>): Promise<void> {
   expect((await app.inject({ method: "PUT", url: "/api/v1/events/event-backup/catalog", payload: catalog })).statusCode).toBe(200);
+  const sessionId = await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
   const created = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-1", terminalId: "register-1", businessDate: "2026-08-03", sessionNo: 1 } })).json();
-  const sessionId = "checkout:event-backup:2026-08-03:register-1";
-  const opening = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/opening`, headers: { "idempotency-key": "backup-opening-1" }, payload: { counted: [], actorId: "staff-1", terminalId: "register-1" } });
-  expect(opening.statusCode).toBe(201);
   const withLine = (await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/lines`, headers: { "if-match": String(created.version) }, payload: { productCode: "00000001", quantity: 2, source: "manual" } })).json();
   const withPayment = (await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/payments`, headers: { "if-match": String(withLine.version) }, payload: { kind: "cash", amountYen: 220, tenderedYen: 500 } })).json();
   const finalized = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${created.draftId}/finalize`, headers: { "idempotency-key": "backup-sale-1" }, payload: { version: withPayment.version } });

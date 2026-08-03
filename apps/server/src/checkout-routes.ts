@@ -6,6 +6,7 @@ import {
   addDraftBundle,
   addDraftLine,
   addDraftPayment,
+  claimHoldToDraft,
   cancelDraftLine,
   cancelSaleDraft,
   CheckoutError,
@@ -23,9 +24,12 @@ import {
 } from "./checkout-store.js";
 import type { RealtimeHub } from "./realtime.js";
 import { createFullReturn, createManualRefund, searchReturnableTransactions } from "./returns.js";
+import { AuthError, requireAuthActor } from "./auth.js";
+import { assertRegisterOpen } from "./business-store.js";
+import { createHold, findHold, releaseHold } from "./holds.js";
 
 type PrintQueue = { trigger(): void };
-export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean };
+export type CheckoutRouteOptions = { database: PosDatabase; printQueue?: PrintQueue; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; drawerEnabled?: boolean; authRequired?: boolean };
 
 function headerValue(value: string | string[] | undefined): string | undefined { return Array.isArray(value) ? value[0] : value; }
 function ifMatch(headers: Record<string, string | string[] | undefined>): number {
@@ -36,6 +40,7 @@ function ifMatch(headers: Record<string, string | string[] | undefined>): number
 }
 
 function sendError(reply: FastifyReply, error: unknown, database?: PosDatabase, draftId?: string): unknown {
+  if (error instanceof AuthError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, details: {}, requestId: reply.request.id } });
   if (error instanceof CheckoutError) {
     let details = error.details;
     if (error.code === "DRAFT_VERSION_CONFLICT" && database && draftId) {
@@ -62,17 +67,36 @@ function draftReply(reply: FastifyReply, draft: ReturnType<typeof getSaleDraft>)
 }
 
 export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRouteOptions): void {
+  app.post<{ Body: { eventId?: string; registerId?: string; terminalId?: string; lines?: Array<{ productCode: string; quantity: number }>; allowShortage?: boolean } }>("/api/v1/holds", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const eventId = request.body?.eventId ?? actor.eventId; const registerId = request.body?.registerId ?? "";
+      const state = assertRegisterOpen(options.database, eventId, registerId);
+      const result = createHold(options.database, { eventId, businessDate: state.businessDate, sessionNo: state.sessionNo, businessSessionId: state.businessSessionId, actorId: options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator", terminalId: request.body?.terminalId ?? registerId, lines: request.body?.lines ?? [], allowShortage: !!request.body?.allowShortage });
+      return reply.code(201).send(result);
+    } catch (error) { return sendError(reply, error); }
+  });
+  app.get<{ Querystring: { eventId?: string; reference?: string } }>("/api/v1/holds/find", async (request, reply) => {
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); if (!request.query.eventId || !request.query.reference) throw new CheckoutError(400,"HOLD_QUERY_REQUIRED","eventIdと取り置き番号が必要です"); const hold = findHold(options.database,request.query.eventId,request.query.reference); return hold ?? sendError(reply,new CheckoutError(404,"HOLD_NOT_FOUND","取り置きが見つかりません")); } catch(error) { return sendError(reply,error); }
+  });
+  app.post<{ Params: { holdId: string }; Body: { draftId?: string; version?: number } }>("/api/v1/holds/:holdId/claim", async (request, reply) => {
+    try { requireAuthActor(options.database,request,"operator",options.authRequired ?? false); const draftId=request.body?.draftId; const version=Number(request.body?.version); if (!draftId || !Number.isSafeInteger(version)) throw new CheckoutError(400,"HOLD_CLAIM_INPUT_INVALID","販売ドラフトとversionが必要です"); const draft=claimHoldToDraft(options.database,request.params.holdId,draftId,version); notifyDraft(options,draft); return reply.code(200).send(draft); } catch(error) { return sendError(reply,error,options.database,request.body?.draftId); }
+  });
+  app.post<{ Params: { holdId: string }; Body: { reason?: string } }>("/api/v1/holds/:holdId/release", async (request, reply) => {
+    try { const actor=requireAuthActor(options.database,request,"operator",options.authRequired ?? false); return releaseHold(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:headerValue(request.headers["x-pos-actor-id"])??"unsigned-operator",request.body?.reason??""); } catch(error) { return sendError(reply,error); }
+  });
   app.get<{ Querystring: { eventId?: string; query?: string } }>("/api/v1/transactions/returnable", async (request, reply) => {
     if (!request.query.eventId || !request.query.query?.trim()) return sendError(reply, new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です"));
     return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };
   });
-  app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
-    const actorId = headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
-    try { const result = createFullReturn(options.database, { originalTransactionId: request.params.transactionId, cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", reason: request.body?.reason ?? "", idempotencyKey: key ?? "" }); options.printQueue?.trigger(); return reply.code(201).send(result); }
+  app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string; externalResults?: Record<string, "completed" | "failed" | "unknown"> } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
+    let actor; try { actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); } catch (error) { return sendError(reply, error); }
+    const actorId = options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
+    try { const result = createFullReturn(options.database, { originalTransactionId: request.params.transactionId, cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", reason: request.body?.reason ?? "", idempotencyKey: key ?? "", ...(request.body?.externalResults ? { externalResults: request.body.externalResults } : {}) }); options.printQueue?.trigger(); return reply.code(201).send(result); }
     catch (error) { return sendError(reply, error instanceof CheckoutError ? error : new CheckoutError(500, "RETURN_FAILED", error instanceof Error ? error.message : "返品処理に失敗しました")); }
   });
   app.post<{ Body: { eventId?: string; cashSessionId?: string; terminalId?: string; description?: string; amountYen?: number; productCode?: string; quantity?: number; paymentKind?: "cash" | "credit" | "accounts_receivable" } }>("/api/v1/refunds/manual", async (request, reply) => {
-    const actorId = headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
+    let actor; try { actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); } catch (error) { return sendError(reply, error); }
+    const actorId = options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator"; const key = headerValue(request.headers["idempotency-key"]);
     try { const result = createManualRefund(options.database, { eventId: request.body?.eventId ?? "", cashSessionId: request.body?.cashSessionId ?? "", actorId, terminalId: request.body?.terminalId ?? "", description: request.body?.description ?? "", amountYen: Number(request.body?.amountYen), ...(request.body?.productCode ? { productCode: request.body.productCode } : {}), ...(request.body?.quantity ? { quantity: request.body.quantity } : {}), paymentKind: request.body?.paymentKind ?? "cash", idempotencyKey: key ?? "" }); options.printQueue?.trigger(); return reply.code(201).send(result); }
     catch (error) { return sendError(reply, error instanceof CheckoutError ? error : new CheckoutError(500, "MANUAL_REFUND_FAILED", error instanceof Error ? error.message : "例外返金に失敗しました")); }
   });
@@ -88,7 +112,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   });
 
   app.post<{ Params: { registerId: string }; Body: { eventId: string; staffId: string; terminalId?: string; businessDate: string; sessionNo?: number } }>("/api/v1/registers/:registerId/sale-drafts", async (request, reply) => {
-    try { const draft = createSaleDraft(options.database, { ...request.body, registerId: request.params.registerId, terminalId: request.body.terminalId ?? request.params.registerId }); notifyDraft(options, draft); reply.header("etag", `"draft:${draft.draftId}:${draft.version}"`); return reply.code(201).send(draft); }
+    try { const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = createSaleDraft(options.database, { ...request.body, ...(options.authRequired ? { staffId: actor.responsibleNumber } : {}), registerId: request.params.registerId, terminalId: request.body.terminalId ?? request.params.registerId }); notifyDraft(options, draft); reply.header("etag", `"draft:${draft.draftId}:${draft.version}"`); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error); }
   });
 
@@ -97,49 +121,50 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   });
 
   app.post<{ Params: { draftId: string }; Body: { productCode: string; quantity?: number; source?: "manual" | "scan"; productOptions?: Record<string, unknown> } }>("/api/v1/sale-drafts/:draftId/lines", async (request, reply) => {
-    try { const draft = addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { bundleId: string } }>("/api/v1/sale-drafts/:draftId/bundles", async (request, reply) => {
-    try { const draft = addDraftBundle(options.database, request.params.draftId, ifMatch(request.headers), request.body.bundleId); notifyDraft(options, draft); return reply.code(201).send(draft); }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addDraftBundle(options.database, request.params.draftId, ifMatch(request.headers), request.body.bundleId); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.patch<{ Params: { draftId: string; lineId: string }; Body: { quantity?: number; manualDiscount?: ManualDiscountInput | null } }>("/api/v1/sale-drafts/:draftId/lines/:lineId", async (request, reply) => {
-    try { const draft = updateDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return draft; }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = updateDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string; lineId: string } }>("/api/v1/sale-drafts/:draftId/lines/:lineId", async (request, reply) => {
-    try { const draft = cancelDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = cancelDraftLine(options.database, request.params.draftId, request.params.lineId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { kind: PaymentKind; amountYen?: number; tenderedYen?: number; referenceNote?: string } }>("/api/v1/sale-drafts/:draftId/payments", async (request, reply) => {
-    try { const draft = addDraftPayment(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addDraftPayment(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string; paymentId: string } }>("/api/v1/sale-drafts/:draftId/payments/:paymentId", async (request, reply) => {
-    try { const draft = removeDraftPayment(options.database, request.params.draftId, request.params.paymentId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = removeDraftPayment(options.database, request.params.draftId, request.params.paymentId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { minimumAge: 18 | 20; method: "appearance" | "id_visual" | "self_declaration"; result: "passed" | "failed"; confirmerId?: string; terminalId: string } }>("/api/v1/sale-drafts/:draftId/age-verifications", async (request, reply) => {
     if (!hasOnlyKeys(request.body, ["minimumAge", "method", "result", "confirmerId", "terminalId"])) return sendError(reply, new CheckoutError(400, "INVALID_AGE_VERIFICATION", "年齢確認には個人情報や未定義項目を送信できません"));
-    try { const draft = addAgeVerification(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addAgeVerification(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.delete<{ Params: { draftId: string } }>("/api/v1/sale-drafts/:draftId", async (request, reply) => {
-    try { const draft = cancelSaleDraft(options.database, request.params.draftId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = cancelSaleDraft(options.database, request.params.draftId, ifMatch(request.headers)); notifyDraft(options, draft); return draft; }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { version: number } }>("/api/v1/sale-drafts/:draftId/finalize", async (request, reply) => {
     const key = headerValue(request.headers["idempotency-key"]);
     try {
+      requireAuthActor(options.database, request, "operator", options.authRequired ?? false);
       const result = finalizeSale(options.database, request.params.draftId, request.body?.version, key ?? "", options.checkoutFailureInjector, options.drawerEnabled ?? false);
       const completedDraft = getSaleDraft(options.database, request.params.draftId);
       notifyDraft(options, completedDraft);

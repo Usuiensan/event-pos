@@ -7,6 +7,7 @@ import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { signInForTest } from "./test-support.js";
 
 const apps: ReturnType<typeof buildApp>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
@@ -41,7 +42,7 @@ describe("server foundation", () => {
 
   it("calculates cash check theoretical amount from the server ledger", async () => {
     const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02", cashboxId: "box-1" } })).json()).toMatchObject({ cashboxId: "box-1", state: "open" });
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "cash-1", eventId: "event-1", businessDate: "2026-08-02", cashboxId: "box-1" } })).json()).toMatchObject({ cashboxId: "box-1", state: "preparing" });
     const opening = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
     expect(opening.json().printJobId).toEqual(expect.any(String));
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/cash-1/movements", payload: { type: "sale", amountYen: 500, reason: "test sale", idempotencyKey: "sale-1" } });
@@ -77,19 +78,26 @@ describe("server foundation", () => {
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/movements", payload: { type: "sale", amountYen: 500, reason: "sale", idempotencyKey: "persist-sale", actorId: "staff-1", terminalId: "register-1" } });
     await app.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }, { denomination: 500, quantity: 1 }], carryoverYen: 1000 } });
     await app.close(); apps.splice(apps.indexOf(app), 1);
-    const app2 = buildApp({ database: openDatabase(databasePath) }); apps.push(app2);
+    const reopenedDatabase = openDatabase(databasePath); const app2 = buildApp({ database: reopenedDatabase }); apps.push(app2);
     const replay = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/movements", payload: { type: "sale", amountYen: 500, reason: "sale", idempotencyKey: "persist-sale" } });
     expect(replay.statusCode).toBe(400);
+    const migratedBusiness = (reopenedDatabase.prepare("SELECT business_session_id FROM business_sessions WHERE event_id='e1'").get() as { business_session_id: string }).business_session_id;
+    expect((await app2.inject({ method: "POST", url: `/api/v1/business-sessions/${encodeURIComponent(migratedBusiness)}/reopen`, payload: { reason: "旧DB復旧確認", terminalId: "register-1" } })).statusCode).toBe(200);
     const reopen = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/reopen", payload: { reason: "確認のため再開", actorId: "manager-1", terminalId: "register-1" } });
     expect(reopen.statusCode).toBe(200);
     await app2.close(); apps.splice(apps.indexOf(app2), 1);
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
   });
-  it("enforces cash roles when enabled without logging credentials", async () => {
-    const app = buildApp({ database: openDatabase(), requireCashAuth: true }); apps.push(app);
+  it("永続sessionとCSRFで現金操作の権限を検証する", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    const catalog = { eventId: "e1", products: [], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "担当", role: "operator" }, { responsibleNumber: "002", displayName: "責任者", role: "manager" }] };
+    await app.inject({ method: "PUT", url: "/api/v1/events/e1/catalog", payload: catalog });
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "auth-1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(401);
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { sessionId: "auth-1", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/auth-1/reopen", headers: { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" }, payload: { reason: "no" } })).statusCode).toBe(403);
+    const operator = await signInForTest(app, { eventId: "e1", responsibleNumber: "001", terminalId: "register-1" });
+    const business = await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers: operator, payload: { eventId: "e1", businessDate: "2026-08-02" } });
+    const prepared = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.json().businessSessionId}/registers/register-1/prepare`, headers: operator, payload: {} });
+    expect(prepared.statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(prepared.json().sessionId)}/reopen`, headers: operator, payload: { reason: "no" } })).statusCode).toBe(403);
   });
   it("returns the same cash session for concurrent duplicate opening", async () => {
     const app = buildApp({ database: openDatabase() }); apps.push(app);
@@ -107,14 +115,17 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/tx-1/transactions/sale", payload: { transactionId: "T-2", amountYen: 400, idempotencyKey: "tx-key" } })).statusCode).toBe(409);
   });
   it("records returns as negative cash movement with manager authorization", async () => {
-    const app = buildApp({ database: openDatabase(), requireCashAuth: true }); apps.push(app);
-    const headers = { "x-pos-role": "operator", "x-pos-actor-id": "staff-1" };
-    await app.inject({ method: "POST", url: "/api/v1/cash-sessions", headers, payload: { sessionId: "return-1", eventId: "e1", businessDate: "2026-08-02" } });
-    await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/checks/opening", headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/transactions/return", headers, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(403);
-    const managerHeaders = { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" };
-    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/transactions/return", headers: managerHeaders, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(201);
-    const check = await app.inject({ method: "POST", url: "/api/v1/cash-sessions/return-1/checks/interim", headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/e1/catalog", payload: { eventId: "e1", products: [], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "担当", role: "operator" }, { responsibleNumber: "002", displayName: "責任者", role: "manager" }] } });
+    const headers = await signInForTest(app, { eventId: "e1", responsibleNumber: "001", terminalId: "register-1" });
+    const business = await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers, payload: { eventId: "e1", businessDate: "2026-08-02" } });
+    const prepared = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.json().businessSessionId}/registers/register-1/prepare`, headers, payload: {} });
+    const sessionId = prepared.json().sessionId as string;
+    await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/opening`, headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/transactions/return`, headers, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(403);
+    const managerHeaders = await signInForTest(app, { eventId: "e1", responsibleNumber: "002", terminalId: "register-1" });
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/transactions/return`, headers: managerHeaders, payload: { transactionId: "R-1", amountYen: 100, idempotencyKey: "return-key" } })).statusCode).toBe(201);
+    const check = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/interim`, headers, payload: { counted: [{ denomination: 1000, quantity: 1 }] } });
     expect(check.json()).toMatchObject({ theoreticalYen: 900 });
   });
   it("persists and restores an event catalog through the API", async () => {

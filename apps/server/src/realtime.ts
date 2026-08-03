@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 import type { PosDatabase } from "./db.js";
 import { CheckoutError, getRegisterSaleDraft, uuidV7 } from "./checkout-store.js";
+import { requireAuthActor } from "./auth.js";
 
 export const CUSTOMER_HEARTBEAT_TTL_MS = 5_000;
 
@@ -12,7 +13,9 @@ export type RealtimeNotification =
   | { type: "customer-display.availability.changed"; registerId: string }
   | { type: "audio-settings.changed"; registerId: string; version: number }
   | { type: "audio-announcement.changed"; registerId: string; sequence: number }
-  | { type: "age-confirmation.changed"; registerId: string; requestId: string };
+  | { type: "age-confirmation.changed"; registerId: string; requestId: string }
+  | { type: "business-state.changed"; eventId: string; businessSessionId: string }
+  | { type: "register-state.changed"; registerId: string; businessSessionId: string };
 
 type Subscription = { socket: WebSocket; registerId: string; terminalId: string; role: "staff" | "customer"; connectedAt: number };
 type Heartbeat = { terminalId: string; registerId: string; lastSeenMs: number };
@@ -45,11 +48,17 @@ export class RealtimeHub {
   }
 
   notify(notification: RealtimeNotification): void {
+    if (!("registerId" in notification)) return this.notifyAll(notification);
     const payload = JSON.stringify(notification);
     for (const subscription of this.#subscriptions) {
       if (subscription.registerId !== notification.registerId || subscription.socket.readyState !== 1) continue;
       subscription.socket.send(payload);
     }
+  }
+
+  notifyAll(notification: RealtimeNotification): void {
+    const payload = JSON.stringify(notification);
+    for (const subscription of this.#subscriptions) if (subscription.socket.readyState === 1) subscription.socket.send(payload);
   }
 
   heartbeat(terminalId: string, registerId: string): CustomerDisplayAvailability {
@@ -122,10 +131,13 @@ function sendError(reply: { code(status: number): { send(value: unknown): unknow
   return reply.code(500).send({ error: { code: "REALTIME_INTERNAL_ERROR", message: error instanceof Error ? error.message : "端末同期に失敗しました", details: {}, requestId: reply.request.id } });
 }
 
-export function registerRealtimeRoutes(app: FastifyInstance, database: PosDatabase, hub: RealtimeHub): void {
+export function registerRealtimeRoutes(app: FastifyInstance, database: PosDatabase, hub: RealtimeHub, authRequired = false): void {
   app.get<{ Querystring: { registerId?: string; terminalId?: string; role?: string } }>("/api/v1/events", { websocket: true }, (socket, request) => {
     const { registerId, terminalId, role } = request.query;
     if (!registerId || !terminalId || (role !== "staff" && role !== "customer")) return socket.close(1008, "端末scopeが不正です");
+    if (role === "staff") {
+      try { requireAuthActor(database, request, "operator", authRequired); } catch { return socket.close(1008, "担当者認証が必要です"); }
+    }
     hub.subscribe(socket, { registerId, terminalId, role });
     socket.send(JSON.stringify({ type: "connected", registerId }));
   });
