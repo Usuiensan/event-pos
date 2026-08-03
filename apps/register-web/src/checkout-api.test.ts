@@ -29,4 +29,10 @@ describe("checkout API client", () => {
     await checkoutApi.saveCashCheck("checkout:event:2026-08-03:register-1", "closing", { counted: [{ denomination: 1000, quantity: 3 }], carryoverYen: 1000, terminalId: "register-1" }, "001", "closing-1");
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/cash-sessions/checkout%3Aevent%3A2026-08-03%3Aregister-1/checks/closing", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-role": "manager", "x-pos-actor-id": "001", "idempotency-key": "closing-1" }) }));
   });
+
+  it("全部返品へ責任者と冪等キーを送る", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "return-1" }) }); vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.createFullReturn("sale-1", { cashSessionId: "cash-1", terminalId: "register-1", reason: "商品不良" }, "001", "return-key-1");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/transactions/sale-1/full-return", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-role": "manager", "x-pos-actor-id": "001", "idempotency-key": "return-key-1" }) }));
+  });
 });

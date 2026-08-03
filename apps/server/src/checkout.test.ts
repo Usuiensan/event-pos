@@ -57,6 +57,27 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
 }
 
 describe("durable checkout API", () => {
+  it("元売上を変更せず全部返品を支払・現金・在庫・税へ逆仕訳し、返品レシートを作る", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app); draft = await addLine(app, draft, "00000001", 1); draft = await addPayment(app, draft, "cash", 110, 500);
+    const sale = await finalize(app, draft, "return-source"); expect(sale.statusCode).toBe(201); const originalId = sale.json().transactionId as string;
+    const sessionId = "checkout:checkout-event:2026-08-02:register-1";
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/opening`, headers: { "idempotency-key": "return-opening" }, payload: { counted: [], actorId: "manager-1", terminalId: "register-1" } })).statusCode).toBe(201);
+    const headers = { "x-pos-role": "manager", "x-pos-actor-id": "manager-1", "idempotency-key": "full-return-1" };
+    const returned = await app.inject({ method: "POST", url: `/api/v1/transactions/${originalId}/full-return`, headers, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "商品不良" } });
+    if (returned.statusCode !== 201) throw new Error(returned.body); const result = returned.json(); expect(result).toMatchObject({ originalTransactionId: originalId, totalYen: -110 });
+    expect((await app.inject({ method: "POST", url: `/api/v1/transactions/${originalId}/full-return`, headers, payload: { cashSessionId: sessionId, terminalId: "register-1", reason: "商品不良" } })).json().transactionId).toBe(result.transactionId);
+    expect(db.prepare("SELECT type,total_yen,original_transaction_id,reason_text FROM transactions WHERE transaction_id=?").get(result.transactionId)).toEqual({ type: "return", total_yen: -110, original_transaction_id: originalId, reason_text: "商品不良" });
+    expect(db.prepare("SELECT quantity,gross_yen,tax_yen,net_yen FROM transaction_lines WHERE transaction_id=?").get(result.transactionId)).toMatchObject({ quantity: -1, gross_yen: -110, tax_yen: -10, net_yen: -110 });
+    expect(db.prepare("SELECT amount_yen FROM payments WHERE transaction_id=?").get(result.transactionId)).toEqual({ amount_yen: -110 });
+    expect(db.prepare("SELECT type,quantity_delta FROM inventory_movements WHERE transaction_line_id IN (SELECT transaction_line_id FROM transaction_lines WHERE transaction_id=?)").get(result.transactionId)).toEqual({ type: "return", quantity_delta: 1 });
+    expect(db.prepare("SELECT type,amount_yen FROM cash_movements WHERE transaction_id=?").get(result.transactionId)).toEqual({ type: "return", amount_yen: 110 });
+    expect(db.prepare("SELECT tax_amount_yen FROM tax_summaries WHERE transaction_id=?").get(result.transactionId)).toEqual({ tax_amount_yen: -10 });
+    const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(result.transactionId) as { receipt_snapshot_json: string }).receipt_snapshot_json)); expect(snapshot).toMatchObject({ transactionType: "return", originalPublicReference: expect.any(String), totalYen: 110, hasOriginalTransaction: true });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='full_return' AND entity_id=?").get(result.transactionId)).toEqual({ count: 1 });
+    expect(db.prepare("SELECT total_yen,type FROM transactions WHERE transaction_id=?").get(originalId)).toEqual({ total_yen: 110, type: "sale" });
+    const search = await app.inject({ method: "GET", url: `/api/v1/transactions/returnable?eventId=checkout-event&query=${encodeURIComponent(sale.json().publicReference)}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } }); expect(search.json().transactions[0]).toMatchObject({ transactionId: originalId, returnable: false, returnTransactionId: result.transactionId });
+  });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
