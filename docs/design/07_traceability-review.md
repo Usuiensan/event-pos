@@ -270,3 +270,9 @@ Human Reviewは未完了である。template preview APIの人間可読内容、
 | 本番保存先 | productionでは絶対`POS_ARTIFACT_ROOT`を必須化し、relative/root/DB自身を拒否。既定2 GiBの生成前空き容量検査、専用ACL・mode・日計後照合runbookを追加 | A合格。Windows ACLの実適用と別disk運用はR未実施 |
 
 2026-08-03時点の`pnpm check`は全workspace build・typecheck、153件の自動試験、built/deployed PrinterHost smokeに成功した。実ブラウザーでは業務メニューの3導線と主要状態を確認した。TM-T70IIの返品紙面、現金点検紙面、Windows/Linux双方のUSB・status・障害復旧、Windows ACL実適用、別disk容量不足は実機・本番Rとして残る。
+
+## 14. 2026-08-03 返品・中間点検のWindows実機送信
+
+`tools/hardware-test/run-return-interim-acceptance.mjs`を専用DBとWindows RAW spoolerで実行した。試験準備売上522 bytes、全部返品460 bytes、中間点検300 bytesをPrinterHostが受理し、各jobは`completed / accepted`となった。証跡は`docs/printer-baseline/windows/20260803-095054-return-interim`に保存した。利用者が写真`IMG_0473.jpg`で返品・中間点検を含む6枚を確認し、全文、配置、文字化けなし、部分カットを合格とした。6枚は停止前runの開局・売上2枚と、修正後runの開局・売上・返品・中間点検4枚であり、同一jobの自動再送ではない。
+
+業務運用は`docs/operations/取扱説明書.md`、Goal 9前の残件と推奨順は`docs/operations/次回即売会向け機能棚卸し.md`を正とする。

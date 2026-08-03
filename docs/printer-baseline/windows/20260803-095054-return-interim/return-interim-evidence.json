@@ -1,0 +1,4372 @@
+{
+  "schemaVersion": 1,
+  "runId": "a1701080-55d2-4562-a44f-4c6632ca743f",
+  "result": "transport_completed_paper_unconfirmed",
+  "error": null,
+  "startedAt": "2026-08-03T00:52:40.021Z",
+  "completedAt": "2026-08-03T00:52:53.321Z",
+  "posUrl": "http://127.0.0.1:3001",
+  "statusBefore": {
+    "printerId": "receipt-1",
+    "observation": {
+      "observedAt": "2026-08-03T00:52:41.897Z",
+      "reachable": {
+        "support": "supported",
+        "value": true
+      },
+      "online": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice onlineを取得できません"
+      },
+      "coverOpen": {
+        "support": "unknown",
+        "reason": "Winspool RAWではcover状態を取得できません"
+      },
+      "paper": {
+        "support": "unknown",
+        "reason": "Winspool RAWではpaper状態を取得できません"
+      },
+      "error": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice errorを取得できません"
+      },
+      "raw": {
+        "adapter": "windows-raw",
+        "schemaVersion": 1,
+        "normalized": "ready",
+        "printer": {
+          "Name": "EPSON TM-T70II Receipt",
+          "DriverName": "EPSON TM-T70II Receipt5",
+          "PortName": "ESDPRT001",
+          "PrinterStatus": 0,
+          "WorkOffline": null
+        },
+        "usbControllerPresent": true,
+        "usbDevices": [
+          {
+            "Status": "OK",
+            "Class": "USB",
+            "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+            "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+            "Problem": 0,
+            "ConfigManagerErrorCode": 0
+          }
+        ],
+        "reason": null
+      }
+    }
+  },
+  "statusAfter": {
+    "printerId": "receipt-1",
+    "observation": {
+      "observedAt": "2026-08-03T00:52:53.320Z",
+      "reachable": {
+        "support": "supported",
+        "value": true
+      },
+      "online": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice onlineを取得できません"
+      },
+      "coverOpen": {
+        "support": "unknown",
+        "reason": "Winspool RAWではcover状態を取得できません"
+      },
+      "paper": {
+        "support": "unknown",
+        "reason": "Winspool RAWではpaper状態を取得できません"
+      },
+      "error": {
+        "support": "unknown",
+        "reason": "Winspool RAWではdevice errorを取得できません"
+      },
+      "raw": {
+        "adapter": "windows-raw",
+        "schemaVersion": 1,
+        "normalized": "ready",
+        "printer": {
+          "Name": "EPSON TM-T70II Receipt",
+          "DriverName": "EPSON TM-T70II Receipt5",
+          "PortName": "ESDPRT001",
+          "PrinterStatus": 0,
+          "WorkOffline": null
+        },
+        "usbControllerPresent": true,
+        "usbDevices": [
+          {
+            "Status": "OK",
+            "Class": "USB",
+            "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+            "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+            "Problem": 0,
+            "ConfigManagerErrorCode": 0
+          }
+        ],
+        "reason": null
+      }
+    }
+  },
+  "jobs": [
+    {
+      "kind": "sale-setup",
+      "job": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:46.492Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      },
+      "attempts": [
+        {
+          "attemptNo": 1,
+          "phase": "postcheck_completed",
+          "startedAt": "2026-08-03T00:52:44.280Z",
+          "endedAt": "2026-08-03T00:52:46.492Z",
+          "compilerBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+          "adapterBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+          "writeBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+          "acceptedBytes": 522,
+          "result": "completed",
+          "errorCode": null,
+          "errorMessage": null,
+          "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":522,\"spoolerJobId\":23,\"api\":\"Winspool RAW WritePrinter\"}",
+          "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:46.106Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+        }
+      ]
+    },
+    {
+      "kind": "return",
+      "job": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:49.003Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      },
+      "attempts": [
+        {
+          "attemptNo": 1,
+          "phase": "postcheck_completed",
+          "startedAt": "2026-08-03T00:52:46.691Z",
+          "endedAt": "2026-08-03T00:52:49.003Z",
+          "compilerBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+          "adapterBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+          "writeBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+          "acceptedBytes": 460,
+          "result": "completed",
+          "errorCode": null,
+          "errorMessage": null,
+          "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":460,\"spoolerJobId\":24,\"api\":\"Winspool RAW WritePrinter\"}",
+          "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:48.589Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+        }
+      ]
+    },
+    {
+      "kind": "interim",
+      "job": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:51.428Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      },
+      "attempts": [
+        {
+          "attemptNo": 1,
+          "phase": "postcheck_completed",
+          "startedAt": "2026-08-03T00:52:49.230Z",
+          "endedAt": "2026-08-03T00:52:51.428Z",
+          "compilerBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+          "adapterBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+          "writeBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+          "acceptedBytes": 300,
+          "result": "completed",
+          "errorCode": null,
+          "errorMessage": null,
+          "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":300,\"spoolerJobId\":25,\"api\":\"Winspool RAW WritePrinter\"}",
+          "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:51.037Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "at": "2026-08-03T00:52:40.045Z",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 200,
+      "response": {
+        "name": "event-pos",
+        "service": "server",
+        "schemaVersion": 1,
+        "drawerEnabled": false
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.899Z",
+      "method": "GET",
+      "path": "/api/v1/printer/status",
+      "status": 200,
+      "response": {
+        "printerId": "receipt-1",
+        "observation": {
+          "observedAt": "2026-08-03T00:52:41.897Z",
+          "reachable": {
+            "support": "supported",
+            "value": true
+          },
+          "online": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice onlineを取得できません"
+          },
+          "coverOpen": {
+            "support": "unknown",
+            "reason": "Winspool RAWではcover状態を取得できません"
+          },
+          "paper": {
+            "support": "unknown",
+            "reason": "Winspool RAWではpaper状態を取得できません"
+          },
+          "error": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice errorを取得できません"
+          },
+          "raw": {
+            "adapter": "windows-raw",
+            "schemaVersion": 1,
+            "normalized": "ready",
+            "printer": {
+              "Name": "EPSON TM-T70II Receipt",
+              "DriverName": "EPSON TM-T70II Receipt5",
+              "PortName": "ESDPRT001",
+              "PrinterStatus": 0,
+              "WorkOffline": null
+            },
+            "usbControllerPresent": true,
+            "usbDevices": [
+              {
+                "Status": "OK",
+                "Class": "USB",
+                "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+                "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+                "Problem": 0,
+                "ConfigManagerErrorCode": 0
+              }
+            ],
+            "reason": null
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.910Z",
+      "method": "POST",
+      "path": "/api/v1/cash-sessions",
+      "status": 201,
+      "response": {
+        "sessionId": "cash-a1701080",
+        "eventId": "paper-a1701080",
+        "businessDate": "2026-08-03",
+        "cashboxId": "box-a1701080",
+        "state": "open",
+        "openingYen": null,
+        "closingYen": null,
+        "theoreticalYen": 0,
+        "createdAt": "2026-08-03T00:52:41.908Z",
+        "checks": [],
+        "movements": []
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.927Z",
+      "method": "POST",
+      "path": "/api/v1/cash-sessions/cash-a1701080/checks/opening",
+      "status": 201,
+      "response": {
+        "sessionId": "cash-a1701080",
+        "kind": "opening",
+        "counted": [
+          {
+            "denomination": 1000,
+            "quantity": 2
+          }
+        ],
+        "theoreticalYen": 0,
+        "actorId": "paper-test-operator",
+        "terminalId": "register-a1701080",
+        "carryoverYen": 0,
+        "countedYen": 2000,
+        "differenceYen": 2000,
+        "createdAt": "2026-08-03T00:52:41.922Z",
+        "printJobId": "2c5b9ca7-f475-4325-8809-0e5cfbba5cc1"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.930Z",
+      "method": "PUT",
+      "path": "/api/v1/events/paper-a1701080/catalog",
+      "status": 200,
+      "response": {
+        "catalog": {
+          "eventId": "paper-a1701080",
+          "products": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "saleState": "on_sale"
+            }
+          ],
+          "quickEntries": [],
+          "autoDiscountRules": [],
+          "customerWelcome": {
+            "circleName": "返品・点検紙面試験"
+          }
+        },
+        "updatedAt": "2026-08-03T00:52:41.928Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.941Z",
+      "method": "POST",
+      "path": "/api/v1/registers/register-a1701080/sale-drafts",
+      "status": 201,
+      "response": {
+        "draftId": "019fc51b-cf52-7f51-ae6e-3a431a9ee63a",
+        "eventId": "paper-a1701080",
+        "registerId": "register-a1701080",
+        "staffId": "paper-test-operator",
+        "terminalId": "register-a1701080",
+        "businessDate": "2026-08-03",
+        "sessionNo": 1,
+        "version": 1,
+        "state": "editing",
+        "lines": [],
+        "payments": [],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [],
+          "discounts": [],
+          "taxSummaries": [],
+          "subtotalYen": 0,
+          "discountTotalYen": 0,
+          "taxTotalYen": 0,
+          "totalYen": 0
+        },
+        "createdAt": "2026-08-03T00:52:41.938Z",
+        "updatedAt": "2026-08-03T00:52:41.938Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.947Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc51b-cf52-7f51-ae6e-3a431a9ee63a/lines",
+      "status": 201,
+      "response": {
+        "draftId": "019fc51b-cf52-7f51-ae6e-3a431a9ee63a",
+        "eventId": "paper-a1701080",
+        "registerId": "register-a1701080",
+        "staffId": "paper-test-operator",
+        "terminalId": "register-a1701080",
+        "businessDate": "2026-08-03",
+        "sessionNo": 1,
+        "version": 2,
+        "state": "editing",
+        "lines": [
+          {
+            "lineId": "019fc51b-cf58-7764-b634-36e3912d8f62",
+            "lineNo": 1,
+            "productId": "paper-a1701080:00000001",
+            "productCode": "00000001",
+            "name": "返品試験商品",
+            "priceInclTax": 500,
+            "taxRate": 10,
+            "taxCategory": "inclusive_10",
+            "quantity": 1,
+            "status": "active",
+            "source": "manual"
+          }
+        ],
+        "payments": [],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [
+            {
+              "lineId": "019fc51b-cf58-7764-b634-36e3912d8f62",
+              "lineNo": 1,
+              "productId": "paper-a1701080:00000001",
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "quantity": 1,
+              "status": "active",
+              "source": "manual",
+              "grossYen": 500,
+              "discountYen": 0,
+              "taxYen": 45,
+              "netYen": 500
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableGrossYen": 500,
+              "discountAllocatedYen": 0,
+              "taxableNetYen": 500,
+              "taxAmountYen": 45,
+              "roundingMode": "floor"
+            }
+          ],
+          "subtotalYen": 500,
+          "discountTotalYen": 0,
+          "taxTotalYen": 45,
+          "totalYen": 500
+        },
+        "createdAt": "2026-08-03T00:52:41.938Z",
+        "updatedAt": "2026-08-03T00:52:41.944Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.956Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc51b-cf52-7f51-ae6e-3a431a9ee63a/payments",
+      "status": 201,
+      "response": {
+        "draftId": "019fc51b-cf52-7f51-ae6e-3a431a9ee63a",
+        "eventId": "paper-a1701080",
+        "registerId": "register-a1701080",
+        "staffId": "paper-test-operator",
+        "terminalId": "register-a1701080",
+        "businessDate": "2026-08-03",
+        "sessionNo": 1,
+        "version": 3,
+        "state": "payment",
+        "lines": [
+          {
+            "lineId": "019fc51b-cf58-7764-b634-36e3912d8f62",
+            "lineNo": 1,
+            "productId": "paper-a1701080:00000001",
+            "productCode": "00000001",
+            "name": "返品試験商品",
+            "priceInclTax": 500,
+            "taxRate": 10,
+            "taxCategory": "inclusive_10",
+            "quantity": 1,
+            "status": "active",
+            "source": "manual"
+          }
+        ],
+        "payments": [
+          {
+            "paymentId": "019fc51b-cf62-716e-acee-f52331dca16c",
+            "sequence": 1,
+            "kind": "cash",
+            "amountYen": 500,
+            "tenderedYen": 500,
+            "changeYen": 0
+          }
+        ],
+        "ageVerifications": [],
+        "calculation": {
+          "lines": [
+            {
+              "lineId": "019fc51b-cf58-7764-b634-36e3912d8f62",
+              "lineNo": 1,
+              "productId": "paper-a1701080:00000001",
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "priceInclTax": 500,
+              "taxRate": 10,
+              "taxCategory": "inclusive_10",
+              "quantity": 1,
+              "status": "active",
+              "source": "manual",
+              "grossYen": 500,
+              "discountYen": 0,
+              "taxYen": 45,
+              "netYen": 500
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableGrossYen": 500,
+              "discountAllocatedYen": 0,
+              "taxableNetYen": 500,
+              "taxAmountYen": 45,
+              "roundingMode": "floor"
+            }
+          ],
+          "subtotalYen": 500,
+          "discountTotalYen": 0,
+          "taxTotalYen": 45,
+          "totalYen": 500
+        },
+        "createdAt": "2026-08-03T00:52:41.938Z",
+        "updatedAt": "2026-08-03T00:52:41.954Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.978Z",
+      "method": "POST",
+      "path": "/api/v1/sale-drafts/019fc51b-cf52-7f51-ae6e-3a431a9ee63a/finalize",
+      "status": 201,
+      "response": {
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "draftId": "019fc51b-cf52-7f51-ae6e-3a431a9ee63a",
+        "draftVersion": 4,
+        "publicReference": "10000012",
+        "publicReferenceDisplay": "1000-0012",
+        "subtotalYen": 500,
+        "discountTotalYen": 0,
+        "taxTotalYen": 45,
+        "totalYen": 500,
+        "paymentKind": "cash",
+        "printJobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "printState": "pending",
+        "completedAt": "2026-08-03T00:52:41.969Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:41.986Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:42.268Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:42.536Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:42.815Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:43.097Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:43.364Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:43.630Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:43.898Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:44.181Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "pending",
+        "updatedAt": "2026-08-03T00:52:41.969Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:44.463Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:44.730Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:45.010Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:45.278Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:45.559Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:45.840Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.120Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.386Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:44.280Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.652Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-cf71-753e-81e0-c951b210d51a",
+        "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+          "publicReference": "1000-0012",
+          "transactionType": "sale",
+          "originalPublicReference": "",
+          "confirmedAt": "2026-08-03T00:52:41.969Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": 500,
+          "tenderedFormatted": "¥500",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "",
+          "footer": "ありがとうございました",
+          "returnPolicy": "返品は責任者へお申し出ください",
+          "hasOriginalTransaction": false,
+          "hasDiscounts": false,
+          "hasTendered": true,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:41.969Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:46.492Z",
+        "operationId": "019fc51b-cf77-7eae-963a-86212008d8cc",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!row {\"left\":\"預り\",\"right\":\"¥500\"}\n!text \"ありがとうございました\"\n!text \"返品は責任者へお申し出ください\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "fd3104391eda478f67428bb6000f6696662c929f2ddfd2c1c4e0f4545709460c",
+        "expectedBytesLength": 522,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.668Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-cf71-753e-81e0-c951b210d51a/attempts",
+      "status": 200,
+      "response": {
+        "attempts": [
+          {
+            "attemptNo": 1,
+            "phase": "postcheck_completed",
+            "startedAt": "2026-08-03T00:52:44.280Z",
+            "endedAt": "2026-08-03T00:52:46.492Z",
+            "compilerBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+            "adapterBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+            "writeBytesSha256": "d388100102e325c4a58d540cd1e73cc8dacc684720392e1de76c72f312900ac0",
+            "acceptedBytes": 522,
+            "result": "completed",
+            "errorCode": null,
+            "errorMessage": null,
+            "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":522,\"spoolerJobId\":23,\"api\":\"Winspool RAW WritePrinter\"}",
+            "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:46.106Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.694Z",
+      "method": "POST",
+      "path": "/api/v1/transactions/019fc51b-cf71-7a57-9b91-3f1c7a176fca/full-return",
+      "status": 201,
+      "response": {
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "originalTransactionId": "019fc51b-cf71-7a57-9b91-3f1c7a176fca",
+        "publicReferenceDisplay": "返品 1000-0012",
+        "totalYen": -500,
+        "printJobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "createdAt": "2026-08-03T00:52:46.683Z"
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.699Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:46.981Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:47.262Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:47.542Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:47.823Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:48.090Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:48.371Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:48.650Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:48.917Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:46.691Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.198Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+      "status": 200,
+      "response": {
+        "jobId": "019fc51b-e1db-7e52-9f5a-8ed507c571e2",
+        "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+        "printerId": "register-a1701080",
+        "documentType": "receipt",
+        "payload": {
+          "schemaVersion": 1,
+          "eventName": "paper-a1701080",
+          "circleName": "返品・点検紙面試験",
+          "transactionId": "019fc51b-e1db-737f-836e-9e7091a098e8",
+          "publicReference": "返品 1000-0012",
+          "transactionType": "return",
+          "originalPublicReference": "1000-0012",
+          "confirmedAt": "2026-08-03T00:52:46.683Z",
+          "confirmedAtPrinted": "2026-08-03 09:52",
+          "businessDate": "2026-08-03",
+          "registerNo": "a1701080",
+          "staffPrintLabel": "paper-test-o",
+          "lines": [
+            {
+              "productCode": "00000001",
+              "name": "返品試験商品",
+              "quantity": 1,
+              "unitPriceYen": 500,
+              "unitPriceFormatted": "¥500",
+              "grossYen": 500,
+              "grossFormatted": "¥500",
+              "discountAllocatedYen": 0,
+              "discountFormatted": "¥0",
+              "taxYen": 45,
+              "taxFormatted": "¥45",
+              "netYen": 500,
+              "netFormatted": "¥500",
+              "taxRateBps": 1000
+            }
+          ],
+          "discounts": [],
+          "taxSummaries": [
+            {
+              "taxRateBps": 1000,
+              "taxableNetYen": 500,
+              "taxableNetFormatted": "¥500",
+              "taxYen": 45,
+              "taxFormatted": "¥45"
+            }
+          ],
+          "payments": [
+            {
+              "methodName": "現金",
+              "amountYen": 500,
+              "amountFormatted": "¥500",
+              "tenderedYen": 500,
+              "tenderedFormatted": "¥500",
+              "changeYen": 0,
+              "changeFormatted": "¥0"
+            }
+          ],
+          "subtotalYen": 500,
+          "subtotalFormatted": "¥500",
+          "discountTotalYen": 0,
+          "discountTotalFormatted": "¥0",
+          "taxTotalYen": 45,
+          "taxTotalFormatted": "¥45",
+          "totalYen": 500,
+          "totalFormatted": "¥500",
+          "tenderedYen": null,
+          "tenderedFormatted": "",
+          "changeYen": null,
+          "changeFormatted": "",
+          "isReprint": false,
+          "reprintLabel": "",
+          "reprintNo": 0,
+          "originalReceiptNumber": "1000-0012",
+          "footer": "返品理由: 実機紙面試験",
+          "returnPolicy": "",
+          "hasOriginalTransaction": true,
+          "hasDiscounts": false,
+          "hasTendered": false,
+          "hasChange": false
+        },
+        "createdAt": "2026-08-03T00:52:46.683Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:49.003Z",
+        "operationId": "019fc51b-e1db-7e11-849c-3354466e9f45",
+        "kind": "original",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-escpos-v1",
+        "bytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"paper-a1701080\"\n!text \"返品・点検紙面試験\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!row {\"left\":\"受付番号\",\"right\":\"返品 1000-0012\"}\n!row {\"left\":\"確定日時\",\"right\":\"2026-08-03 09:52\"}\n!row {\"left\":\"レジ/担当\",\"right\":\"a1701080/paper-test-o\"}\n!rule \"single\"\n!row {\"left\":\"返品試験商品\",\"right\":\"¥500\"}\n!rule \"single\"\n!row {\"left\":\"値引\",\"right\":\"¥0\"}\n!row {\"left\":\"税\",\"right\":\"¥45\"}\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!row {\"left\":\"合計\",\"right\":\"¥500\"}\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!row {\"left\":\"現金\",\"right\":\"¥500\"}\n!text \"返品理由: 実機紙面試験\"\n!text \"\"\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "8151eefb3d3bad97b85501f6b8da786297b5aa40ff72a7e2416ac9c760d9f491",
+        "expectedBytesLength": 460,
+        "templateKey": "sale-receipt",
+        "templateVersion": 2,
+        "templateSourceSha256": "ecf350bacc6bcd02e6539cee77fdb16e2636ed65de78906f8c783d46c6d4a69f",
+        "fontId": "tm-t70ii-cp932",
+        "fontVersion": 1,
+        "fontSha256": "builtin-tm-t70ii-cp932-v1",
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.213Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/019fc51b-e1db-7e52-9f5a-8ed507c571e2/attempts",
+      "status": 200,
+      "response": {
+        "attempts": [
+          {
+            "attemptNo": 1,
+            "phase": "postcheck_completed",
+            "startedAt": "2026-08-03T00:52:46.691Z",
+            "endedAt": "2026-08-03T00:52:49.003Z",
+            "compilerBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+            "adapterBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+            "writeBytesSha256": "8f01127743445545de31dba1b8ace22ae1d2b2e19b2cd219f211849693a3adf3",
+            "acceptedBytes": 460,
+            "result": "completed",
+            "errorCode": null,
+            "errorMessage": null,
+            "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":460,\"spoolerJobId\":24,\"api\":\"Winspool RAW WritePrinter\"}",
+            "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:48.589Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.235Z",
+      "method": "POST",
+      "path": "/api/v1/cash-sessions/cash-a1701080/checks/interim",
+      "status": 201,
+      "response": {
+        "sessionId": "cash-a1701080",
+        "kind": "interim",
+        "counted": [
+          {
+            "denomination": 1000,
+            "quantity": 2
+          }
+        ],
+        "theoreticalYen": 1500,
+        "actorId": "paper-test-operator",
+        "terminalId": "register-a1701080",
+        "carryoverYen": 0,
+        "countedYen": 2000,
+        "differenceYen": 500,
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "printJobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "backupArtifact": {
+          "artifactId": "019fc51b-ebcd-727e-ae42-6c916e1996ce",
+          "eventId": "paper-a1701080",
+          "businessDate": "2026-08-03",
+          "cashboxId": "box-a1701080",
+          "cashSessionId": "cash-a1701080",
+          "sourceCashCheckId": 3,
+          "triggerKind": "interim",
+          "requestKey": "cash-check:3",
+          "state": "pending",
+          "requestedBy": "paper-test-operator",
+          "requestedAt": "2026-08-03T00:52:49.228Z",
+          "attemptCount": 0,
+          "canRegenerate": false
+        }
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.242Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.509Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:49.790Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:50.071Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:50.352Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:50.632Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:50.911Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:51.180Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "sending",
+        "updatedAt": "2026-08-03T00:52:49.230Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "not_sent",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:51.459Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+      "status": 200,
+      "response": {
+        "jobId": "e44e6c34-3512-45a7-95e2-e1e5b807efe5",
+        "transactionId": "cash-check:cash-a1701080:interim:2026-08-03T00:52:49.228Z",
+        "printerId": "receipt-1",
+        "documentType": "cash-check",
+        "payload": {
+          "escposBase64": "G0AbMxgbUggcQwEcJhthARtFARstABwtAB1CAJKGitSMdoOMg1aBW4NnChtFABstABwtAB1CABthAIlji8aT+iAyMDI2LTA4LTAzCoy7i+CUoCBib3gtYTE3MDEwODAKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KMSwwMDCJfiCBfiAyICAgICAgICAgICAgIFwyLDAwMAotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQqXnZhfjLuL4CAgICAgICAgICAgICAgICAgXDEsNTAwCo7Ajd2NgiAgICAgICAgICAgICAgICAgICBcMiwwMDAKid+Vc5GrICAgICAgICAgICAgICAgICAgICAgXDUwMAoKCgoKCgoKChtp",
+          "cashCheck": {
+            "sessionId": "cash-a1701080",
+            "kind": "interim",
+            "counted": [
+              {
+                "denomination": 1000,
+                "quantity": 2
+              }
+            ],
+            "theoreticalYen": 1500,
+            "actorId": "paper-test-operator",
+            "terminalId": "register-a1701080",
+            "carryoverYen": 0,
+            "countedYen": 2000,
+            "differenceYen": 500,
+            "createdAt": "2026-08-03T00:52:49.228Z"
+          },
+          "eventId": "paper-a1701080"
+        },
+        "createdAt": "2026-08-03T00:52:49.228Z",
+        "state": "completed",
+        "updatedAt": "2026-08-03T00:52:51.428Z",
+        "operationId": "a57bf433-3d87-4f7f-bb15-236eb5cf53ed",
+        "kind": "interim",
+        "deliveryCertainty": "accepted",
+        "completionEvidence": "transport_accepted",
+        "source": "event-pos",
+        "rendererVersion": "event-pos-cash-check-v2",
+        "bytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+        "canonicalIr": "!reset\n!align \"center\"\n!emphasis {\"bold\":true,\"invert\":false,\"underline\":false}\n!text \"中間計レシート\"\n!emphasis {\"bold\":false,\"invert\":false,\"underline\":false}\n!align \"left\"\n!text \"営業日 2026-08-03\"\n!text \"現金箱 box-a1701080\"\n!rule \"single\"\n!row {\"left\":\"1,000円 × 2\",\"right\":\"¥2,000\"}\n!rule \"single\"\n!row {\"left\":\"理論現金\",\"right\":\"¥1,500\"}\n!row {\"left\":\"実在高\",\"right\":\"¥2,000\"}\n!row {\"left\":\"過不足\",\"right\":\"¥500\"}\n!feed 8\n!cut \"partial\"\n",
+        "irSha256": "1b3ec42cb37de738f738559564f1b952fe717636f09e78ac40dee7fa3ec5c8f5",
+        "expectedBytesLength": 300,
+        "finishingPolicyId": "receipt-partial-cut",
+        "finishingPolicyVersion": 2
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:51.460Z",
+      "method": "GET",
+      "path": "/api/v1/print-jobs/e44e6c34-3512-45a7-95e2-e1e5b807efe5/attempts",
+      "status": 200,
+      "response": {
+        "attempts": [
+          {
+            "attemptNo": 1,
+            "phase": "postcheck_completed",
+            "startedAt": "2026-08-03T00:52:49.230Z",
+            "endedAt": "2026-08-03T00:52:51.428Z",
+            "compilerBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+            "adapterBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+            "writeBytesSha256": "e5fc8e844c8855c7b12a72cb7d9451b0bc99e377275cfee175bfe1e042bd29b2",
+            "acceptedBytes": 300,
+            "result": "completed",
+            "errorCode": null,
+            "errorMessage": null,
+            "transportEvidenceJson": "{\"adapter\":\"windows-raw-spooler\",\"printerName\":\"EPSON TM-T70II Receipt\",\"acceptedBytes\":300,\"spoolerJobId\":25,\"api\":\"Winspool RAW WritePrinter\"}",
+            "statusObservationJson": "{\"observedAt\":\"2026-08-03T00:52:51.037Z\",\"reachable\":{\"support\":\"supported\",\"value\":true},\"online\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice onlineを取得できません\"},\"coverOpen\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではcover状態を取得できません\"},\"paper\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではpaper状態を取得できません\"},\"error\":{\"support\":\"unknown\",\"reason\":\"Winspool RAWではdevice errorを取得できません\"},\"raw\":{\"adapter\":\"windows-raw\",\"schemaVersion\":1,\"normalized\":\"ready\",\"printer\":{\"Name\":\"EPSON TM-T70II Receipt\",\"DriverName\":\"EPSON TM-T70II Receipt5\",\"PortName\":\"ESDPRT001\",\"PrinterStatus\":0,\"WorkOffline\":null},\"usbControllerPresent\":true,\"usbDevices\":[{\"Status\":\"OK\",\"Class\":\"USB\",\"FriendlyName\":\"EPSON USB Controller for TM/BA/EU Printers\",\"InstanceId\":\"USB\\\\VID_04B8&PID_0202\\\\544444460135950000\",\"Problem\":0,\"ConfigManagerErrorCode\":0}],\"reason\":null}}"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-08-03T00:52:53.321Z",
+      "method": "GET",
+      "path": "/api/v1/printer/status",
+      "status": 200,
+      "response": {
+        "printerId": "receipt-1",
+        "observation": {
+          "observedAt": "2026-08-03T00:52:53.320Z",
+          "reachable": {
+            "support": "supported",
+            "value": true
+          },
+          "online": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice onlineを取得できません"
+          },
+          "coverOpen": {
+            "support": "unknown",
+            "reason": "Winspool RAWではcover状態を取得できません"
+          },
+          "paper": {
+            "support": "unknown",
+            "reason": "Winspool RAWではpaper状態を取得できません"
+          },
+          "error": {
+            "support": "unknown",
+            "reason": "Winspool RAWではdevice errorを取得できません"
+          },
+          "raw": {
+            "adapter": "windows-raw",
+            "schemaVersion": 1,
+            "normalized": "ready",
+            "printer": {
+              "Name": "EPSON TM-T70II Receipt",
+              "DriverName": "EPSON TM-T70II Receipt5",
+              "PortName": "ESDPRT001",
+              "PrinterStatus": 0,
+              "WorkOffline": null
+            },
+            "usbControllerPresent": true,
+            "usbDevices": [
+              {
+                "Status": "OK",
+                "Class": "USB",
+                "FriendlyName": "EPSON USB Controller for TM/BA/EU Printers",
+                "InstanceId": "USB\\VID_04B8&PID_0202\\544444460135950000",
+                "Problem": 0,
+                "ConfigManagerErrorCode": 0
+              }
+            ],
+            "reason": null
+          }
+        }
+      }
+    }
+  ],
+  "paperReview": {
+    "state": "unconfirmed",
+    "warning": "transport受理から紙面成功を推測しない"
+  }
+}

@@ -118,3 +118,13 @@ node .\tools\hardware-test\run-goal7-pos-acceptance.mjs --run --resume `
   --pos-url http://127.0.0.1:3000 `
   --output .\docs\printer-baseline\windows\YYYYMMDD-HHMMSS-goal7.1-pos
 ```
+
+### 返品・中間点検紙面の追加確認
+
+専用DBで現金売上を1件作成した後、全部返品と中間点検を実機へ送る。売上紙面も試験準備として1枚出る。証跡の`transport_completed_paper_unconfirmed`は送信完了だけを表し、紙面合格には操作者の目視記録が別途必要である。
+
+```powershell
+node .\tools\hardware-test\run-return-interim-acceptance.mjs --run `
+  --pos-url http://127.0.0.1:3001 `
+  --output .\docs\printer-baseline\windows\YYYYMMDD-HHMMSS-return-interim
+```

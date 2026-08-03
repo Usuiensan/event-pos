@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-03T01:00:00.000Z",
+  "operator": "利用者",
+  "photo": "IMG_0473.jpg",
+  "totalSheets": 6,
+  "result": "passed",
+  "targetPapers": {
+    "return": { "printed": true, "fullText": "ok", "layout": "ok", "mojibake": "none", "partialCut": "ok" },
+    "interim": { "printed": true, "fullText": "ok", "layout": "ok", "mojibake": "none", "partialCut": "ok" }
+  },
+  "note": "最初のrunの開局・売上2枚と、修正後runの開局・売上・返品・中間点検4枚。同一jobの自動再送ではない。"
+}
