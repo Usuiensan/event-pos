@@ -15,18 +15,24 @@ export type ConfigManagementOptions = { database: PosDatabase; configDirectory?:
 function failure(reply: FastifyReply, error: unknown): unknown {
   if (error instanceof AuthError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, details: {}, requestId: reply.request.id } });
   const message = error instanceof Error ? error.message : "設定を保存できません";
-  const status = /営業中|CONFIG_GIT_DIRTY/.test(message) ? 409 : 400;
+  const status = /営業中/.test(message) ? 409 : 400;
   return reply.code(status).send({ error: { code: "CONFIG_SAVE_FAILED", message, details: {}, requestId: reply.request.id } });
 }
 
-async function assertClean(repository: string, configDirectory: string): Promise<void> {
+function configPath(repository: string, configDirectory: string): string {
   const relative = configDirectory.replace(/\\/g, "/").replace(`${repository.replace(/\\/g, "/")}/`, "");
-  const { stdout } = await exec("git", ["status", "--porcelain", "--", relative], { cwd: repository });
-  if (stdout.trim()) throw new Error("CONFIG_GIT_DIRTY: 設定YAMLに未コミットの変更があるため保存できません");
+  return relative;
 }
 
-async function commitConfig(repository: string, configDirectory: string, actor: string): Promise<string> {
-  const relative = configDirectory.replace(/\\/g, "/").replace(`${repository.replace(/\\/g, "/")}/`, "");
+async function hasConfigChanges(repository: string, configDirectory: string): Promise<boolean> {
+  const relative = configPath(repository, configDirectory);
+  const { stdout } = await exec("git", ["status", "--porcelain", "--", relative], { cwd: repository });
+  return Boolean(stdout.trim());
+}
+
+async function commitConfig(repository: string, configDirectory: string, actor: string): Promise<string | undefined> {
+  const relative = configPath(repository, configDirectory);
+  if (!(await hasConfigChanges(repository, configDirectory))) return undefined;
   await exec("git", ["add", "--", relative], { cwd: repository });
   await exec("git", ["commit", "--only", "-m", `管理画面からPOS設定を更新 (${actor})`, "--", relative], { cwd: repository });
   const { stdout } = await exec("git", ["rev-parse", "HEAD"], { cwd: repository });
@@ -67,12 +73,11 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       if (getOpenBusinessSession(options.database, request.params.eventId)) throw new Error("営業中は設定を保存できません");
       const catalog = importEventCatalog(JSON.stringify(request.body?.catalog));
       if (catalog.eventId !== request.params.eventId || actor.eventId !== catalog.eventId) throw new Error("eventIdが一致しません");
-      if (options.configRepository) await assertClean(options.configRepository, options.configDirectory);
       await writeCatalog(options.configDirectory, catalog);
       const verified = await buildCatalog(options.configDirectory);
+      const commitId = options.configRepository ? await commitConfig(options.configRepository, options.configDirectory, actor.responsibleNumber) : undefined;
       const record = saveCatalog(options.database, verified.eventId, exportEventCatalog(verified));
       synchronizeCatalogStaff(options.database, verified);
-      const commitId = options.configRepository ? await commitConfig(options.configRepository, options.configDirectory, actor.responsibleNumber) : undefined;
       options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'management_config_saved','event_catalog',?,?,?)").run(verified.eventId, verified.eventId, JSON.stringify({ actorId: actor.staffId, responsibleNumber: actor.responsibleNumber, gitCommitId: commitId ?? null }), new Date().toISOString());
       return { catalog: verified, updatedAt: record.updatedAt, gitCommitId: commitId ?? null };
     } catch (error) { return failure(reply, error); }
