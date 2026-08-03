@@ -27,6 +27,7 @@
 | `15_adr-windows-linux-printer-parity-2026-08-02.md` | Windows/Linuxを同格の本番対応とするADR-P010 |
 | `17_goal8-backup-excel.md` | 中間計・精算時のSQLite snapshot、単一Excel帳票、manifest、再生成設計 |
 | `18_event-operations-ui.md` | 開局・点検・精算UI、運用dashboard、全部返品、本番artifact保存設計 |
+| `19_pos-ui-design-spec.md` | 参考画像を抽象化したPOS UIデザイントークン、画面構造、状態、コンポーネント、導入範囲 |
 
 ## 固定した技術方針
 
