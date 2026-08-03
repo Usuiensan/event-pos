@@ -60,9 +60,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .line-highlight { position: relative; }
 .line-animation-add { animation: detail-line-slide-in .1s ease-out both; }
 .line-animation-update { animation: line-soft-invert .2s ease-out both; }
-.line-animation-quantity.detail-row > span:nth-child(4),
-.line-animation-quantity.customer-line > span:last-child,
-.line-animation-quantity .mini-cart-item-detail span:first-child { animation: quantity-pop .16s ease-out both; transform-origin: center; }
+.line-animation-quantity.detail-row > span:nth-child(4) { animation: quantity-pop .16s ease-out both; transform-origin: center; }
 .line-quantity-change { display: inline-block; animation: quantity-pop .16s ease-out both; transform-origin: center; }
 @keyframes detail-line-slide-in {
   0% { opacity: 0; transform: translateX(1.25rem); }
