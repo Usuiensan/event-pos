@@ -195,7 +195,10 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck, requestKey?: st
   if (check.kind === "opening" && session.opening_yen !== null) throw new Error("opening check already exists");
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
   if (check.kind === "closing") {
-    const activeDraft = db.prepare("SELECT draft_id FROM sale_drafts WHERE event_id=? AND register_id=? AND state IN ('editing','payment','finalizing') LIMIT 1").get(session.event_id, session.cashbox_id);
+    const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d
+      WHERE d.event_id=? AND d.register_id=? AND d.state IN ('editing','payment','finalizing')
+        AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
+          OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(session.event_id, session.cashbox_id);
     if (activeDraft) throw new Error("ACTIVE_DRAFTS_EXIST: 未確定の会計を完了または登録中止してください");
   }
   db.exec("BEGIN;");

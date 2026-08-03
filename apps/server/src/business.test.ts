@@ -68,4 +68,17 @@ describe("営業状態と担当者session", () => {
     const reopened = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${opened.json().businessSessionId}/reopen`, headers: managerAfterClose, payload: { reason: "誤締め" } });
     expect(reopened.statusCode).toBe(200); expect(reopened.json()).toMatchObject({ sessionNo: 1, state: "open", reopenReason: "誤締め" });
   });
+
+  it("明細も支払もない空ドラフトは精算を妨げない", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/business-event/catalog", payload: catalog });
+    const operator = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "001", terminalId: "register-1" });
+    const manager = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "002", terminalId: "manager-1" });
+    const business = await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers: operator, payload: { eventId: catalog.eventId, businessDate: "2026-08-03", terminalId: "register-1" } });
+    const prepared = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.json().businessSessionId}/registers/register-1/prepare`, headers: operator, payload: { terminalId: "register-1" } });
+    const sessionId = prepared.json().sessionId as string;
+    await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${sessionId}/checks/opening`, headers: { ...operator, "idempotency-key": "empty-opening" }, payload: { counted: [{ denomination: 1000, quantity: 1 }], terminalId: "register-1" } });
+    expect((await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", headers: operator, payload: { eventId: catalog.eventId, staffId: "001", terminalId: "register-1", businessDate: "2026-08-03" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${sessionId}/checks/closing`, headers: { ...manager, "idempotency-key": "empty-closing" }, payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000, terminalId: "register-1" } })).statusCode).toBe(201);
+  });
 });
