@@ -7,6 +7,8 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       POS_DATABASE_PATH: /var/lib/event-pos/event-pos.sqlite
+      POS_EVENT_CONFIG_DIR: /app/event-config/demo
+      POS_ARTIFACT_ROOT: /var/lib/event-pos/artifacts
     ports:
       - "3000:3000"
     volumes:
@@ -30,6 +32,8 @@ services:
           path: package.json
         - action: rebuild
           path: pnpm-lock.yaml
+        - action: rebuild
+          path: event-config
 
 volumes:
   pos-data:

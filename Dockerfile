@@ -4,11 +4,13 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY apps ./apps
+COPY event-config ./event-config
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @event-pos/contracts build \
   && pnpm --filter @event-pos/receipt-ir build \
   && pnpm --filter @event-pos/escpos build \
   && pnpm --filter @event-pos/receipt-template build \
+  && pnpm --filter @event-pos/catalog-config build \
   && pnpm --filter @event-pos/register-web build \
   && pnpm --filter @event-pos/server build
 
@@ -25,10 +27,13 @@ COPY --from=build /workspace/packages/escpos/package.json /app/packages/escpos/p
 COPY --from=build /workspace/packages/escpos/dist /app/packages/escpos/dist
 COPY --from=build /workspace/packages/receipt-template/package.json /app/packages/receipt-template/package.json
 COPY --from=build /workspace/packages/receipt-template/dist /app/packages/receipt-template/dist
+COPY --from=build /workspace/packages/catalog-config/package.json /app/packages/catalog-config/package.json
+COPY --from=build /workspace/packages/catalog-config/dist /app/packages/catalog-config/dist
 COPY --from=build /workspace/apps/server/dist /app/apps/server/dist
 COPY --from=build /workspace/apps/server/package.json /app/apps/server/package.json
 COPY --from=build /workspace/apps/register-web/dist /app/register-web
-RUN node -e "const fs=require('fs'); for (const name of ['contracts','receipt-ir','escpos','receipt-template']) { const p='/app/packages/'+name+'/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.exports['.'].default='./dist/index.js'; fs.writeFileSync(p, JSON.stringify(j)+'\n'); }"
+COPY --from=build /workspace/event-config /app/event-config
+RUN node -e "const fs=require('fs'); for (const name of ['contracts','receipt-ir','escpos','receipt-template','catalog-config']) { const p='/app/packages/'+name+'/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.exports['.'].default='./dist/index.js'; fs.writeFileSync(p, JSON.stringify(j)+'\n'); }"
 RUN pnpm install --prod --frozen-lockfile && mkdir -p /var/lib/event-pos
 EXPOSE 3000
 CMD ["node", "apps/server/dist/index.js"]
