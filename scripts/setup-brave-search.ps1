@@ -12,14 +12,14 @@ $examplePath = Join-Path $project ".env.example"
 if (-not (Test-Path -LiteralPath $envPath)) {
   if (-not (Test-Path -LiteralPath $examplePath)) { throw ".env.example が見つかりません: $examplePath" }
   Copy-Item -LiteralPath $examplePath -Destination $envPath
-  Write-Host ".env を .env.example から作成しました。"
+  Write-Host "Created .env from .env.example."
 }
 
-$secret = Read-Host "Brave Search APIキーを入力してください（画面には表示されません）" -AsSecureString
+$secret = Read-Host "Enter Brave Search API key (input is hidden)" -AsSecureString
 $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
 try { $apiKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
 finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
-if ([string]::IsNullOrWhiteSpace($apiKey)) { throw "APIキーが空です。処理を中止しました。" }
+if ([string]::IsNullOrWhiteSpace($apiKey)) { throw "API key is empty. Aborted." }
 
 $content = Get-Content -LiteralPath $envPath -Raw
 function Set-EnvValue([string]$text, [string]$name, [string]$value) {
@@ -40,14 +40,14 @@ $content = Set-EnvValue $content "BRAVE_SEARCH_MIN_INTERVAL_MS" "1000"
 [IO.File]::WriteAllText($envPath, $content, [Text.UTF8Encoding]::new($false))
 $apiKey = $null
 
-Write-Host ".env にBrave Search API設定を保存しました。キーは表示・出力していません。"
-if ($SkipDeploy) { Write-Host "-SkipDeploy が指定されたため、Docker再起動を省略しました。"; exit 0 }
+Write-Host "Saved Brave Search API settings to .env. The key was not displayed or logged."
+if ($SkipDeploy) { Write-Host "-SkipDeploy specified. Docker restart skipped."; exit 0 }
 
 Push-Location $project
 try {
-  if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "docker コマンドが見つかりません。Docker Desktopを起動してください。" }
+  if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "docker command was not found. Start Docker Desktop." }
   docker compose up -d --build pos
-  if ($LASTEXITCODE -ne 0) { throw "Docker Composeの起動に失敗しました。" }
+  if ($LASTEXITCODE -ne 0) { throw "Docker Compose start failed." }
   $ready = $false
   for ($i = 0; $i -lt 30; $i++) {
     try {
@@ -56,6 +56,6 @@ try {
     } catch { }
     Start-Sleep -Seconds 2
   }
-  if (-not $ready) { throw "再起動後の /health/ready が確認できません。docker compose ps pos を確認してください。" }
-  Write-Host "Brave Search API設定とPOS再起動が完了しました。/health/ready: ok"
+  if (-not $ready) { throw "Could not verify /health/ready after restart. Check docker compose ps pos." }
+  Write-Host "Brave Search API setup and POS restart completed. /health/ready: ok"
 } finally { Pop-Location }
