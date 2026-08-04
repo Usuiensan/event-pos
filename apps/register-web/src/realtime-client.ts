@@ -7,14 +7,15 @@ export type RealtimeClientOptions = {
   createWebSocket?: (url: string) => WebSocket;
   setTimer?: (callback: () => void, delay: number) => number;
   clearTimer?: (timer: number) => void;
-  locationValue?: Pick<Location, "protocol" | "host">;
+  locationValue?: Pick<Location, "protocol" | "host"> & { port?: string };
 };
 
-export function websocketUrl(scope: Pick<RealtimeClientOptions, "registerId" | "terminalId" | "role">, locationValue: Pick<Location, "protocol" | "host"> = window.location): string {
+export function websocketUrl(scope: Pick<RealtimeClientOptions, "registerId" | "terminalId" | "role">, locationValue: Pick<Location, "protocol" | "host"> & { port?: string } = window.location): string {
   const protocol = locationValue.protocol === "https:" ? "wss:" : "ws:";
   const query = new URLSearchParams({ registerId: scope.registerId, terminalId: scope.terminalId, role: scope.role });
   const training = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "training";
-  return `${protocol}//${locationValue.host}${training ? "/training-api" : ""}/api/v1/events?${query}`;
+  const directTrainingServer = training && locationValue.port === "3002";
+  return `${protocol}//${locationValue.host}${training && !directTrainingServer ? "/training-api" : ""}/api/v1/events?${query}`;
 }
 
 export function connectRealtime(options: RealtimeClientOptions): () => void {

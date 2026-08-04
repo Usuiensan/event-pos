@@ -4,6 +4,14 @@ import { CheckoutApiError, checkoutApi } from "./checkout-api.js";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("checkout API client", () => {
+  it("3002のトレーニングサーバー直アクセスでは余分なプロキシ接頭辞を付けない", async () => {
+    vi.stubGlobal("window", { location: { search: "?mode=training", port: "3002" } });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "tx-training" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.finalize("draft-1", 1, "training-key");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/sale-drafts/draft-1/finalize", expect.anything());
+  });
+
   it("sends draft version and idempotency headers", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "tx-1" }) });
     vi.stubGlobal("fetch", fetchMock);
