@@ -6,7 +6,7 @@ event:
 seller:
   circleName: circleName
   space: space
-  receiptIssuerName: ""
+  receiptIssuerName: event-pos テストサークル
 locale:
   language: ja-JP
   currency: JPY
