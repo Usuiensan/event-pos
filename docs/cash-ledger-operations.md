@@ -10,14 +10,14 @@
 6. 精算後の現金移動・点検が拒否されることを確認する。
 7. 訂正が必要な場合は、理由・担当者・端末を指定して `reopen` を実行する。過去の精算記録は削除しない。
 
-売上・返品は次の原子APIを使う。取引レコードと現金台帳が同一トランザクションで確定する。
+売上・返品は次の原子APIを使い、取引レコードと現金台帳を同一トランザクションで確定する。
 
 ```text
 POST /api/v1/cash-sessions/:sessionId/transactions/sale
 POST /api/v1/cash-sessions/:sessionId/transactions/return
 ```
 
-過不足調査後に候補を確認した場合は、確認APIを実行して監査へ記録する。
+過不足調査後に候補を確認したら、確認APIで監査へ記録する。
 
 ```text
 POST /api/v1/cash-sessions/:sessionId/journal-candidates/confirm
@@ -25,7 +25,7 @@ POST /api/v1/cash-sessions/:sessionId/journal-candidates/confirm
 
 ## SQLiteバックアップ
 
-稼働中のDBファイルを直接コピーせず、サービス停止後にWALを含む3ファイルを保存する。
+稼働中のDBを直接コピーせず、サービス停止後にWALを含む3ファイルを保存する。
 
 ```sh
 docker compose stop pos
@@ -34,11 +34,11 @@ docker run --rm -v event-pos_pos-data:/data -v "$PWD/backups:/backup" alpine \
 docker compose start pos
 ```
 
-復旧時はサービスを停止し、バックアップをボリュームへ展開してから起動する。起動後に `/health/ready` と営業セッションの取得APIを確認し、取引・点検・監査ログが残っていることを確認する。
+復旧時はサービス停止、バックアップ展開後に起動する。起動後、`/health/ready`、営業セッション取得API、取引・点検・監査ログを確認する。
 
 ## 注意事項
 
 - `idempotencyKey` は同じ操作の再送で再利用し、別内容に流用しない。
-- `differenceYen` の候補検索結果は原因ではなく、調査候補として扱う。
+- `differenceYen` の候補検索結果は原因でなく調査候補として扱う。
 - PIN、パスワード、セッショントークンを理由欄・監査詳細・ログへ記録しない。
 - 現在のHTTP APIは認証機構をまだ提供していない。本番LAN公開前に認証・権限ミドルウェアを追加する。

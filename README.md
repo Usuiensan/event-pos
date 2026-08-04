@@ -1,10 +1,10 @@
 # event-pos
 
-同人誌即売会向けの、複数端末対応POSレジシステム。
+同人誌即売会向け複数端末POS。
 
 ## 現在の段階
 
-Goal 5までの会計・レシート・永続印刷キューを実装済みで、Windows/Linux双方からTM-T70IIを完全運用できる実機検証とOS adapter実装へ進む段階。
+Goal 5までの会計・レシート・永続印刷キュー実装済み。Windows/Linux双方のTM-T70II実機検証とOS adapter実装へ進行中。
 
 - 本番対応プリンターホスト: Windows x64、およびDebian・Ubuntu・Raspberry Pi OS等の64bit Linux
 - レシートプリンター: EPSON TM-T70II
@@ -32,11 +32,11 @@ deploy/surface/          Windows native printer-host、導入・更新・復旧�
 
 このリポジトリは `discord-printer-bot` から独立させる。
 
-再利用するESC/POS生成、文字・画像ラスタ、Linux USB送信、カット処理、golden testは、移植元commitとファイルを記録したうえでこのリポジトリへ移植する。Discord連携、AI機能、Discord設定には依存しない。既存Debianのsystemd・udev・USB運用知見はPOS用に再設計して取り込む。
+ESC/POS生成、文字・画像ラスタ、Linux USB送信、カット、golden testは移植元commit・ファイルを記録して移植する。Discord連携、AI機能、Discord設定には依存しない。既存Debianのsystemd・udev・USB知見はPOS用に再設計する。
 
 ## 開発コマンド
 
-Node.js 24以上とpnpm 11を使用する。SQLiteはNode.jsの`node:sqlite`を使うため、Windows/Linuxで同じ実行条件にする。
+Node.js 24以上、pnpm 11を使用。SQLiteはNode.jsの`node:sqlite`でWindows/Linuxの実行条件を統一する。
 
 ```powershell
 pnpm install
@@ -45,11 +45,11 @@ pnpm --filter @event-pos/server dev
 pnpm --filter @event-pos/register-web dev
 ```
 
-`pnpm check`は全workspaceの型チェック、テスト、buildを実行する。React画面の実テストはUI実装タスクで追加する。
+`pnpm check`は全workspaceの型チェック、テスト、buildを実行。React画面の実テストはUI実装タスクで追加する。
 
 ## 商品JSONの責任者設定
 
-商品JSONには責任者番号とレジ表示名の対応を`staffMembers`で設定できる。責任者番号は先頭ゼロを含む3桁文字列で、イベント内で重複できない。表示名にはペンネームやハンドルネームを使用できる。
+商品JSONの`staffMembers`で責任者番号とレジ表示名を設定する。番号は先頭ゼロを含む重複不可の3桁文字列。表示名はペンネーム・ハンドルネーム可。
 
 ```json
 {
@@ -63,11 +63,11 @@ pnpm --filter @event-pos/register-web dev
 }
 ```
 
-店員側画面は、`staffMembers`に存在しない番号、空欄、3桁でない番号でのサインオンを拒否する。
+店員画面は未登録番号、空欄、3桁以外の番号でのサインオンを拒否する。
 
 ### 顧客画面の登録待ち表示
 
-商品が未登録の顧客画面には、`customerWelcome`でサークル名、配置、案内文、画像を設定できる。`message`は改行を含められ、`imageUrl`にはブラウザから参照できる画像URLまたは配信パスを指定する。
+未登録商品時の顧客画面は`customerWelcome`でサークル名、配置、案内文、画像を設定する。`message`は改行可。`imageUrl`はブラウザ参照可能なURLまたは配信パス。
 
 ```json
 {
@@ -80,7 +80,7 @@ pnpm --filter @event-pos/register-web dev
 }
 ```
 
-各項目は省略可能で、`message`が未設定の場合は「いらっしゃいませ」を表示する。
+各項目は省略可。`message`未設定時は「いらっしゃいませ」を表示する。
 
 ## 次の作業
 
