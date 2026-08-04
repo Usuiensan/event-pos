@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, productFromNewProductDraft, validateNewProductDraft } from "./admin-settings.js";
+import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, productFromNewProductDraft, validateNewProductDraft } from "./admin-settings.js";
+
+describe("商品名候補の整理", () => {
+  it("重複語と販売者ノイズを除き、短い候補を生成する", () => {
+    const candidates = buildProductNameCandidates([{ name: "パイロット 万年筆用インキ INK-30BB ブルーブラック 30ml ハンズ", source: "test", strength: "strong", reason: "test" }, { name: "PILOT 万年筆専用インク INK30BB ブルーブラック", source: "test", strength: "medium", reason: "test" }], "4902505140518");
+    expect(candidates[0]).toContain("INK");
+    expect(candidates.join(" ")).not.toContain("ハンズ");
+    expect(candidates.length).toBeLessThanOrEqual(3);
+  });
+});
 
 describe("管理画面の部門採番", () => {
   it("未使用の3桁連番を採番する", () => {
