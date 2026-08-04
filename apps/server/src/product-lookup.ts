@@ -7,10 +7,27 @@ import { getCatalog } from "./db.js";
 import { randomUUID } from "node:crypto";
 
 const normalize = (code: string) => code.replace(/[\s-]/g, "");
-async function braveCandidates(code: string): Promise<ProductLookupCandidate[]> {
+const integerEnv = (name: string, fallback: number) => { const value = Number.parseInt(process.env[name] ?? "", 10); return Number.isSafeInteger(value) && value > 0 ? value : fallback; };
+const braveLimitConfig = () => ({ monthly: integerEnv("BRAVE_SEARCH_MONTHLY_LIMIT", 900), daily: integerEnv("BRAVE_SEARCH_DAILY_LIMIT", 100), perMinute: integerEnv("BRAVE_SEARCH_PER_MINUTE_LIMIT", 10), minIntervalMs: integerEnv("BRAVE_SEARCH_MIN_INTERVAL_MS", 1000), alertAt: integerEnv("BRAVE_SEARCH_ALERT_AT", 800) });
+function reserveBraveSearch(database: PosDatabase, code: string): void {
+  const now = new Date(); const iso = now.toISOString(); const config = braveLimitConfig();
+  const monthly = Number((database.prepare("SELECT COUNT(*) AS count FROM brave_search_usage WHERE requested_at>=strftime('%Y-%m-01T00:00:00.000Z','now')").get() as { count: number }).count);
+  const daily = Number((database.prepare("SELECT COUNT(*) AS count FROM brave_search_usage WHERE requested_at>=datetime('now','start of day')").get() as { count: number }).count);
+  const minute = Number((database.prepare("SELECT COUNT(*) AS count FROM brave_search_usage WHERE requested_at>=datetime('now','-1 minute')").get() as { count: number }).count);
+  const latest = database.prepare("SELECT requested_at FROM brave_search_usage ORDER BY requested_at DESC LIMIT 1").get() as { requested_at?: string } | undefined;
+  if (monthly >= config.monthly) throw new Error(`Brave Search APIの月間上限(${config.monthly}件)に達したため検索を停止しました`);
+  if (daily >= config.daily) throw new Error(`Brave Search APIの日次上限(${config.daily}件)に達したため検索を停止しました`);
+  if (minute >= config.perMinute) throw new Error(`Brave Search APIの分間上限(${config.perMinute}件)に達したため検索を停止しました`);
+  if (latest && now.getTime() - Date.parse(latest.requested_at ?? "") < config.minIntervalMs) throw new Error("Brave Search APIの連続検索を抑制中です。少し待ってから再試行してください");
+  database.prepare("INSERT INTO brave_search_usage(request_id,requested_at,code,outcome) VALUES (?,?,?,'reserved')").run(randomUUID(), iso, code);
+  if (monthly + 1 >= config.alertAt) console.warn(`[brave-search] 月間利用 ${monthly + 1}/${config.monthly} 件。無料枠超過防止のため上限まで残り ${config.monthly - monthly - 1} 件`);
+}
+async function braveCandidates(database: PosDatabase, code: string): Promise<ProductLookupCandidate[]> {
   const key = process.env.BRAVE_SEARCH_API_KEY;
   if (!key) return [];
+  reserveBraveSearch(database, code);
   const url = new URL("https://api.search.brave.com/res/v1/web/search"); url.searchParams.set("q", `"${code}" 商品`); url.searchParams.set("count", "5");
+  // 呼び出し回数はDBへ予約記録し、再起動後も月次・日次・分間上限を維持する。
   const response = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { Accept: "application/json", "X-Subscription-Token": key } });
   if (!response.ok) return [];
   const data = await response.json() as { web?: { results?: Array<{ title?: string; description?: string; url?: string }> } };
@@ -41,7 +58,7 @@ export async function lookupProductCandidates(database: PosDatabase, eventId: st
     const info = await fetchIsdnProduct(code);
     candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price }), url: info.sourceUrl, source: "ISDN", strength: "strong", reason: "ISDN完全一致の公開情報" });
   }
-  if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong")) candidates.push(...await braveCandidates(code));
+  if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong")) candidates.push(...await braveCandidates(database, code));
   const result = { code, codeKind: parsed.kind, existingProducts, candidates, searchedAt: new Date().toISOString() } satisfies ProductLookupResult;
   database.prepare("INSERT INTO product_lookup_cache(cache_key,event_id,code,result_json,fetched_at,expires_at) VALUES (?,?,?,?,?,?) ON CONFLICT(cache_key) DO UPDATE SET result_json=excluded.result_json,fetched_at=excluded.fetched_at,expires_at=excluded.expires_at").run(cacheKey, eventId, code, JSON.stringify(result), result.searchedAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
   return result;
