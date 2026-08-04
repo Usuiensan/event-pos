@@ -20,6 +20,16 @@ export function applyProductAssistSchema(db: PosDatabase): void {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS ix_product_lookup_adoptions_product ON product_lookup_adoptions(event_id, product_code, created_at);
+    CREATE TABLE IF NOT EXISTS product_lookup_feedback (
+      feedback_id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      product_code TEXT NOT NULL,
+      token TEXT NOT NULL,
+      feedback TEXT NOT NULL CHECK (feedback IN ('negative','positive')),
+      actor_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS ix_product_lookup_feedback_token ON product_lookup_feedback(event_id, token, feedback);
     CREATE TABLE IF NOT EXISTS brave_search_usage (
       request_id TEXT PRIMARY KEY,
       requested_at TEXT NOT NULL,

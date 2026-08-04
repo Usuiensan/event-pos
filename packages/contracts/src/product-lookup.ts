@@ -8,6 +8,8 @@ export type ProductLookupCandidate = {
   source: string;
   strength: ProductLookupEvidenceStrength;
   reason: string;
+  /** 同一要素が候補サイト間で確認された回数。 */
+  agreement?: number;
 };
 export type ProductLookupResult = {
   code: string;
