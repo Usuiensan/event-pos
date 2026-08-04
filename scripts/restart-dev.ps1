@@ -38,9 +38,13 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Docker Compose redeploy failed." }
 
   if ($ResetPosDatabase) {
-    $reload = Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://127.0.0.1:3000/api/v1/events/demo-event-large/catalog/reload" -ContentType "application/json" -Body "{}" -TimeoutSec 10
-    if ($reload.StatusCode -ne 200) { throw "Catalog reload failed after database reset." }
-    Write-Host "Reloaded demo-event-large catalog from YAML."
+    $reload = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/v1/events/demo-event-large/catalog/reload" -ContentType "application/json" -Body "{}" -TimeoutSec 10
+    $catalog = $reload.catalog
+    $catalog.staffMembers = @($catalog.staffMembers | Where-Object { $_.responsibleNumber -eq "001" } | ForEach-Object { $_.role = "admin"; $_.permissions = @("catalog_import", "refund", "reprint"); $_ })
+    if ($catalog.staffMembers.Count -eq 0) { throw "Recovery catalog does not contain responsible number 001." }
+    $body = $catalog | ConvertTo-Json -Depth 20
+    Invoke-RestMethod -Method Put -Uri "http://127.0.0.1:3000/api/v1/events/demo-event-large/catalog" -ContentType "application/json" -Body $body -TimeoutSec 10 | Out-Null
+    Write-Host "Initialized demo-event-large with responsible 001 (admin) only."
   }
 
   if ($SkipBuild) { docker compose up -d --wait pos-training }
