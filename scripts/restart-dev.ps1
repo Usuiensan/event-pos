@@ -14,8 +14,11 @@ try {
   if ($ResetPosDatabase) {
     Write-Host "Delete target: Docker volume event-pos_pos-data (persistent POS SQLite and artifacts)"
     Write-Host "event-config, SQLite files under docs, and Git history are not deleted."
-    $confirmation = Read-Host 'Type DELETE POS DATABASE to confirm deletion'
-    if ($confirmation -cne "DELETE POS DATABASE") { throw "Confirmation did not match. SQLite deletion was cancelled." }
+    $confirmation = Read-Host 'Type DELETE POS DATABASE to confirm deletion (or press Enter to cancel)'
+    if ($confirmation -cne "DELETE POS DATABASE") {
+      Write-Host "SQLite deletion cancelled. No data was deleted."
+      exit 0
+    }
   }
 
   Write-Host "Stopping existing compose services."
