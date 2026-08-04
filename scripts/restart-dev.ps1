@@ -61,6 +61,9 @@ try {
     Write-Host "$uri : ok"
   }
   docker compose ps
+} catch {
+  [System.Media.SystemSounds]::Hand.Play()
+  throw
 } finally { Pop-Location }
 
 $tada = Join-Path $env:WINDIR "Media\tada.wav"
