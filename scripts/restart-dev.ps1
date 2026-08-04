@@ -62,3 +62,8 @@ try {
   }
   docker compose ps
 } finally { Pop-Location }
+
+$tada = Join-Path $env:WINDIR "Media\tada.wav"
+if (Test-Path -LiteralPath $tada) {
+  (New-Object System.Media.SoundPlayer($tada)).PlaySync()
+}
