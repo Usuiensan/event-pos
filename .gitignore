@@ -14,3 +14,5 @@ Thumbs.db
 .vscode/
 artifacts/
 tmp/
+.agents/skills/
+/skills-lock.json
