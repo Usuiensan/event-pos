@@ -19,7 +19,7 @@ const drawerPulse = (pin: 2 | 5, onMs: number, offMs: number) => {
   return { pin, onMs, offMs, bytesSha256: bytesSha256(bytes) };
 };
 const drawerPulseProfiles: Record<DrawerPulseProfile, ReturnType<typeof drawerPulse>> = {
-  approved: drawerPulse(2, 40, 200),
+  approved: drawerPulse(2, 80, 400),
   pin2_40ms: drawerPulse(2, 40, 200),
   pin2_80ms: drawerPulse(2, 80, 400),
   pin5_40ms: drawerPulse(5, 40, 200),

@@ -60,13 +60,13 @@ describe("receipt template and reprint routes", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
   });
 
-  it("責任者の既定drawer profileを40msで監査付き保存する", async () => {
+  it("責任者の既定drawer profileを80msで監査付き保存する", async () => {
     const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true }); apps.push(app);
     const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } });
     expect(response.statusCode).toBe(201);
-    expect(response.json().payload).toMatchObject({ pin: 2, onMs: 40, offMs: 200, reason: "manager_manual" });
+    expect(response.json().payload).toMatchObject({ pin: 2, onMs: 80, offMs: 400, reason: "manager_manual" });
     const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='drawer_open_request'").get() as { detail_json: string };
-    expect(JSON.parse(audit.detail_json)).toMatchObject({ actorId: "manager-1", profile: "approved", pin: 2, onMs: 40, offMs: 200 });
+    expect(JSON.parse(audit.detail_json)).toMatchObject({ actorId: "manager-1", profile: "approved", pin: 2, onMs: 80, offMs: 400 });
   });
 
   it("会計時にPIIを含まないimmutable snapshotと全version/hashを保存する", async () => {
