@@ -44,4 +44,10 @@ describe("checkout API client", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/transactions/sale-1/full-return", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-actor-id": "001", "idempotency-key": "return-key-1" }) }));
     expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("x-pos-role");
   });
+
+  it("商品名要素feedbackを保存する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recorded: true }) }); vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.recordProductLookupFeedback("event-1", "4901234567890", "ハンズ", "negative");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/events/event-1/product-lookup/feedback", expect.objectContaining({ method: "POST", body: JSON.stringify({ productCode: "4901234567890", token: "ハンズ", feedback: "negative" }) }));
+  });
 });

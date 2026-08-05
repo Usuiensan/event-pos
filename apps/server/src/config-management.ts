@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { buildCatalog, writeCatalog } from "@event-pos/catalog-config";
@@ -10,7 +9,7 @@ import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
 import { fetchNdlIsbnProduct } from "./isbn.js";
-import { lookupProductCandidates, recordProductLookupAdoption } from "./product-lookup.js";
+import { lookupProductCandidates, recordProductLookupAdoption, recordProductLookupFeedback } from "./product-lookup.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -102,7 +101,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       if (actor.eventId !== request.params.eventId || !request.body?.productCode || !token || !["negative", "positive"].includes(request.body.feedback ?? "")) throw new Error("商品名要素の評価情報が不正です");
       const feedback = request.body.feedback;
       if (feedback !== "negative" && feedback !== "positive") throw new Error("評価種別が不正です");
-      options.database.prepare("INSERT INTO product_lookup_feedback(feedback_id,event_id,product_code,token,feedback,actor_id,created_at) VALUES (?,?,?,?,?,?,?)").run(randomUUID(), request.params.eventId, request.body.productCode, token, feedback, actor.staffId, new Date().toISOString());
+      recordProductLookupFeedback(options.database, request.params.eventId, request.body.productCode, token, feedback, actor.staffId);
       return { recorded: true };
     } catch (error) { return failure(reply, error); }
   });
