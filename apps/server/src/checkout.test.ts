@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { createPublicReference } from "@event-pos/contracts";
 import { buildApp } from "./app.js";
 import { openDatabase, type PosDatabase } from "./db.js";
-import { openRegisterForTest } from "./test-support.js";
+import { openRegisterForTest, signInForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -60,6 +60,18 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
 }
 
 describe("durable checkout API", () => {
+  it("返品対象検索は認証必須でイベントを越えて検索できない", async () => {
+    const database = openDatabase();
+    const app = buildApp({ database, requireAuth: true }); apps.push(app);
+    const unauthenticated = await app.inject({ method: "GET", url: "/api/v1/transactions/returnable?eventId=checkout-event&query=123" });
+    expect(unauthenticated.statusCode).toBe(401);
+    const installed = await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog });
+    expect(installed.statusCode).toBe(200);
+    const session = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "001", terminalId: "register-1" });
+    const foreign = await app.inject({ method: "GET", url: "/api/v1/transactions/returnable?eventId=other-event&query=123", headers: session });
+    expect(foreign.statusCode).toBe(403);
+  });
+
   it("定期刊行物は18桁の号・年月・バーコード価格から販売明細を作り、13桁本体へフォールバックしない", async () => {
     const { app } = makeApp(); await installCatalog(app); const draft = await startDraft(app);
     const response = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/periodicals`, headers: { "if-match": String(draft.version) }, payload: { code: "491217631016501000" } });
