@@ -24,7 +24,7 @@ drawerは`DRAWER_ENABLED=false`を既定とし、ADR-P003がAcceptedになるま
 
 ## BC-415M-B(6C) のP003実装候補（2026-08-03）
 
-ビジコムBC-415M-B(6C)は6ピンモジュラー式で、TMシリーズのDKコネクター経由で制御する。TM-T70IIの既定2番pinに対し、EPSONの`ESC p 0 2 20`例（ON 4 ms、OFF 40 ms）だけを許可する。任意のpin/pulseは受け付けない。責任者の「替」操作と現金会計時の操作は同じFIFO queueにdrawer operationとして入り、現金会計ではdrawerがreceiptより先行する。再印刷はdrawer operationを生成しない。
+ビジコムBC-415M-B(6C)は6ピンモジュラー式で、TMシリーズのDKコネクター経由で制御する。TM-T70IIの既定2番pinは、Windows実機で物理開放を確認した`ESC p 0 20 100`（ON 40 ms、OFF 200 ms）を既定とする。任意のpin/pulseは受け付けない。責任者のドロアー操作と現金会計時の操作は同じFIFO queueにdrawer operationとして入り、現金会計ではdrawerがreceiptより先行する。再印刷はdrawer operationを生成しない。
 
 Windows RAW spoolerで`acceptedBytes=5`を取得しただけでは物理開放を証明しない。到着後、接続図を確認し、Windows/Linuxで担当者による各一回の物理開放と連続駆動制限を保存するまでADR-P003はPending、`DRAWER_ENABLED=false`のままとする。
 

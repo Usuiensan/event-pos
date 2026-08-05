@@ -38,4 +38,4 @@ serviceを停止し、POS DBをbackupしてからrelease全体を更新する。
 
 ## BC-415M-B(6C)
 
-到着前、またはP003の両OS受入前は`DRAWER_ENABLED=false`を維持する。到着後は接続図と2番pin、4/40 msを確認し、TM-T70IIのDK connector以外へ接続しない。Windows/Linuxで各1回だけ責任者操作として試験し、payload hash `dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de`、host応答、ログ、物理開放結果を保存する。全bytes受理だけで物理開放成功とは判定しない。
+到着前、またはP003の両OS受入前は`DRAWER_ENABLED=false`を維持する。到着後は接続図と2番pin、40/200 msを確認し、TM-T70IIのDK connector以外へ接続しない。Windows/Linuxで各1回だけ責任者操作として試験し、payload hash `e11e22d0c2538e1cd892e671b4915e0cf57a34d71f54ea1712fbd9629a024134`、host応答、ログ、物理開放結果を保存する。全bytes受理だけで物理開放成功とは判定しない。

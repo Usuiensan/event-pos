@@ -112,11 +112,11 @@ describe("printer host", () => {
     expect(Array.from(transport.sent[0] ?? [])).toEqual(Array.from(raw));
   });
 
-  it("固定済みのBC-415M用2番pin pulseだけをdrawer jobとして送信する", async () => {
+  it("既定のBC-415M用2番pin 40ms pulseをdrawer jobとして送信する", async () => {
     const transport = new FakeTransport(); const app = buildPrinterHost({ transport }); apps.push(app);
-    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "drawer-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 4, offMs: 40 }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: 5, bytesSha256: "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", rendererVersion: "event-pos-drawer-v1" } });
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "drawer-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 40, offMs: 200 }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: 5, bytesSha256: "e11e22d0c2538e1cd892e671b4915e0cf57a34d71f54ea1712fbd9629a024134", rendererVersion: "event-pos-drawer-v1" } });
     expect(response.statusCode).toBe(201);
-    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
+    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x14, 0x64]);
   });
 
   it("status取得と印刷送信を同じprinter mutexで直列化する", async () => {

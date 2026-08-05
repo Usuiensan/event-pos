@@ -510,7 +510,7 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
     if (drawerEnabled && payments.some((payment) => payment.kind === "cash" && payment.amountYen > 0)) {
       const drawerJobId = uuidV7(); const drawerOperationId = uuidV7();
       db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,'drawer',?,?,?,?,?,?,?,?,'not_sent')")
-        .run(drawerJobId, drawerOperationId, transactionId, String(row.register_id), "drawer", JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }), now, "pending", now, "event-pos", "event-pos-drawer-v1", "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", 5);
+        .run(drawerJobId, drawerOperationId, transactionId, String(row.register_id), "drawer", JSON.stringify({ pin: 2, onMs: 40, offMs: 200, reason: "cash_sale" }), now, "pending", now, "event-pos", "event-pos-drawer-v1", "e11e22d0c2538e1cd892e671b4915e0cf57a34d71f54ea1712fbd9629a024134", 5);
       const drawerSequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0)+1 AS next FROM printer_operations").get() as { next: number }).next);
       db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'drawer','receipt-1',?,'pending',?,0,4,?,?)").run(drawerOperationId, drawerSequence, drawerJobId, now, now, now);
     }

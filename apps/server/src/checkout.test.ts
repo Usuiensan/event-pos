@@ -128,7 +128,7 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE transaction_id IS NOT NULL").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='sale_finalize'").get()).toMatchObject({ count: 1 });
     expect(db.prepare("SELECT o.kind FROM printer_operations o JOIN print_jobs j ON j.job_id=o.payload_ref WHERE j.transaction_id=? ORDER BY o.sequence").all(result.transactionId)).toEqual([{ kind: "drawer" }, { kind: "print" }]);
-    expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 4, offMs: 40, reason: "cash_sale" }) });
+    expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 40, offMs: 200, reason: "cash_sale" }) });
     const transaction = await app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` });
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
   });
