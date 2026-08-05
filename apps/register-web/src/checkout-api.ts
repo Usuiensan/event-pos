@@ -89,7 +89,8 @@ let csrfToken = "";
 
 export function apiUrl(url: string): string {
   const training = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "training";
-  return training ? `/training-api${url}` : url;
+  const directTrainingServer = training && typeof window !== "undefined" && window.location.port === "3002";
+  return training && !directTrainingServer ? `/training-api${url}` : url;
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

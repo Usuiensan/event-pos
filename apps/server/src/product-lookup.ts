@@ -7,6 +7,7 @@ import { getCatalog } from "./db.js";
 import { randomUUID } from "node:crypto";
 
 const normalize = (code: string) => code.replace(/[\s-]/g, "");
+const normalizeLookupToken = (value: string) => value.normalize("NFKC").trim().toLocaleLowerCase("ja-JP");
 const integerEnv = (name: string, fallback: number) => { const value = Number.parseInt(process.env[name] ?? "", 10); return Number.isSafeInteger(value) && value > 0 ? value : fallback; };
 const braveLimitConfig = () => ({ monthly: integerEnv("BRAVE_SEARCH_MONTHLY_LIMIT", 900), daily: integerEnv("BRAVE_SEARCH_DAILY_LIMIT", 100), perMinute: integerEnv("BRAVE_SEARCH_PER_MINUTE_LIMIT", 10), minIntervalMs: integerEnv("BRAVE_SEARCH_MIN_INTERVAL_MS", 1000), alertAt: integerEnv("BRAVE_SEARCH_ALERT_AT", 800) });
 function reserveBraveSearch(database: PosDatabase, code: string): void {
@@ -34,12 +35,40 @@ async function braveCandidates(database: PosDatabase, code: string): Promise<Pro
   return (data.web?.results ?? []).flatMap((result) => result.title && result.url ? [{ name: result.title, url: result.url, source: "Brave Search", strength: "weak" as const, reason: result.description ?? "JANコード完全一致検索の検索結果" }] : []);
 }
 
+function feedbackState(database: PosDatabase, eventId: string, productCode: string): Map<string, "negative" | "positive"> {
+  const state = new Map<string, "negative" | "positive">();
+  const rows = database.prepare("SELECT token,feedback FROM product_lookup_feedback WHERE event_id=? AND product_code=? ORDER BY created_at,rowid").all(eventId, productCode) as Array<{ token: string; feedback: "negative" | "positive" }>;
+  for (const row of rows) state.set(normalizeLookupToken(row.token), row.feedback);
+  return state;
+}
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function removeFeedbackTokens(value: string, tokens: string[]): string {
+  let result = value.normalize("NFKC");
+  for (const token of tokens) result = result.replace(new RegExp(escapeRegExp(token), "giu"), " ");
+  return result.replace(/\s+/g, " ").trim();
+}
+
+export function applyProductLookupFeedback(database: PosDatabase, eventId: string, productCode: string, result: ProductLookupResult): ProductLookupResult {
+  const excludedTokens = [...feedbackState(database, eventId, productCode)].filter(([, feedback]) => feedback === "negative").map(([token]) => token).sort();
+  if (excludedTokens.length === 0) return { ...result, excludedTokens: [] };
+  const candidates = result.candidates.flatMap((candidate) => {
+    if (!candidate.name) return [candidate];
+    const name = removeFeedbackTokens(candidate.name, excludedTokens);
+    if (!name && !candidate.company) return [];
+    if (name) return [{ ...candidate, name }];
+    const { name: _name, ...withoutName } = candidate;
+    return [withoutName];
+  });
+  return { ...result, candidates, excludedTokens };
+}
+
 export async function lookupProductCandidates(database: PosDatabase, eventId: string, configDirectory: string | undefined, codeInput: string): Promise<ProductLookupResult> {
   const code = normalize(codeInput);
   if (!/^\d{8,18}$/.test(code)) throw new Error("商品コードは数字8〜18桁で入力してください");
   const cacheKey = `${eventId}:${code}`;
   const cached = database.prepare("SELECT result_json, expires_at FROM product_lookup_cache WHERE cache_key=?").get(cacheKey) as { result_json: string; expires_at: string } | undefined;
-  if (cached && cached.expires_at > new Date().toISOString()) return JSON.parse(cached.result_json) as ProductLookupResult;
+  if (cached && cached.expires_at > new Date().toISOString()) return applyProductLookupFeedback(database, eventId, code, JSON.parse(cached.result_json) as ProductLookupResult);
   const record = getCatalog(database, eventId);
   if (!record) throw new Error("商品カタログが見つかりません");
   const catalog = importEventCatalog(record.catalogJson);
@@ -61,9 +90,15 @@ export async function lookupProductCandidates(database: PosDatabase, eventId: st
   if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong")) candidates.push(...await braveCandidates(database, code));
   const result = { code, codeKind: parsed.kind, existingProducts, candidates, searchedAt: new Date().toISOString() } satisfies ProductLookupResult;
   database.prepare("INSERT INTO product_lookup_cache(cache_key,event_id,code,result_json,fetched_at,expires_at) VALUES (?,?,?,?,?,?) ON CONFLICT(cache_key) DO UPDATE SET result_json=excluded.result_json,fetched_at=excluded.fetched_at,expires_at=excluded.expires_at").run(cacheKey, eventId, code, JSON.stringify(result), result.searchedAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
-  return result;
+  return applyProductLookupFeedback(database, eventId, code, result);
 }
 
 export function recordProductLookupAdoption(database: PosDatabase, eventId: string, productCode: string, fieldName: string, candidate: ProductLookupCandidate, actorId: string): void {
   database.prepare("INSERT INTO product_lookup_adoptions(adoption_id,event_id,product_code,field_name,candidate_json,actor_id,created_at) VALUES (?,?,?,?,?,?,?)").run(randomUUID(), eventId, productCode, fieldName, JSON.stringify(candidate), actorId, new Date().toISOString());
+}
+
+export function recordProductLookupFeedback(database: PosDatabase, eventId: string, productCode: string, token: string, feedback: "negative" | "positive", actorId: string): void {
+  const normalizedToken = normalizeLookupToken(token);
+  if (!normalizedToken) throw new Error("商品名要素の評価情報が不正です");
+  database.prepare("INSERT INTO product_lookup_feedback(feedback_id,event_id,product_code,token,feedback,actor_id,created_at) VALUES (?,?,?,?,?,?,?)").run(randomUUID(), eventId, normalize(productCode), normalizedToken, feedback, actorId, new Date().toISOString());
 }

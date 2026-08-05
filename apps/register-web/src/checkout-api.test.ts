@@ -4,6 +4,14 @@ import { CheckoutApiError, checkoutApi } from "./checkout-api.js";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("checkout API client", () => {
+  it("3002のトレーニングサーバー直アクセスでは余分なプロキシ接頭辞を付けない", async () => {
+    vi.stubGlobal("window", { location: { search: "?mode=training", port: "3002" } });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "tx-training" }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.finalize("draft-1", 1, "training-key");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/sale-drafts/draft-1/finalize", expect.anything());
+  });
+
   it("sends draft version and idempotency headers", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ transactionId: "tx-1" }) });
     vi.stubGlobal("fetch", fetchMock);
@@ -35,5 +43,11 @@ describe("checkout API client", () => {
     await checkoutApi.createFullReturn("sale-1", { cashSessionId: "cash-1", terminalId: "register-1", reason: "商品不良" }, "001", "return-key-1");
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/transactions/sale-1/full-return", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "x-pos-actor-id": "001", "idempotency-key": "return-key-1" }) }));
     expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("x-pos-role");
+  });
+
+  it("商品名要素feedbackを保存する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recorded: true }) }); vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.recordProductLookupFeedback("event-1", "4901234567890", "ハンズ", "negative");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/events/event-1/product-lookup/feedback", expect.objectContaining({ method: "POST", body: JSON.stringify({ productCode: "4901234567890", token: "ハンズ", feedback: "negative" }) }));
   });
 });

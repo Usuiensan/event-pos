@@ -17,4 +17,5 @@ export type ProductLookupResult = {
   existingProducts: Array<{ productCode: string; name: string; priceInclTax: number }>;
   candidates: ProductLookupCandidate[];
   searchedAt: string;
+  excludedTokens?: string[];
 };

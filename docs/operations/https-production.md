@@ -19,6 +19,17 @@ node C:\event-pos\apps\server\dist\index.js
 
 `POS_REQUIRE_HTTPS=true`で証明書または秘密鍵がなければ起動を拒否する。HTTPへの自動fallbackは行わない。
 
+## Docker本番起動
+
+証明書と秘密鍵をホストの`.secrets/tls/server.crt`、`.secrets/tls/server.key`へ配置してから起動する。
+
+```powershell
+docker compose up -d --build
+Invoke-WebRequest -SkipCertificateCheck https://localhost:3443/health/ready
+```
+
+本番`pos`コンテナは3443番のHTTPSだけを公開する。証明書がない場合は起動を拒否し、HTTPへfallbackしない。`pos-training`は開発用HTTPとして3002番で起動する。
+
 ## 端末導入と当日確認
 
 1. CA証明書のSHA-256 fingerprintを別経路で照合する。

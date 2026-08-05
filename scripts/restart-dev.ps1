@@ -7,6 +7,45 @@ param(
 
 $ErrorActionPreference = "Stop"
 $project = (Resolve-Path -LiteralPath $ProjectDirectory).Path
+
+function Ensure-LocalTlsCertificate {
+  param([string]$Directory)
+
+  $certificatePath = Join-Path $Directory "server.crt"
+  $keyPath = Join-Path $Directory "server.key"
+  $certificateExists = Test-Path -LiteralPath $certificatePath
+  $keyExists = Test-Path -LiteralPath $keyPath
+  if ($certificateExists -and $keyExists) { return }
+  if ($certificateExists -or $keyExists) { throw "TLS証明書と秘密鍵は両方必要です。既存ファイルを上書きしません: $Directory" }
+  if ($PSVersionTable.PSVersion.Major -lt 7) { throw "TLS証明書の自動生成にはPowerShell 7以降が必要です。" }
+
+  New-Item -ItemType Directory -Path $Directory -Force | Out-Null
+  $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+  $certificate = $null
+  try {
+    $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
+      "CN=localhost",
+      $rsa,
+      [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+      [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
+    )
+    $san = [System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder]::new()
+    $san.AddDnsName("localhost")
+    $san.AddIpAddress([System.Net.IPAddress]::Parse("127.0.0.1"))
+    $request.CertificateExtensions.Add($san.Build())
+    $certificate = $request.CreateSelfSigned([DateTimeOffset]::Now.AddMinutes(-5), [DateTimeOffset]::Now.AddDays(30))
+    [IO.File]::WriteAllText($certificatePath, $certificate.ExportCertificatePem(), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($keyPath, $rsa.ExportPkcs8PrivateKeyPem(), [Text.UTF8Encoding]::new($false))
+  } catch {
+    foreach ($path in @($certificatePath, $keyPath)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+    throw
+  } finally {
+    if ($certificate) { $certificate.Dispose() }
+    $rsa.Dispose()
+  }
+  Write-Host "開発用自己署名TLS証明書を生成しました: $Directory"
+}
+
 Push-Location $project
 try {
   if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "docker command was not found. Start Docker Desktop." }
@@ -20,6 +59,8 @@ try {
       exit 0
     }
   }
+
+  Ensure-LocalTlsCertificate (Join-Path $project ".secrets\tls")
 
   Write-Host "Stopping existing compose services."
   docker compose down --remove-orphans
@@ -38,15 +79,15 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Docker Compose redeploy failed." }
 
   if ($ResetPosDatabase) {
-    $reload = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/v1/events/demo-event-large/catalog/reload" -ContentType "application/json" -Body "{}" -TimeoutSec 10
+    $reload = Invoke-RestMethod -Method Post -Uri "https://127.0.0.1:3443/api/v1/events/demo-event-large/catalog/reload" -ContentType "application/json" -Body "{}" -SkipCertificateCheck -TimeoutSec 10
     $catalog = $reload.catalog
     $catalog.staffMembers = @($catalog.staffMembers | Where-Object { $_.responsibleNumber -eq "001" } | ForEach-Object { $_.role = "admin"; $_.permissions = @("catalog_import", "refund", "reprint"); $_ })
     if ($catalog.staffMembers.Count -eq 0) { throw "Recovery catalog does not contain responsible number 001." }
     $body = $catalog | ConvertTo-Json -Depth 20
     $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $authBody = @{ eventId = "demo-event-large"; responsibleNumber = "001"; terminalId = "recovery-bootstrap" } | ConvertTo-Json
-    Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3000/api/v1/auth/sessions" -ContentType "application/json" -Body $authBody -WebSession $webSession -TimeoutSec 10 | Out-Null
-    Invoke-RestMethod -Method Put -Uri "http://127.0.0.1:3000/api/v1/events/demo-event-large/catalog" -ContentType "application/json" -Body $body -WebSession $webSession -TimeoutSec 10 | Out-Null
+    Invoke-RestMethod -Method Post -Uri "https://127.0.0.1:3443/api/v1/auth/sessions" -ContentType "application/json" -Body $authBody -WebSession $webSession -SkipCertificateCheck -TimeoutSec 10 | Out-Null
+    Invoke-RestMethod -Method Put -Uri "https://127.0.0.1:3443/api/v1/events/demo-event-large/catalog" -ContentType "application/json" -Body $body -WebSession $webSession -SkipCertificateCheck -TimeoutSec 10 | Out-Null
     Write-Host "Initialized demo-event-large with responsible 001 (admin) only."
   }
 
@@ -54,11 +95,16 @@ try {
   else { docker compose up -d --wait pos-training }
   if ($LASTEXITCODE -ne 0) { throw "Training service startup failed." }
 
-  $checks = @("http://127.0.0.1:3000/health/ready", "http://127.0.0.1:3002/health/ready")
-  foreach ($uri in $checks) {
-    $response = Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 10
-    if ($response.StatusCode -ne 200 -or $response.Content -notmatch '"status"\s*:\s*"ok"') { throw "Health check failed: $uri" }
-    Write-Host "$uri : ok"
+  $checks = @(
+    @{ Uri = "https://127.0.0.1:3443/health/ready"; SkipCertificateCheck = $true },
+    @{ Uri = "http://127.0.0.1:3002/health/ready"; SkipCertificateCheck = $false }
+  )
+  foreach ($check in $checks) {
+    $request = @{ UseBasicParsing = $true; Uri = $check.Uri; TimeoutSec = 10 }
+    if ($check.SkipCertificateCheck) { $request.SkipCertificateCheck = $true }
+    $response = Invoke-WebRequest @request
+    if ($response.StatusCode -ne 200 -or $response.Content -notmatch '"status"\s*:\s*"ok"') { throw "Health check failed: $($check.Uri)" }
+    Write-Host "$($check.Uri) : ok"
   }
   docker compose ps
 } catch {

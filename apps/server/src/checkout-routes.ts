@@ -89,8 +89,12 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   app.post<{ Params:{holdId:string}; Body:{businessSessionId?:string;terminalId?:string} }>("/api/v1/holds/:holdId/carry",async(request,reply)=>{try{const actor=requireAuthActor(options.database,request,"manager",options.authRequired??false);if(!request.body?.businessSessionId)throw new CheckoutError(400,"HOLD_CARRY_INPUT_INVALID","繰越先営業が必要です");return carryHold(options.database,request.params.holdId,request.body.businessSessionId,options.authRequired?actor.responsibleNumber:"manager",request.body.terminalId??actor.terminalId);}catch(error){return sendError(reply,error);}});
   app.post<{ Params:{holdId:string}; Body:{terminalId?:string} }>("/api/v1/holds/:holdId/carry-request",async(request,reply)=>{try{const actor=requireAuthActor(options.database,request,"manager",options.authRequired??false);return requestHoldCarryover(options.database,request.params.holdId,options.authRequired?actor.responsibleNumber:"manager",request.body?.terminalId??actor.terminalId);}catch(error){return sendError(reply,error);}});
   app.get<{ Querystring: { eventId?: string; query?: string } }>("/api/v1/transactions/returnable", async (request, reply) => {
-    if (!request.query.eventId || !request.query.query?.trim()) return sendError(reply, new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です"));
-    return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };
+    try {
+      const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false);
+      if (!request.query.eventId || !request.query.query?.trim()) throw new CheckoutError(400, "RETURN_QUERY_REQUIRED", "eventIdと検索語が必要です");
+      if (options.authRequired && actor.eventId !== request.query.eventId) throw new AuthError(403, "FORBIDDEN", "このイベントの取引を検索する権限がありません");
+      return { transactions: searchReturnableTransactions(options.database, request.query.eventId, request.query.query) };
+    } catch (error) { return sendError(reply, error); }
   });
   app.post<{ Params: { transactionId: string }; Body: { cashSessionId?: string; terminalId?: string; reason?: string; externalResults?: Record<string, "completed" | "failed" | "unknown"> } }>("/api/v1/transactions/:transactionId/full-return", async (request, reply) => {
     let actor; try { actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false); } catch (error) { return sendError(reply, error); }

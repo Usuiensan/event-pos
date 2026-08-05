@@ -5,7 +5,10 @@ services:
     env_file: .env
     environment:
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 3443
+      POS_REQUIRE_HTTPS: "1"
+      POS_TLS_CERT_PATH: /run/event-pos/tls/server.crt
+      POS_TLS_KEY_PATH: /run/event-pos/tls/server.key
       POS_DATABASE_PATH: /var/lib/event-pos/event-pos.sqlite
       POS_EVENT_CONFIG_DIR: /workspace/event-config/demo
       POS_EVENT_CONFIG_REPOSITORY: /workspace
@@ -15,14 +18,15 @@ services:
       GIT_COMMITTER_EMAIL: event-pos@localhost
       POS_ARTIFACT_ROOT: /var/lib/event-pos/artifacts
     ports:
-      - "3000:3000"
+      - "3443:3443"
     volumes:
       - pos-data:/var/lib/event-pos
+      - ./.secrets/tls:/run/event-pos/tls:ro
       - ./:/workspace:ro
       - ./event-config:/workspace/event-config
       - ./.git:/workspace/.git
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('https').get('https://127.0.0.1:3443/health/live',{rejectUnauthorized:false},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -51,8 +55,10 @@ services:
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 3000
+      POS_REQUIRE_HTTPS: "0"
+      POS_TLS_CERT_PATH: ""
+      POS_TLS_KEY_PATH: ""
       POS_TRAINING_MODE: "1"
-      POS_TRAINING_SOURCE_URL: http://pos:3000
       POS_TRAINING_EVENT_ID: demo-event-large
       POS_REQUIRE_AUTH: "1"
       POS_DATABASE_PATH: ":memory:"
