@@ -279,7 +279,7 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 2;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 3;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -310,7 +310,9 @@ body:
           - text: "{{name}}"
           - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
-  - row: { left: "値引", right: "{{discountTotalFormatted}}" }
+  - if: hasDiscounts
+    body:
+      - row: { left: "値引", right: "{{discountTotalFormatted}}" }
   - row: { left: "税", right: "{{taxTotalFormatted}}" }
   - emphasis: { bold: true, underline: false, invert: false }
   - row: { left: "合計", right: "{{totalFormatted}}" }
@@ -329,4 +331,5 @@ body:
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1 = DEFAULT_RECEIPT_TEMPLATE.replace("feedLines: 8", "feedLines: 3");
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = DEFAULT_RECEIPT_TEMPLATE.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2.replace("feedLines: 8", "feedLines: 3");

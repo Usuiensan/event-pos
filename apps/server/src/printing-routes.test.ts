@@ -39,7 +39,7 @@ function counts(db: PosDatabase): Record<string, number> {
 }
 
 describe("receipt template and reprint routes", () => {
-  it("旧default v1だけを8行feedの新defaultへ自動移行する", () => {
+  it("旧defaultだけを値引行条件付きの新defaultへ自動移行する", () => {
     const db = openDatabase();
     db.prepare("DELETE FROM receipt_templates").run();
     const legacy = validateReceiptTemplate(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1);
@@ -47,7 +47,7 @@ describe("receipt template and reprint routes", () => {
       .run(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, legacy.sourceSha256, legacy.sourceSha256, JSON.stringify(legacy), "2026-08-03T00:00:00.000Z", "2026-08-03T00:00:00.000Z", "2026-08-03T00:00:00.000Z");
     ensureDefaultReceiptTemplate(db);
     const active = db.prepare("SELECT version,source_text FROM receipt_templates WHERE template_key='sale-receipt' AND status='active'").get() as { version: number; source_text: string };
-    expect(active.version).toBe(2);
+    expect(active.version).toBe(3);
     expect(active.source_text).toContain("feedLines: 8");
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='receipt_template_default_upgrade'").get()).toEqual({ count: 1 });
   });
@@ -76,7 +76,7 @@ describe("receipt template and reprint routes", () => {
     expect(snapshot).toMatchObject({ schemaVersion: 1, transactionId: sale.transactionId, eventName: catalog.eventId, circleName: "レシート試験サークル", registerNo: "1", staffPrintLabel: "001", totalYen: 110, tenderedYen: 500, changeYen: 390, isReprint: false });
     expect(snapshot.lines).toEqual([expect.objectContaining({ productCode: "00000001", name: "日本語新刊", quantity: 1, unitPriceYen: 110, taxRateBps: 1000 })]);
     expect(Object.keys(snapshot)).not.toEqual(expect.arrayContaining(["birthDate", "idNumber", "ageVerification"]));
-    expect(row).toMatchObject({ kind: "original", state: "pending", delivery_certainty: "not_sent", template_key: "sale-receipt", template_version: 2, font_version: 1, finishing_policy_version: 2 });
+    expect(row).toMatchObject({ kind: "original", state: "pending", delivery_certainty: "not_sent", template_key: "sale-receipt", template_version: 3, font_version: 1, finishing_policy_version: 2 });
     for (const key of ["template_source_sha256", "renderer_version", "font_id", "font_sha256", "finishing_policy_id", "canonical_ir", "ir_sha256", "bytes_sha256"]) expect(String(row[key])).not.toHaveLength(0);
     expect(Number(row.expected_bytes_length)).toBe((row.escpos_bytes as Uint8Array).length);
     expect(String(row.canonical_ir)).toContain('!row {"left":"日本語新刊","right":"¥110"}');
@@ -119,7 +119,7 @@ describe("receipt template and reprint routes", () => {
     const response = await app.inject({ method: "POST", url, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { ...base, approval: { approverId: "manager-1", approvedAt: "2026-08-02T06:00:00.000Z" } } });
     expect(response.statusCode, response.body).toBe(201);
     const reprint = response.json();
-    expect(reprint).toMatchObject({ transactionId: sale.transactionId, kind: "reprint", sourceJobId: sale.printJobId, reprintNo: 1, state: "pending", deliveryCertainty: "not_sent", templateVersion: 2 });
+    expect(reprint).toMatchObject({ transactionId: sale.transactionId, kind: "reprint", sourceJobId: sale.printJobId, reprintNo: 1, state: "pending", deliveryCertainty: "not_sent", templateVersion: 3 });
     expect(counts(db)).toEqual(beforeCounts);
     expect(db.prepare("SELECT state,receipt_snapshot_json,bytes_sha256,template_version FROM print_jobs WHERE job_id=?").get(sale.printJobId)).toEqual(sourceBefore);
     const reprintSnapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE job_id=?").get(reprint.jobId) as { receipt_snapshot_json: string }).receipt_snapshot_json)) as ReceiptSnapshot;
