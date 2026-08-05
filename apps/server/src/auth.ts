@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { FastifyReply } from "fastify";
 import type { PosDatabase } from "./db.js";
 import type { StaffRole } from "./business-store.js";
+import { ensureInitialAdmin } from "./business-store.js";
 import { uuidV7 } from "./ids.js";
 
 export type AuthActor = { authSessionId: string; staffId: string; eventId: string; responsibleNumber: string; displayName: string; role: StaffRole; terminalId: string; csrfToken: string };
@@ -20,6 +21,7 @@ function cookieValue(request: RequestLike): string | undefined {
 export function createAuthSession(db: PosDatabase, input: { eventId: string; responsibleNumber: string; terminalId: string }): { actor: AuthActor; token: string } {
   if (!/^\d{3}$/.test(input.responsibleNumber) || !input.eventId || !input.terminalId) throw new AuthError(400, "INVALID_SIGN_IN", "event、責任者番号、端末が必要です");
   const now = new Date().toISOString();
+  if (input.responsibleNumber === "001") ensureInitialAdmin(db, input.eventId, now);
   const assignment = db.prepare(`SELECT staff_id,event_id,responsible_number,display_name,role FROM event_staff_assignments
     WHERE event_id=? AND responsible_number=? AND active=1 AND valid_from<=? AND (valid_until IS NULL OR valid_until>?)`).get(input.eventId, input.responsibleNumber, now, now) as Record<string, unknown> | undefined;
   if (!assignment) throw new AuthError(401, "STAFF_SIGN_IN_FAILED", "有効な責任者番号ではありません");

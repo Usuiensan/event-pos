@@ -115,6 +115,19 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   return getBusinessSession(db, businessSessionId)!;
 }
 
+export function ensureInitialAdmin(db: PosDatabase, eventId: string, now = new Date().toISOString()): void {
+  const existing = db.prepare("SELECT 1 FROM event_staff_assignments WHERE event_id=? AND responsible_number='001' LIMIT 1").get(eventId);
+  if (existing) return;
+  const staffId = uuidV7(); const assignmentId = uuidV7();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("INSERT INTO staff_members(staff_id,created_at) VALUES (?,?)").run(staffId, now);
+    db.prepare("INSERT INTO event_staff_assignments(assignment_id,staff_id,event_id,responsible_number,display_name,role,valid_from,active) VALUES (?,?,?,'001','管理者','admin',?,1)").run(assignmentId, staffId, eventId, now);
+    db.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'initial_admin_created','event_staff_assignment',?,?,?)").run(eventId, assignmentId, JSON.stringify({ responsibleNumber: "001", displayName: "管理者", role: "admin" }), now);
+    db.exec("COMMIT");
+  } catch (error) { db.exec("ROLLBACK"); throw error; }
+}
+
 export function cancelBusinessOpening(db: PosDatabase, businessSessionId: string, input: { actorId: string; terminalId: string; reason: string }): BusinessSessionDto {
   const business = getBusinessSession(db, businessSessionId);
   if (!business) throw new CheckoutError(404, "BUSINESS_SESSION_NOT_FOUND", "営業セッションが見つかりません");
