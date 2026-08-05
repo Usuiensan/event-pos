@@ -14,7 +14,7 @@ const catalog = {
   customerWelcome: { circleName: "レシート試験サークル" },
   products: [{ productCode: "00000001", name: "日本語新刊", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }],
   quickEntries: [], autoDiscountRules: [],
-  staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
+  staffMembers: [{ staffId: "staff-001", responsibleNumber: "001", displayName: "試験管理者", receiptDisplay: "name", role: "admin" }],
 };
 
 function makeApp(): { app: FastifyInstance; db: PosDatabase } {
@@ -73,7 +73,7 @@ describe("receipt template and reprint routes", () => {
     const { app, db } = makeApp(); const sale = await finalizeSale(app);
     const row = db.prepare("SELECT * FROM print_jobs WHERE job_id=?").get(sale.printJobId) as Record<string, unknown>;
     const snapshot = JSON.parse(String(row.receipt_snapshot_json)) as ReceiptSnapshot;
-    expect(snapshot).toMatchObject({ schemaVersion: 1, transactionId: sale.transactionId, eventName: catalog.eventId, circleName: "レシート試験サークル", registerNo: "1", staffPrintLabel: "001", totalYen: 110, tenderedYen: 500, changeYen: 390, isReprint: false });
+    expect(snapshot).toMatchObject({ schemaVersion: 1, transactionId: sale.transactionId, eventName: catalog.eventId, circleName: "レシート試験サークル", registerNo: "1", staffPrintLabel: "試験管理者", totalYen: 110, tenderedYen: 500, changeYen: 390, isReprint: false });
     expect(snapshot.lines).toEqual([expect.objectContaining({ productCode: "00000001", name: "日本語新刊", quantity: 1, unitPriceYen: 110, taxRateBps: 1000 })]);
     expect(Object.keys(snapshot)).not.toEqual(expect.arrayContaining(["birthDate", "idNumber", "ageVerification"]));
     expect(row).toMatchObject({ kind: "original", state: "pending", delivery_certainty: "not_sent", template_key: "sale-receipt", template_version: 3, font_version: 1, finishing_policy_version: 2 });

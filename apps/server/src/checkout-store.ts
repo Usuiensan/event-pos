@@ -437,8 +437,8 @@ function formatYen(value: number): string { return `¥${Math.trunc(value).toStri
 function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, confirmedAt: string): ReceiptSnapshot {
   const catalogRecord = getCatalog(db, String(row.event_id));
   const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
-  const staffId = String(row.staff_id); const configuredStaff = catalog?.staffMembers?.find((member) => member.responsibleNumber === staffId || member.displayName === staffId);
-  const staffPrintLabel = configuredStaff?.responsibleNumber ?? staffId.replace(/^staff-/, "").slice(0, 12);
+  const staffId = String(row.staff_id); const configuredStaff = catalog?.staffMembers?.find((member) => member.staffId === staffId || member.responsibleNumber === staffId || member.displayName === staffId);
+  const staffPrintLabel = configuredStaff?.receiptDisplay === "name" ? configuredStaff.displayName : configuredStaff?.responsibleNumber ?? staffId.replace(/^staff-/, "").slice(0, 12);
   const registerNo = String(row.register_id).replace(/^register-/, "").slice(0, 12);
   const cashTendered = payments.filter((payment) => payment.tenderedYen !== undefined).reduce((sum, payment) => sum + (payment.tenderedYen ?? 0), 0);
   const change = payments.filter((payment) => payment.changeYen !== undefined).reduce((sum, payment) => sum + (payment.changeYen ?? 0), 0);
