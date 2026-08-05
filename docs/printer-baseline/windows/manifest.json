@@ -22,6 +22,22 @@
       "directory": "20260803-0040",
       "result": "fixture v2 accepted 316 bytes; operator confirmed readable barcode HRI and all required paper elements",
       "status": "normal paper acceptance passed; fault states unknown"
+    },
+    {
+      "id": "W-04",
+      "directory": "20260803-reconnected-print",
+      "artifact": "windows-spooler-result.json",
+      "physicalPaperEvidenceId": "W-04",
+      "result": "fixture v2 accepted 316 bytes after USB reconnect; operator accepted ASCII, CP932 Japanese, U+00A5, 32-column row, fixed raster, QR, Code 128 with HRI, feed, and partial cut",
+      "status": "normal paper acceptance passed; fault states unknown"
+    },
+    {
+      "id": "W-05",
+      "directory": "20260803-usb-reconnected-print",
+      "artifact": "windows-spooler-result.json",
+      "physicalPaperEvidenceId": "W-05",
+      "result": "same fixture v2 accepted 316 bytes after USB reconnect; operator accepted QR, Code 128 with HRI, feed, and partial cut",
+      "status": "normal paper acceptance passed; fault states unknown"
     }
   ]
 }
