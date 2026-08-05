@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile \
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3443 POS_REQUIRE_HTTPS=1 POS_TLS_CERT_PATH=/run/event-pos/tls/server.crt POS_TLS_KEY_PATH=/run/event-pos/tls/server.key POS_DATABASE_PATH=/var/lib/event-pos/event-pos.sqlite
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3443 POS_REQUIRE_HTTPS=1 POS_TLS_CERT_PATH=/run/event-pos/tls/server.crt POS_TLS_KEY_PATH=/run/event-pos/tls/server.key POS_DATABASE_PATH=/var/lib/event-pos/event-pos.sqlite DRAWER_ENABLED=1
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate && apt-get update && apt-get install -y --no-install-recommends git && git config --system --add safe.directory /workspace && rm -rf /var/lib/apt/lists/*
 COPY --from=build /workspace/package.json /workspace/pnpm-lock.yaml /workspace/pnpm-workspace.yaml /app/
 COPY --from=build /workspace/packages/contracts/package.json /app/packages/contracts/package.json

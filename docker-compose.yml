@@ -17,6 +17,7 @@ services:
       GIT_COMMITTER_NAME: event-pos 管理画面
       GIT_COMMITTER_EMAIL: event-pos@localhost
       POS_ARTIFACT_ROOT: /var/lib/event-pos/artifacts
+      DRAWER_ENABLED: "1"
     ports:
       - "3443:3443"
     volumes:
@@ -65,6 +66,7 @@ services:
       POS_EVENT_CONFIG_DIR: /workspace/event-config/demo
       POS_ARTIFACT_ROOT: /tmp/event-pos-training-artifacts
       PRINTER_HOST_URL: http://host.docker.internal:4318
+      DRAWER_ENABLED: "0"
     ports:
       - "3002:3000"
     volumes:
