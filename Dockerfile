@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile \
 
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 POS_DATABASE_PATH=/var/lib/event-pos/event-pos.sqlite
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3443 POS_REQUIRE_HTTPS=1 POS_TLS_CERT_PATH=/run/event-pos/tls/server.crt POS_TLS_KEY_PATH=/run/event-pos/tls/server.key POS_DATABASE_PATH=/var/lib/event-pos/event-pos.sqlite
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate && apt-get update && apt-get install -y --no-install-recommends git && git config --system --add safe.directory /workspace && rm -rf /var/lib/apt/lists/*
 COPY --from=build /workspace/package.json /workspace/pnpm-lock.yaml /workspace/pnpm-workspace.yaml /app/
 COPY --from=build /workspace/packages/contracts/package.json /app/packages/contracts/package.json
@@ -35,5 +35,5 @@ COPY --from=build /workspace/apps/register-web/dist /app/register-web
 COPY --from=build /workspace/event-config /app/event-config
 RUN node -e "const fs=require('fs'); for (const name of ['contracts','receipt-ir','escpos','receipt-template','catalog-config']) { const p='/app/packages/'+name+'/package.json'; const j=JSON.parse(fs.readFileSync(p,'utf8')); j.exports['.'].default='./dist/index.js'; fs.writeFileSync(p, JSON.stringify(j)+'\n'); }"
 RUN pnpm install --prod --frozen-lockfile && mkdir -p /var/lib/event-pos
-EXPOSE 3000
+EXPOSE 3443
 CMD ["node", "apps/server/dist/index.js"]
