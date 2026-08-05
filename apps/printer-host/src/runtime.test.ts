@@ -10,6 +10,8 @@ describe("PrinterHost本番設定", () => {
     expect(() => resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler" })).toThrow("PRINTER_NAME");
     expect(() => resolvePrinterHostRuntime({ PRINTER_BACKEND: "linux-raw" })).toThrow("PRINTER_DEVICE");
     expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PORT: "4319" })).toMatchObject({ backend: "windows-spooler", printerName: "TM-T70II", port: 4319 });
+    expect(() => resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PRINTER_STATUS_BACKEND: "opos" })).toThrow("PRINTER_OPOS_LOGICAL_NAME");
+    expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PRINTER_STATUS_BACKEND: "opos", PRINTER_OPOS_LOGICAL_NAME: "TM-T70II", PRINTER_OPOS_CLAIM_TIMEOUT_MS: "3000" })).toMatchObject({ windowsStatusBackend: "opos", oposLogicalName: "TM-T70II", oposClaimTimeoutMs: 3000 });
     expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "linux-raw", PRINTER_DEVICE: "/dev/event-pos-receipt" })).toMatchObject({ backend: "linux-raw", printerDevice: "/dev/event-pos-receipt" });
   });
 });

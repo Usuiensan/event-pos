@@ -12,6 +12,7 @@ export type PrinterStatusObservation = {
   reachable: Capability<boolean>;
   online: Capability<boolean>;
   coverOpen: Capability<boolean>;
+  drawerOpen: Capability<boolean>;
   paper: Capability<"ok" | "near_end" | "empty">;
   error: Capability<"none" | "recoverable" | "unrecoverable">;
   raw: unknown;

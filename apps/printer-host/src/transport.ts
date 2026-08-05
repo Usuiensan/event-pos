@@ -11,7 +11,7 @@ export type PrinterTransport = {
 
 export function statusObservation(status: PrinterStatus, raw: unknown = status): PrinterStatusObservation {
   const unknown = (reason: string) => ({ support: "unknown" as const, reason });
-  const base = { observedAt: new Date().toISOString(), coverOpen: unknown("この接続方式では未取得"), paper: unknown("この接続方式では未取得"), error: unknown("この接続方式では未取得"), raw };
+  const base = { observedAt: new Date().toISOString(), coverOpen: unknown("この接続方式では未取得"), drawerOpen: unknown("この接続方式では未取得"), paper: unknown("この接続方式では未取得"), error: unknown("この接続方式では未取得"), raw };
   if (status === "ready") return { ...base, reachable: { support: "supported", value: true }, online: { support: "supported", value: true } };
   if (status === "offline") return { ...base, reachable: { support: "supported", value: false }, online: unknown("offlineの詳細は未取得") };
   if (status === "paper_out") return { ...base, reachable: { support: "supported", value: true }, online: unknown("紙切れ時のonlineは未取得"), paper: { support: "supported", value: "empty" } };

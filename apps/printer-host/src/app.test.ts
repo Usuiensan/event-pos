@@ -43,7 +43,7 @@ const job: PrintJob = {
 describe("printer host", () => {
   it("reachable実測済みなら未対応sensorをunknownのままRAW送信できる", async () => {
     const transport = new FakeTransport();
-    transport.getStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "RAWでは未取得" }, coverOpen: { support: "unknown", reason: "RAWでは未取得" }, paper: { support: "unknown", reason: "RAWでは未取得" }, error: { support: "unknown", reason: "RAWでは未取得" }, raw: null });
+    transport.getStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "RAWでは未取得" }, coverOpen: { support: "unknown", reason: "RAWでは未取得" }, drawerOpen: { support: "unknown", reason: "RAWでは未取得" }, paper: { support: "unknown", reason: "RAWでは未取得" }, error: { support: "unknown", reason: "RAWでは未取得" }, raw: null });
     const app = buildPrinterHost({ transport });
     const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "reachable-only" } });
     expect(response.statusCode).toBe(201);
@@ -117,6 +117,19 @@ describe("printer host", () => {
     const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "drawer-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 4, offMs: 40 }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: 5, bytesSha256: "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", rendererVersion: "event-pos-drawer-v1" } });
     expect(response.statusCode).toBe(201);
     expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
+  });
+
+  it("status取得と印刷送信を同じprinter mutexで直列化する", async () => {
+    const transport = new FakeTransport(); const statusObservation = await transport.getStatus(); let active = 0; let maxActive = 0;
+    const enter = async () => { active += 1; maxActive = Math.max(maxActive, active); await new Promise((resolve) => setTimeout(resolve, 5)); active -= 1; };
+    transport.getStatus = async () => { await enter(); return statusObservation; };
+    transport.send = async (bytes) => { await enter(); return { acceptedBytes: bytes.length, transportEvidence: { adapter: "fake", acceptedBytes: bytes.length } }; };
+    const app = buildPrinterHost({ transport }); apps.push(app);
+    const [status, print] = await Promise.all([
+      app.inject({ method: "GET", url: "/api/v1/printer/status" }),
+      app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "mutex-job" } }),
+    ]);
+    expect(status.statusCode).toBe(200); expect(print.statusCode).toBe(201); expect(maxActive).toBe(1);
   });
 
   it("許可済みdrawer診断pulseだけをpin別・時間別に送信する", async () => {

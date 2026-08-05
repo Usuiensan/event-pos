@@ -1,5 +1,4 @@
 import { LinuxRawTransport } from "./linux-raw-transport.js";
-import { normalizeDleEot, probeLinuxDleEot } from "./linux-status-probe.js";
 import { FakeTransport, type PrinterTransport } from "./transport.js";
 import { WindowsRawTransport } from "./windows-raw-transport.js";
 
@@ -12,7 +11,11 @@ export type PrinterHostRuntime = {
   printerName?: string;
   printerDevice?: string;
   windowsRawPrintScript?: string;
+  windowsStatusBackend?: "spooler" | "opos";
+  oposLogicalName?: string;
+  oposClaimTimeoutMs?: number;
   statusTimeoutMs: number;
+  drawerOpenHigh?: boolean;
 };
 
 function positiveInteger(value: string | undefined, fallback: number, name: string, maximum = Number.MAX_SAFE_INTEGER): number {
@@ -32,6 +35,7 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
     host: env.HOST ?? "127.0.0.1",
     port: positiveInteger(env.PORT, 4318, "PORT", 65535),
     statusTimeoutMs: positiveInteger(env.PRINTER_STATUS_TIMEOUT_MS, 1_000, "PRINTER_STATUS_TIMEOUT_MS", 60_000),
+    ...(env.PRINTER_DRAWER_OPEN_HIGH === "1" || env.PRINTER_DRAWER_OPEN_HIGH === "true" ? { drawerOpenHigh: true } : env.PRINTER_DRAWER_OPEN_HIGH === "0" || env.PRINTER_DRAWER_OPEN_HIGH === "false" ? { drawerOpenHigh: false } : {}),
   };
   if (selectedBackend === "linux-raw") {
     if (!env.PRINTER_DEVICE) throw new Error("linux-rawにはPRINTER_DEVICEが必要です");
@@ -39,19 +43,19 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
   }
   if (selectedBackend === "windows-spooler") {
     if (!env.PRINTER_NAME) throw new Error("windows-spoolerにはPRINTER_NAMEが必要です");
-    return { ...common, printerName: env.PRINTER_NAME, ...(env.WINDOWS_RAW_PRINT_SCRIPT ? { windowsRawPrintScript: env.WINDOWS_RAW_PRINT_SCRIPT } : {}) };
+    if (env.PRINTER_STATUS_BACKEND && !["spooler", "opos"].includes(env.PRINTER_STATUS_BACKEND)) throw new Error(`未対応のPRINTER_STATUS_BACKENDです: ${env.PRINTER_STATUS_BACKEND}`);
+    const statusBackend = env.PRINTER_STATUS_BACKEND === "opos" ? "opos" as const : "spooler" as const;
+    if (statusBackend === "opos" && !env.PRINTER_OPOS_LOGICAL_NAME) throw new Error("PRINTER_STATUS_BACKEND=oposにはPRINTER_OPOS_LOGICAL_NAMEが必要です");
+    return { ...common, printerName: env.PRINTER_NAME, windowsStatusBackend: statusBackend, ...(env.PRINTER_OPOS_LOGICAL_NAME ? { oposLogicalName: env.PRINTER_OPOS_LOGICAL_NAME } : {}), ...(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS ? { oposClaimTimeoutMs: positiveInteger(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS, 3_000, "PRINTER_OPOS_CLAIM_TIMEOUT_MS", 60_000) } : {}), ...(env.WINDOWS_RAW_PRINT_SCRIPT ? { windowsRawPrintScript: env.WINDOWS_RAW_PRINT_SCRIPT } : {}) };
   }
   return common;
 }
 
 export function createPrinterTransport(runtime: PrinterHostRuntime): PrinterTransport {
-  if (runtime.backend === "windows-spooler") return new WindowsRawTransport({ printerName: runtime.printerName!, ...(runtime.windowsRawPrintScript ? { rawPrintScript: runtime.windowsRawPrintScript } : {}) });
+  if (runtime.backend === "windows-spooler") return new WindowsRawTransport({ printerName: runtime.printerName!, ...(runtime.windowsRawPrintScript ? { rawPrintScript: runtime.windowsRawPrintScript } : {}), ...(runtime.windowsStatusBackend ? { statusBackend: runtime.windowsStatusBackend } : {}), ...(runtime.oposLogicalName ? { oposLogicalName: runtime.oposLogicalName } : {}), ...(runtime.oposClaimTimeoutMs ? { oposClaimTimeoutMs: runtime.oposClaimTimeoutMs } : {}) });
   if (runtime.backend === "linux-raw") {
     const device = runtime.printerDevice!;
-    return new LinuxRawTransport(device, async () => {
-      const raw = await probeLinuxDleEot(device, runtime.statusTimeoutMs);
-      return { status: normalizeDleEot(raw), raw };
-    });
+    return new LinuxRawTransport(device, undefined, undefined, runtime.statusTimeoutMs, runtime.drawerOpenHigh);
   }
   return new FakeTransport();
 }

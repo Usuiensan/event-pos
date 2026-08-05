@@ -20,6 +20,6 @@ export class HttpPrinterHostClient implements PrinterHost {
       const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/api/v1/printer/status`, { signal: AbortSignal.timeout(this.timeoutMs) });
       if (!response.ok) throw new Error("status failed");
       return (await response.json() as { observation: PrinterStatusObservation }).observation;
-    } catch { return { observedAt: new Date().toISOString(), reachable: { support: "unknown", reason: "PrinterHostへ接続できません" }, online: { support: "unknown", reason: "PrinterHostへ接続できません" }, coverOpen: { support: "unknown", reason: "PrinterHostへ接続できません" }, paper: { support: "unknown", reason: "PrinterHostへ接続できません" }, error: { support: "unknown", reason: "PrinterHostへ接続できません" }, raw: null }; }
+    } catch { return { observedAt: new Date().toISOString(), reachable: { support: "unknown", reason: "PrinterHostへ接続できません" }, online: { support: "unknown", reason: "PrinterHostへ接続できません" }, coverOpen: { support: "unknown", reason: "PrinterHostへ接続できません" }, drawerOpen: { support: "unknown", reason: "PrinterHostへ接続できません" }, paper: { support: "unknown", reason: "PrinterHostへ接続できません" }, error: { support: "unknown", reason: "PrinterHostへ接続できません" }, raw: null }; }
   }
 }

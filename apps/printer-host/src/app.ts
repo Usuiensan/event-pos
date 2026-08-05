@@ -34,7 +34,7 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   };
   app.addHook("onClose", async () => options.transport.close());
   app.get("/health/live", async () => ({ status: "ok" }));
-  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: await options.transport.getStatus() }));
+  app.get("/api/v1/printer/status", async () => printerMutex.runExclusive(async () => ({ printerId: "receipt-1", observation: await options.transport.getStatus() })));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => jobs.get(request.params.jobId)?.job ?? reply.code(404).send({ error: "not_found" }));
   app.post<{ Body: PrintJob }>("/api/v1/print-jobs", async (request, reply) => {
     const input = request.body;

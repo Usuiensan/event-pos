@@ -11,8 +11,8 @@
 .\deploy\windows\build-portable.ps1 -OutputDirectory C:\event-pos\releases\printer-host-<commit>
 ```
 
-3. 出力先の`printer-host.env.example`を`printer-host.env`へ複製し、`NODE_EXE`と`PRINTER_NAME`を実機に合わせる。`printer-host.env`はGitへ追加しない。
-4. POS server側へ`PRINTER_HOST_URL=http://127.0.0.1:4318`を設定する。ドロアー未受入中は`DRAWER_ENABLED=false`のままにする。
+3. 出力先の`printer-host.env.example`を`printer-host.env`へ複製し、`NODE_EXE`、`PRINTER_NAME`、`PRINTER_OPOS_LOGICAL_NAME`を実機に合わせる。双方向statusを使う本番では`PRINTER_STATUS_BACKEND=opos`を設定する。`printer-host.env`はGitへ追加しない。
+4. POS server側へ`PRINTER_HOST_URL=http://127.0.0.1:4318`を設定する。Winspool RAWだけを使う場合、cover/paper/error/drawerは`unknown`のままになる。OPOSを使う場合もClaim失敗時は送信を停止する。
 5. 出力先から次を実行する。repository checkoutからの保守起動にも同じlauncherを使用できる。
 
 ```powershell

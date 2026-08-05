@@ -110,7 +110,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     catch (err) { const code = err instanceof Error ? err.message : "REPRINT_FAILED"; return error(reply, code.includes("NOT_FOUND") ? 404 : 409, code, ({ REPRINT_INPUT_REQUIRED: "再印刷の理由と実物結果が必要です", REPRINT_RISK_APPROVAL_REQUIRED: "二重印刷リスク承認と責任者承認が必要です" } as Record<string, string>)[code] ?? code); }
   });
   app.get("/api/v1/printer/status", async () => {
-    const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
+    const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, drawerOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
     return { printerId: "receipt-1", observation };
   });
   app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => options.queue?.resumeDeviceFault(request.body?.actorId ?? "") ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"));

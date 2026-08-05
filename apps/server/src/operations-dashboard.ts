@@ -5,7 +5,7 @@ import type { PrinterStatusObservation } from "@event-pos/contracts";
 import type { PosDatabase } from "./db.js";
 import type { RealtimeHub } from "./realtime.js";
 
-const unknownObservation = (reason: string): PrinterStatusObservation => ({ observedAt: new Date().toISOString(), reachable: { support: "unknown", reason }, online: { support: "unknown", reason }, coverOpen: { support: "unknown", reason }, paper: { support: "unknown", reason }, error: { support: "unknown", reason }, raw: null });
+const unknownObservation = (reason: string): PrinterStatusObservation => ({ observedAt: new Date().toISOString(), reachable: { support: "unknown", reason }, online: { support: "unknown", reason }, coverOpen: { support: "unknown", reason }, drawerOpen: { support: "unknown", reason }, paper: { support: "unknown", reason }, error: { support: "unknown", reason }, raw: null });
 async function capacity(path: string | undefined) {
   if (!path) return { state: "unknown" as const, path: null, freeBytes: null, totalBytes: null, reason: "保存先未設定" };
   const requestedPath = resolve(path); let probePath = requestedPath;

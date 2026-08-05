@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ describe("LinuxRawTransport", () => {
   it("writes bytes to a raw device path and closes it", async () => {
     const dir = await mkdtemp(join(tmpdir(), "event-pos-printer-")); dirs.push(dir);
     const device = join(dir, "lp-test");
+    await writeFile(device, new Uint8Array());
     const transport = new LinuxRawTransport(device, async () => "ready");
     expect(await transport.getStatus()).toMatchObject({ reachable: { support: "supported", value: true }, online: { support: "supported", value: true } });
     await transport.send(new TextEncoder().encode("test-bytes"));
@@ -25,7 +26,7 @@ describe("LinuxRawTransport", () => {
 
   it("uses the same fixed BC-415M drawer pulse bytes as Windows", async () => {
     const dir = await mkdtemp(join(tmpdir(), "event-pos-printer-")); dirs.push(dir);
-    const device = join(dir, "lp-drawer"); const transport = new LinuxRawTransport(device, async () => "ready");
+    const device = join(dir, "lp-drawer"); await writeFile(device, new Uint8Array()); const transport = new LinuxRawTransport(device, async () => "ready");
     await transport.send(Uint8Array.from([0x1b, 0x70, 0x00, 0x02, 0x14])); await transport.close();
     expect(Array.from(await readFile(device))).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
   });
