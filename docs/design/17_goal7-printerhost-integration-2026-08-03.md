@@ -24,7 +24,7 @@ drawerは`DRAWER_ENABLED=false`を既定とし、ADR-P003がAcceptedになるま
 
 ## BC-415M-B(6C) のP003実装候補（2026-08-03）
 
-ビジコムBC-415M-B(6C)は6ピンモジュラー式で、TMシリーズのDKコネクター経由で制御する。TM-T70IIの既定2番pinは、Windows実機で物理開放を確認した`ESC p 0 20 100`（ON 40 ms、OFF 200 ms）を既定とする。任意のpin/pulseは受け付けない。責任者のドロアー操作と現金会計時の操作は同じFIFO queueにdrawer operationとして入り、現金会計ではdrawerがreceiptより先行する。再印刷はdrawer operationを生成しない。ドロアーは紙面状態と独立しているため、操作遅延を避ける目的でOPOS状態の前照会を省略し、RAW送信の受理結果だけを記録する。レシート印刷は従来どおり状態を確認してから送信する。
+ビジコムBC-415M-B(6C)は6ピンモジュラー式で、TMシリーズのDKコネクター経由で制御する。TM-T70IIの既定2番pinは、Windows実機で物理開放を確認した`ESC p 0 20 100`（ON 40 ms、OFF 200 ms）を既定とする。任意のpin/pulseは受け付けない。責任者のドロアー操作と現金会計時の操作は同じFIFO queueにdrawer operationとして入り、現金会計ではdrawerがreceiptより先行する。再印刷はdrawer operationを生成しない。PrinterHostは5秒ごとに状態を更新し、すべての送信は最大7秒以内の確認済み状態を再利用する。WindowsではOPOS状態取得とWinspool RAW送信を別経路で行うため、定期状態取得はRAW送信を待たせない。状態取得失敗や期限切れ時だけ、その場で状態を再取得して送信を判定する。
 
 Windows RAW spoolerで`acceptedBytes=5`を取得しただけでは物理開放を証明しない。到着後、接続図を確認し、Windows/Linuxで担当者による各一回の物理開放と連続駆動制限を保存するまでADR-P003はPending、`DRAWER_ENABLED=false`のままとする。
 

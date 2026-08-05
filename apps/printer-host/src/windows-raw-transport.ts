@@ -17,6 +17,7 @@ const bundledStatusScript = fileURLToPath(new URL("../scripts/windows-status.ps1
 const bundledOposStatusScript = fileURLToPath(new URL("../scripts/windows-opos-status.ps1", import.meta.url));
 
 export class WindowsRawTransport implements PrinterTransport {
+  readonly statusPollingSharesTransport = false;
   constructor(private readonly options: WindowsRawTransportOptions) {}
   async getStatus() {
     if (process.platform !== "win32") return statusObservation("unknown", { adapter: "windows-raw", reason: "Windows以外で実行" });

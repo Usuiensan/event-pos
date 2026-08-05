@@ -4,6 +4,7 @@ import { bytesSha256, canonicalIrToEscPos } from "@event-pos/escpos";
 export type PrinterStatus = "ready" | "paper_out" | "offline" | "unknown";
 export type SendReceipt = { acceptedBytes: number; transportEvidence: Record<string, string | number | boolean> };
 export type PrinterTransport = {
+  statusPollingSharesTransport?: boolean;
   getStatus(): Promise<PrinterStatusObservation>;
   send(bytes: Uint8Array): Promise<SendReceipt>;
   close(): Promise<void>;

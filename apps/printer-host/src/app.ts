@@ -6,7 +6,7 @@ import { AsyncMutex } from "./mutex.js";
 
 export type StateSink = { update(jobId: string, update: PrintJobStateUpdate): Promise<void> };
 export type PrinterHostLogEvent = Record<string, unknown> & { level: "info" | "warn" | "error"; event: string; message: string };
-export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink; log?: (event: PrinterHostLogEvent) => void };
+export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink; log?: (event: PrinterHostLogEvent) => void; statusPollIntervalMs?: number };
 type JobRecord = { job: PrintJob; result?: PrinterDispatchResult; failure?: PrinterDispatchFailure };
 
 function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
@@ -21,6 +21,20 @@ function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
 export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   const app = Fastify({ logger: false }); const jobs = new Map<string, JobRecord>(); const printerMutex = new AsyncMutex();
   const log = options.log ?? (() => undefined);
+  const statusPollIntervalMs = options.statusPollIntervalMs ?? 5_000;
+  let latestStatus: { observation: import("@event-pos/contracts").PrinterStatusObservation; checkedAt: number } | undefined;
+  let refreshingStatus: Promise<import("@event-pos/contracts").PrinterStatusObservation> | undefined;
+  const refreshStatus = () => {
+    if (refreshingStatus) return refreshingStatus;
+    const read = async () => {
+      const observation = await options.transport.getStatus(); latestStatus = { observation, checkedAt: Date.now() }; return observation;
+    };
+    refreshingStatus = (options.transport.statusPollingSharesTransport === false ? read() : printerMutex.runExclusive(read)).finally(() => { refreshingStatus = undefined; });
+    return refreshingStatus;
+  };
+  const currentStatus = async () => latestStatus && Date.now() - latestStatus.checkedAt <= statusPollIntervalMs + 2_000 ? latestStatus.observation : await refreshStatus();
+  void refreshStatus().catch(() => undefined);
+  const statusTimer = setInterval(() => { void refreshStatus().catch(() => undefined); }, statusPollIntervalMs); statusTimer.unref?.();
   const setState = async (job: PrintJob, state: PrintJobState, errorMessage?: string): Promise<PrintJob> => {
     const updated: PrintJob = { ...job, state, updatedAt: new Date().toISOString(), ...(errorMessage ? { errorMessage } : {}) };
     const current = jobs.get(job.jobId); jobs.set(job.jobId, { job: updated, ...(current?.result ? { result: current.result } : {}), ...(current?.failure ? { failure: current.failure } : {}) });
@@ -32,9 +46,9 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
     log({ level: failure.deviceFault ? "warn" : "error", event: "dispatch_failed", message: "印刷送信を完了できませんでした", jobId: job.jobId, bytesSha256: job.bytesSha256, acceptedBytes: failure.acceptedBytes, deliveryCertainty: failure.notSentProven && failure.acceptedBytes === 0 ? "not_sent" : "unknown", failureCode: failure.code });
     return reply.code(409).send({ failure });
   };
-  app.addHook("onClose", async () => options.transport.close());
+  app.addHook("onClose", async () => { clearInterval(statusTimer); await options.transport.close(); });
   app.get("/health/live", async () => ({ status: "ok" }));
-  app.get("/api/v1/printer/status", async () => printerMutex.runExclusive(async () => ({ printerId: "receipt-1", observation: await options.transport.getStatus() })));
+  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: await currentStatus() }));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => jobs.get(request.params.jobId)?.job ?? reply.code(404).send({ error: "not_found" }));
   app.post<{ Body: PrintJob }>("/api/v1/print-jobs", async (request, reply) => {
     const input = request.body;
@@ -53,16 +67,14 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
       let bytes: Uint8Array;
       try { bytes = renderEscPos(job); } catch (error) { return reject(reply, job, { code: "RENDER_FAILED", message: error instanceof Error ? error.message : "render failed", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false }); }
       const hash = bytesSha256(bytes);
-      const status = input.documentType === "drawer"
-        ? { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, online: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, coverOpen: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, drawerOpen: { support: "unknown" as const, reason: "ドロアー開閉センサー未取得" }, paper: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, error: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, raw: null }
-        : await options.transport.getStatus();
+      const status = await currentStatus();
       const reachable = status.reachable.support === "supported" && status.reachable.value;
       const explicitlyOffline = status.online.support === "supported" && !status.online.value;
       const paperEmpty = status.paper.support === "supported" && status.paper.value === "empty";
       // RAW spooler may prove physical reachability without providing online,
       // cover or paper sensors. Keep those capabilities unknown, but permit one
       // dispatch attempt while no measured capability explicitly blocks it.
-      const ready = input.documentType === "drawer" || (reachable && !explicitlyOffline && !paperEmpty);
+      const ready = reachable && !explicitlyOffline && !paperEmpty;
       if (!ready) return reject(reply, job, { code: status.paper.support === "supported" && status.paper.value === "empty" ? "PAPER_OUT" : "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
       job = await setState(job, "sending");
       log({ level: "info", event: "dispatch_started", message: "PrinterTransportへ送信を開始します", jobId: job.jobId, documentType: job.documentType, bytesSha256: hash, payloadLength: bytes.length });
