@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { gs1ProductCodeInfo, type Department, type EventCatalog, type Gs1CompanyPrefixRegistry, type ProductDefinition, type ProductLookupCandidate, type ProductLookupResult, type StaffMember } from "@event-pos/contracts";
 import { checkoutApi, type AuthActor } from "./checkout-api.js";
+import { ProductLookup } from "./product-lookup.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
 
 type Section = "event" | "products" | "product-new" | "staff" | "screen" | "discounts" | "customer" | "receipt" | "special";
@@ -98,7 +99,7 @@ export const buildProductNameCandidates = (candidates: ProductLookupCandidate[],
   const ordered = [maker, type, code, color, capacity].filter((part): part is string => Boolean(part));
   const compact = [...new Set(ordered)].join(" ");
   const short = [...new Set([type, code, color, capacity].filter((part): part is string => Boolean(part)))].join(" ");
-  const fallback = [...new Set([productCode, ...ranked.slice(0, 5)])].join(" ");
+  const fallback = [...new Set(ranked.slice(0, 6))].join(" ");
   const detailed = [...new Set([maker, type, code, color, capacity, ...ranked])].join(" ");
   return [...new Set([compact, short, fallback, detailed].filter((name) => name && receiptWidth(name) <= 64))].slice(0, 4);
 };
@@ -107,11 +108,16 @@ const halfKatakana = ["ｧ","ｱ","ｨ","ｲ","ｩ","ｳ","ｪ","ｴ","ｫ","ｵ
 const toHalfKatakana = (value: string) => { let output = ""; for (const char of value.normalize("NFC")) { const index = fullKatakana.indexOf(char); output += index >= 0 ? halfKatakana[index] ?? char : char; } return output; };
 const normalizeProductName = (parts: string[], spacing: "half" | "none", katakana: "full" | "half") => { const value = parts.map((part) => { let next = part.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0)); if (katakana === "half") next = toHalfKatakana(next); else next = next.normalize("NFKC"); return next; }); return value.join(spacing === "half" ? " " : ""); };
 const receiptWidth = (value: string) => Array.from(value).reduce((sum, char) => sum + (/^[\x00-\xff]$/.test(char) ? 1 : 2), 0);
-function ProductLookup({ eventId, code, disabled, onApply }: { eventId: string; code: string; disabled: boolean; onApply: (candidate: ProductLookupCandidate, field: "name" | "seller" | "manufacturer" | "brand" | "producer" | "specification") => void }) {
-  const [result, setResult] = useState<ProductLookupResult | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [selectedName, setSelectedName] = useState(0);
+function ProductLookupOld({ eventId, code, disabled, onApply }: { eventId: string; code: string; disabled: boolean; onApply: (candidate: ProductLookupCandidate, field: "name" | "seller" | "manufacturer" | "brand" | "producer" | "specification") => void }) {
+  const [result, setResult] = useState<ProductLookupResult | null>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [selectedName, setSelectedName] = useState(0); const [nameParts, setNameParts] = useState<string[]>([]); const [removedParts, setRemovedParts] = useState<string[]>([]); const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const lookup = async () => { setLoading(true); setError(""); try { setResult(await checkoutApi.lookupProduct(eventId, code)); } catch (cause) { setResult(null); setError(cause instanceof Error ? cause.message : "候補を取得できません"); } finally { setLoading(false); } };
   const adopt = (candidate: ProductLookupCandidate, field: "name" | "seller" | "manufacturer" | "brand" | "producer" | "specification") => { void checkoutApi.recordProductLookupAdoption(eventId, code, field, candidate).catch(() => undefined); onApply(candidate, field); };
   const names = result ? buildProductNameCandidates(result.candidates, code) : [];
+  useEffect(() => { const name = names[selectedName]; if (name) { setNameParts(lookupNameParts(name)); setRemovedParts([]); } }, [result, selectedName]);
+  const manualName = normalizeProductName(nameParts, "none", "half");
+  const movePart = (from: number, to: number) => setNameParts((current) => { const next = [...current]; if (from < 0 || to < 0 || from >= next.length || to >= next.length) return current; [next[from], next[to]] = [next[to]!, next[from]!]; return next; });
+  const removePart = (index: number) => { const part = nameParts[index]; if (!part) return; setNameParts((current) => current.filter((_, i) => i !== index)); setRemovedParts((current) => current.includes(part) ? current : [...current, part]); };
+  const restorePart = (part: string) => { setRemovedParts((current) => current.filter((item) => item !== part)); setNameParts((current) => current.includes(part) ? current : [...current, part]); };
   const nameCandidate = (name: string): ProductLookupCandidate => ({ name, source: "候補名整理", strength: "medium", reason: "検索候補の重複排除・重要属性整理" });
   return <div className="product-lookup"><button type="button" disabled={disabled || loading || !/^\d{8,18}$/.test(code)} onClick={() => void lookup()}>{loading ? "候補を検索中…" : "候補をネット検索"}</button>{error && <small className="product-lookup-error">{error}</small>}{result && <div className="product-lookup-result"><small>コード種別: {result.codeKind} ／ 候補は未確定です</small>{result.existingProducts.map((item) => <div className="product-lookup-existing" key={item.productCode}>既存商品: {item.name}（{item.priceInclTax.toLocaleString()}円）</div>)}{names.length > 0 && <div className="product-name-builder"><strong>商品名候補</strong><small>重要属性を残した候補です。詳細候補には重要度の低い語も含まれます。</small><select aria-label="商品名候補" value={selectedName} onChange={(event) => setSelectedName(Number(event.target.value))}>{names.map((name, index) => <option key={name} value={index}>{name}</option>)}</select><button type="button" disabled={disabled} onClick={() => adopt(nameCandidate(names[selectedName]!), "name")}>選択した商品名を採用</button></div>}{result.candidates.map((candidate, index) => <article key={`${candidate.source}-${candidate.url ?? index}`}><div><strong>{cleanLookupName(candidate.name ?? candidate.company ?? "事業者情報")}</strong><small>{candidate.source} ／ {candidate.reason}</small>{candidate.company && <small>候補値: {candidate.company}</small>}</div><div className="product-lookup-actions">{candidate.company && <><button type="button" disabled={disabled} onClick={() => adopt(candidate, "manufacturer")}>メーカー</button><button type="button" disabled={disabled} onClick={() => adopt(candidate, "brand")}>ブランド</button><button type="button" disabled={disabled} onClick={() => adopt(candidate, "seller")}>販売者</button><button type="button" disabled={disabled} onClick={() => adopt(candidate, "producer")}>製造者</button></>}{candidate.name && <button type="button" disabled={disabled} onClick={() => adopt(candidate, "specification")}>規格</button>}{candidate.url && <a href={candidate.url} target="_blank" rel="noreferrer">根拠を開く</a>}</div></article>)}</div>}</div>;
 }
