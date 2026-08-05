@@ -17,8 +17,11 @@ function roleFor(member: StaffMember): StaffRole {
 }
 
 export function synchronizeCatalogStaff(db: PosDatabase, catalog: EventCatalog, now = new Date().toISOString()): void {
+  const members = catalog.staffMembers?.some((member) => member.responsibleNumber === "001")
+    ? catalog.staffMembers
+    : [...(catalog.staffMembers ?? []), { responsibleNumber: "001", displayName: "管理者", role: "admin" as const }];
   const activeNumbers = new Set<string>();
-  for (const member of catalog.staffMembers ?? []) {
+  for (const member of members) {
     activeNumbers.add(member.responsibleNumber);
     const existing = db.prepare("SELECT assignment_id,staff_id FROM event_staff_assignments WHERE event_id=? AND responsible_number=?").get(catalog.eventId, member.responsibleNumber) as { assignment_id: string; staff_id: string } | undefined;
     const staffId = existing?.staff_id ?? uuidV7();

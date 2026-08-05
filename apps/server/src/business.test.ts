@@ -19,6 +19,15 @@ const catalog = {
 };
 
 describe("営業状態と担当者session", () => {
+  it("001が未設定のカタログでは管理者を自動登録する", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    const initialCatalog = { ...catalog, staffMembers: [{ responsibleNumber: "002", displayName: "責任者", role: "manager" as const }] };
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${initialCatalog.eventId}/catalog`, payload: initialCatalog })).statusCode).toBe(200);
+    const signIn = await app.inject({ method: "POST", url: "/api/v1/auth/sessions", payload: { eventId: initialCatalog.eventId, responsibleNumber: "001", terminalId: "register-1" } });
+    expect(signIn.statusCode).toBe(201);
+    expect(signIn.json().actor).toMatchObject({ responsibleNumber: "001", displayName: "管理者", role: "admin" });
+  });
+
   it("未開局の商品登録を拒否し、二段階開局後だけ販売を許可する", async () => {
     const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
     expect((await app.inject({ method: "PUT", url: "/api/v1/events/business-event/catalog", payload: catalog })).statusCode).toBe(200);
