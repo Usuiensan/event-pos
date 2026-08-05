@@ -53,14 +53,16 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
       let bytes: Uint8Array;
       try { bytes = renderEscPos(job); } catch (error) { return reject(reply, job, { code: "RENDER_FAILED", message: error instanceof Error ? error.message : "render failed", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false }); }
       const hash = bytesSha256(bytes);
-      const status = await options.transport.getStatus();
+      const status = input.documentType === "drawer"
+        ? { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, online: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, coverOpen: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, drawerOpen: { support: "unknown" as const, reason: "ドロアー開閉センサー未取得" }, paper: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, error: { support: "unknown" as const, reason: "ドロアー駆動では印刷機状態の前照会を省略" }, raw: null }
+        : await options.transport.getStatus();
       const reachable = status.reachable.support === "supported" && status.reachable.value;
       const explicitlyOffline = status.online.support === "supported" && !status.online.value;
       const paperEmpty = status.paper.support === "supported" && status.paper.value === "empty";
       // RAW spooler may prove physical reachability without providing online,
       // cover or paper sensors. Keep those capabilities unknown, but permit one
       // dispatch attempt while no measured capability explicitly blocks it.
-      const ready = reachable && !explicitlyOffline && !paperEmpty;
+      const ready = input.documentType === "drawer" || (reachable && !explicitlyOffline && !paperEmpty);
       if (!ready) return reject(reply, job, { code: status.paper.support === "supported" && status.paper.value === "empty" ? "PAPER_OUT" : "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
       job = await setState(job, "sending");
       log({ level: "info", event: "dispatch_started", message: "PrinterTransportへ送信を開始します", jobId: job.jobId, documentType: job.documentType, bytesSha256: hash, payloadLength: bytes.length });

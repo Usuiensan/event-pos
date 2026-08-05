@@ -119,6 +119,15 @@ describe("printer host", () => {
     expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x14, 0x64]);
   });
 
+  it("drawer駆動では遅い状態照会を待たずにRAW送信する", async () => {
+    const transport = new FakeTransport(); transport.getStatus = async () => { throw new Error("status must not be called"); };
+    const app = buildPrinterHost({ transport }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "drawer-no-status", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 40, offMs: 200 }, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: 5, bytesSha256: "e11e22d0c2538e1cd892e671b4915e0cf57a34d71f54ea1712fbd9629a024134", rendererVersion: "event-pos-drawer-v1" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().statusObservation.reachable).toMatchObject({ support: "unknown" });
+    expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x14, 0x64]);
+  });
+
   it("status取得と印刷送信を同じprinter mutexで直列化する", async () => {
     const transport = new FakeTransport(); const statusObservation = await transport.getStatus(); let active = 0; let maxActive = 0;
     const enter = async () => { active += 1; maxActive = Math.max(maxActive, active); await new Promise((resolve) => setTimeout(resolve, 5)); active -= 1; };
