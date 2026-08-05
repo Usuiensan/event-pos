@@ -118,4 +118,19 @@ describe("printer host", () => {
     expect(response.statusCode).toBe(201);
     expect(Array.from(transport.sent[0] ?? [])).toEqual([0x1b, 0x70, 0x00, 0x02, 0x14]);
   });
+
+  it("許可済みdrawer診断pulseだけをpin別・時間別に送信する", async () => {
+    for (const [name, payload, bytes] of [
+      ["pin2-40", { pin: 2, onMs: 40, offMs: 200 }, [0x1b, 0x70, 0x00, 0x14, 0x64]],
+      ["pin2-80", { pin: 2, onMs: 80, offMs: 400 }, [0x1b, 0x70, 0x00, 0x28, 0xc8]],
+      ["pin5-40", { pin: 5, onMs: 40, offMs: 200 }, [0x1b, 0x70, 0x01, 0x14, 0x64]],
+      ["pin5-80", { pin: 5, onMs: 80, offMs: 400 }, [0x1b, 0x70, 0x01, 0x28, 0xc8]],
+    ] as const) {
+      const transport = new FakeTransport(); const app = buildPrinterHost({ transport }); apps.push(app);
+      const value = Uint8Array.from(bytes);
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: `drawer-${name}`, documentType: "drawer", kind: "drawer", payload, canonicalIr: undefined, irSha256: undefined, expectedBytesLength: value.length, bytesSha256: bytesSha256(value), rendererVersion: "event-pos-drawer-v1" } });
+      expect(response.statusCode).toBe(201);
+      expect(Array.from(transport.sent.at(-1) ?? [])).toEqual(bytes);
+    }
+  });
 });

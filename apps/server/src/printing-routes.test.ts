@@ -60,6 +60,15 @@ describe("receipt template and reprint routes", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
   });
 
+  it("責任者のdrawer診断profileを監査付きで保存する", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { profile: "pin2_40ms" } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().payload).toMatchObject({ pin: 2, onMs: 40, offMs: 200, reason: "manager_diagnostic:pin2_40ms" });
+    const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='drawer_open_request'").get() as { detail_json: string };
+    expect(JSON.parse(audit.detail_json)).toMatchObject({ actorId: "manager-1", profile: "pin2_40ms", pin: 2, onMs: 40, offMs: 200 });
+  });
+
   it("会計時にPIIを含まないimmutable snapshotと全version/hashを保存する", async () => {
     const { app, db } = makeApp(); const sale = await finalizeSale(app);
     const row = db.prepare("SELECT * FROM print_jobs WHERE job_id=?").get(sale.printJobId) as Record<string, unknown>;

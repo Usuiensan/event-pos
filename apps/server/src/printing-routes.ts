@@ -8,9 +8,23 @@ import type { PersistentPrintQueue } from "./print-queue.js";
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
 import { createPrintJob } from "./db.js";
 import { AuthError, requireAuthActor } from "./auth.js";
+import { bytesSha256 } from "@event-pos/escpos";
 
 type PhysicalOutcome = "printed" | "not_printed" | "indeterminate";
 type ReprintBody = { sourcePrintJobId: string; reason: string; physicalOutcome: PhysicalOutcome; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } };
+type DrawerPulseProfile = "approved" | "pin2_40ms" | "pin2_80ms" | "pin5_40ms" | "pin5_80ms";
+
+const drawerPulse = (pin: 2 | 5, onMs: number, offMs: number) => {
+  const bytes = Uint8Array.from([0x1b, 0x70, pin === 2 ? 0 : 1, onMs / 2, offMs / 2]);
+  return { pin, onMs, offMs, bytesSha256: bytesSha256(bytes) };
+};
+const drawerPulseProfiles: Record<DrawerPulseProfile, ReturnType<typeof drawerPulse>> = {
+  approved: drawerPulse(2, 4, 40),
+  pin2_40ms: drawerPulse(2, 40, 200),
+  pin2_80ms: drawerPulse(2, 80, 400),
+  pin5_40ms: drawerPulse(5, 40, 200),
+  pin5_80ms: drawerPulse(5, 80, 400),
+};
 
 function error(reply: FastifyReply, status: number, code: string, message: string): unknown { return reply.code(status).send({ error: { code, message, details: {}, requestId: reply.request.id } }); }
 function header(request: { headers: Record<string, string | string[] | undefined> }, name: string): string | undefined { const value = request.headers[name]; return Array.isArray(value) ? value[0] : value; }
@@ -48,15 +62,18 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     requireAuthActor(options.database, request, "manager", options.authRequired ?? false);
     if (options.authRequired && options.database.prepare("SELECT 1 FROM business_sessions WHERE state='open' LIMIT 1").get()) throw new AuthError(409, "CONFIGURATION_LOCKED", "営業中はレシート設定を変更できません");
   };
-  app.post("/api/v1/device-jobs/drawer", async (request, reply) => {
+  app.post<{ Body: { profile?: DrawerPulseProfile } }>("/api/v1/device-jobs/drawer", async (request, reply) => {
     if (!options.drawerEnabled) return error(reply, 409, "DRAWER_NOT_ACCEPTED", "ドロアー実機受入が完了するまで駆動できません");
     const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
     if (!actorId || role !== "manager") return error(reply, role ? 403 : 401, "DRAWER_MANAGER_REQUIRED", "責任者権限が必要です");
+    const profile = request.body?.profile ?? "approved";
+    const pulse = drawerPulseProfiles[profile];
+    if (!pulse) return error(reply, 400, "DRAWER_PROFILE_INVALID", "未許可のドロアーパルスプロファイルです");
     const now = new Date().toISOString(); const jobId = uuidV7();
     try {
-      const job = createPrintJob(options.database, { jobId, transactionId: `drawer-manual:${jobId}`, printerId: "receipt-1", documentType: "drawer", kind: "drawer", payload: { pin: 2, onMs: 4, offMs: 40, reason: "manager_manual" }, createdAt: now, source: "event-pos", rendererVersion: "event-pos-drawer-v1", bytesSha256: "dd99377f56cea3fca547e0df16d32c23d79eec311071cb670abc8a7f5c11c1de", expectedBytesLength: 5 });
+      const job = createPrintJob(options.database, { jobId, transactionId: `drawer-manual:${jobId}`, printerId: "receipt-1", documentType: "drawer", kind: "drawer", payload: { ...pulse, reason: profile === "approved" ? "manager_manual" : `manager_diagnostic:${profile}` }, createdAt: now, source: "event-pos", rendererVersion: "event-pos-drawer-v1", bytesSha256: pulse.bytesSha256, expectedBytesLength: 5 });
       options.database.prepare("UPDATE printer_operations SET kind='drawer' WHERE payload_ref=?").run(jobId);
-      options.database.prepare("INSERT INTO audit_log (action,entity_type,entity_id,detail_json,created_at) VALUES ('drawer_open_request','printer_operation',?,?,?)").run(job.operationId ?? jobId, JSON.stringify({ actorId, pin: 2, onMs: 4, offMs: 40 }), now);
+      options.database.prepare("INSERT INTO audit_log (action,entity_type,entity_id,detail_json,created_at) VALUES ('drawer_open_request','printer_operation',?,?,?)").run(job.operationId ?? jobId, JSON.stringify({ actorId, profile, pin: pulse.pin, onMs: pulse.onMs, offMs: pulse.offMs }), now);
       options.queue?.trigger(); return reply.code(201).send(job);
     } catch (err) { return error(reply, 409, "DRAWER_CREATE_FAILED", err instanceof Error ? err.message : "ドロアー操作を登録できません"); }
   });
