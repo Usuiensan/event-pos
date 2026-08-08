@@ -5,6 +5,7 @@ import {
   addAgeVerification,
   addDraftBundle,
   addDraftLine,
+  addUnregisteredDraftLine,
   addPeriodicalDraftLine,
   addDraftPayment,
   claimHoldToDraft,
@@ -131,6 +132,14 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
   app.post<{ Params: { draftId: string }; Body: { productCode: string; quantity?: number; source?: "manual" | "scan"; productOptions?: Record<string, unknown> } }>("/api/v1/sale-drafts/:draftId/lines", async (request, reply) => {
     try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body); notifyDraft(options, draft); return reply.code(201).send(draft); }
     catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
+  });
+  app.post<{ Params: { draftId: string }; Body: { productCode?: string; priceInclTax?: number; taxRate?: number } }>("/api/v1/sale-drafts/:draftId/unregistered-lines", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "operator", options.authRequired ?? false);
+      const taxRate = Number(request.body?.taxRate);
+      const draft = addUnregisteredDraftLine(options.database, request.params.draftId, ifMatch(request.headers), { productCode: request.body?.productCode ?? "", priceInclTax: Number(request.body?.priceInclTax), taxRate: taxRate as 0 | 8 | 10, actorId: options.authRequired ? actor.responsibleNumber : headerValue(request.headers["x-pos-actor-id"]) ?? "unsigned-operator" });
+      notifyDraft(options, draft); return reply.code(201).send(draft);
+    } catch (error) { return sendError(reply, error, options.database, request.params.draftId); }
   });
   app.post<{ Params: { draftId: string }; Body: { code?: string } }>("/api/v1/sale-drafts/:draftId/periodicals", async (request, reply) => {
     try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); const draft = addPeriodicalDraftLine(options.database, request.params.draftId, ifMatch(request.headers), request.body?.code ?? ""); notifyDraft(options, draft); return reply.code(201).send(draft); }

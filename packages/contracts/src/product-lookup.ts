@@ -3,7 +3,10 @@ export type ProductLookupCandidate = {
   name?: string;
   author?: string;
   company?: string;
+  brand?: string;
+  seller?: string;
   price?: number;
+  priceType?: "catalog" | "reference";
   url?: string;
   source: string;
   strength: ProductLookupEvidenceStrength;

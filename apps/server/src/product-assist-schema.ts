@@ -37,5 +37,22 @@ export function applyProductAssistSchema(db: PosDatabase): void {
       outcome TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS ix_brave_search_usage_requested_at ON brave_search_usage(requested_at);
+    CREATE TABLE IF NOT EXISTS yahoo_search_usage (
+      request_id TEXT PRIMARY KEY,
+      requested_at TEXT NOT NULL,
+      code TEXT NOT NULL,
+      outcome TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS ix_yahoo_search_usage_requested_at ON yahoo_search_usage(requested_at);
+    CREATE TABLE IF NOT EXISTS unregistered_product_scans (
+      event_id TEXT NOT NULL,
+      product_code TEXT NOT NULL,
+      scan_count INTEGER NOT NULL DEFAULT 1 CHECK(scan_count >= 1),
+      first_scanned_at TEXT NOT NULL,
+      last_scanned_at TEXT NOT NULL,
+      last_actor_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','registered')),
+      PRIMARY KEY(event_id, product_code)
+    );
   `);
 }

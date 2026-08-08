@@ -10,6 +10,7 @@ import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
 import { fetchNdlIsbnProduct } from "./isbn.js";
 import { lookupProductCandidates, recordProductLookupAdoption, recordProductLookupFeedback } from "./product-lookup.js";
+import { listUnregisteredProducts } from "./provisional-products.js";
 
 const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
@@ -48,6 +49,14 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       const record = getCatalog(options.database, request.params.eventId);
       if (!record) return reply.code(404).send({ error: { code: "CATALOG_NOT_FOUND", message: "設定が見つかりません", details: {}, requestId: request.id } });
       return { catalog: importEventCatalog(record.catalogJson), businessOpen: Boolean(getOpenBusinessSession(options.database, request.params.eventId)) };
+    } catch (error) { return failure(reply, error); }
+  });
+
+  app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/unregistered-products", async (request, reply) => {
+    try {
+      const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
+      if (actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
+      return { products: listUnregisteredProducts(options.database, request.params.eventId) };
     } catch (error) { return failure(reply, error); }
   });
 

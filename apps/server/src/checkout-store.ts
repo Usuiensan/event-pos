@@ -15,6 +15,7 @@ import { renderReceipt } from "./receipt-store.js";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 import { assertRegisterOpen } from "./business-store.js";
 import { uuidV7 } from "./ids.js";
+import { recordProvisionalProductScan } from "./provisional-products.js";
 
 export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
@@ -237,6 +238,23 @@ export function addDraftLine(db: PosDatabase, draftId: string, version: number, 
     if (!addToMatchingLine(db, draftId, product, quantity, productOptionsJson)) {
       insertLine(db, draftId, product, quantity, input.source ?? "manual", null, productOptionsJson, new Date().toISOString());
     }
+    bump(db, draftId, version, "editing");
+    return updateProjection(db, draftId);
+  });
+}
+
+export function addUnregisteredDraftLine(db: PosDatabase, draftId: string, version: number, input: { productCode: string; priceInclTax: number; taxRate: 0 | 8 | 10; actorId: string }): SaleDraftDto {
+  const detected = parseBarcode(input.productCode);
+  if (!detected.gtin || (detected.kind !== "gtin" && detected.kind !== "book-isbn")) throw new CheckoutError(400, "INVALID_UNREGISTERED_PRODUCT_CODE", "商品登録に使えるJANコードを読み取ってください");
+  if (!Number.isSafeInteger(input.priceInclTax) || input.priceInclTax < 0) throw new CheckoutError(400, "INVALID_UNREGISTERED_PRODUCT_PRICE", "税込価格は0円以上の整数で入力してください");
+  if (![0, 8, 10].includes(input.taxRate)) throw new CheckoutError(400, "INVALID_UNREGISTERED_PRODUCT_TAX", "税率は0%、8%、10%のいずれかです");
+  const code = detected.gtin;
+  return immediate(db, () => {
+    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    const existing = db.prepare("SELECT provisional FROM event_products WHERE event_id=? AND product_code=?").get(String(row.event_id), code) as { provisional?: number } | undefined;
+    if (existing && Number(existing.provisional) !== 1) throw new CheckoutError(409, "PRODUCT_ALREADY_REGISTERED", "商品マスタに登録済みの商品です。通常のスキャンを使用してください", { productCode: code });
+    const product = recordProvisionalProductScan(db, { eventId: String(row.event_id), productCode: code, name: `未登録商品 ${code}`, priceInclTax: input.priceInclTax, taxRate: input.taxRate, actorId: input.actorId });
+    if (!addToMatchingLine(db, draftId, product, 1, "{}")) insertLine(db, draftId, product, 1, "scan", null, "{}", new Date().toISOString());
     bump(db, draftId, version, "editing");
     return updateProjection(db, draftId);
   });

@@ -5,6 +5,7 @@ import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import type { PosDatabase } from "./db.js";
 import { getCatalog } from "./db.js";
 import { randomUUID } from "node:crypto";
+import { fetchYahooShoppingCandidates } from "./yahoo-shopping.js";
 
 const normalize = (code: string) => code.replace(/[\s-]/g, "");
 const normalizeLookupToken = (value: string) => value.normalize("NFKC").trim().toLocaleLowerCase("ja-JP");
@@ -27,12 +28,16 @@ async function braveCandidates(database: PosDatabase, code: string): Promise<Pro
   const key = process.env.BRAVE_SEARCH_API_KEY;
   if (!key) return [];
   reserveBraveSearch(database, code);
-  const url = new URL("https://api.search.brave.com/res/v1/web/search"); url.searchParams.set("q", `"${code}" 商品`); url.searchParams.set("count", "5");
+  const url = new URL("https://api.search.brave.com/res/v1/web/search"); url.searchParams.set("q", `"${code}" 商品 -site:jancode.xyz`); url.searchParams.set("count", "5");
   // 呼び出し回数はDBへ予約記録し、再起動後も月次・日次・分間上限を維持する。
   const response = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { Accept: "application/json", "X-Subscription-Token": key } });
   if (!response.ok) return [];
   const data = await response.json() as { web?: { results?: Array<{ title?: string; description?: string; url?: string }> } };
-  return (data.web?.results ?? []).flatMap((result) => result.title && result.url ? [{ name: result.title, url: result.url, source: "Brave Search", strength: "weak" as const, reason: result.description ?? "JANコード完全一致検索の検索結果" }] : []);
+  return (data.web?.results ?? []).flatMap((result) => {
+    if (!result.title || !result.url) return [];
+    try { if (new URL(result.url).hostname === "jancode.xyz" || new URL(result.url).hostname.endsWith(".jancode.xyz")) return []; } catch { return []; }
+    return [{ name: result.title, url: result.url, source: "Brave Search", strength: "weak" as const, reason: result.description ?? "JANコード完全一致検索の検索結果" }];
+  });
 }
 
 function feedbackState(database: PosDatabase, eventId: string, productCode: string): Map<string, "negative" | "positive"> {
@@ -82,12 +87,14 @@ export async function lookupProductCandidates(database: PosDatabase, eventId: st
   }
   if (parsed.kind === "book-isbn") {
     const info = await fetchNdlIsbnProduct(code);
-    candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price }), url: info.sourceUrl, source: "NDLサーチ", strength: "strong", reason: "ISBN完全一致の書誌情報" });
+    candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price, priceType: "catalog" as const }), url: info.sourceUrl, source: "NDLサーチ", strength: "strong", reason: "ISBN完全一致の書誌情報" });
   } else if (code.startsWith("278") && code.length === 13) {
     const info = await fetchIsdnProduct(code);
-    candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price }), url: info.sourceUrl, source: "ISDN", strength: "strong", reason: "ISDN完全一致の公開情報" });
+    candidates.push({ name: info.productName, ...(info.author ? { author: info.author } : {}), ...(info.publisherName ? { company: info.publisherName } : {}), ...(info.price === undefined ? {} : { price: info.price, priceType: "catalog" as const }), url: info.sourceUrl, source: "ISDN", strength: "strong", reason: "ISDN完全一致の公開情報" });
   }
-  if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong")) candidates.push(...await braveCandidates(database, code));
+  const yahooCandidates = await fetchYahooShoppingCandidates(database, code).catch(() => []);
+  candidates.push(...yahooCandidates);
+  if (candidates.length === 0 || candidates.every((candidate) => candidate.strength !== "strong" && candidate.source !== "Yahoo!ショッピングAPI")) candidates.push(...await braveCandidates(database, code));
   const result = { code, codeKind: parsed.kind, existingProducts, candidates, searchedAt: new Date().toISOString() } satisfies ProductLookupResult;
   database.prepare("INSERT INTO product_lookup_cache(cache_key,event_id,code,result_json,fetched_at,expires_at) VALUES (?,?,?,?,?,?) ON CONFLICT(cache_key) DO UPDATE SET result_json=excluded.result_json,fetched_at=excluded.fetched_at,expires_at=excluded.expires_at").run(cacheKey, eventId, code, JSON.stringify(result), result.searchedAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
   return applyProductLookupFeedback(database, eventId, code, result);

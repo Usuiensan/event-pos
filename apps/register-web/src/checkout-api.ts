@@ -80,6 +80,7 @@ export type CustomerDisplayStatus = {
 };
 export type AudioSettingsDto = { tapVolume: number; errorVolume: number; systemErrorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
 export type AudioAnnouncement = { sequence: number; announcementId: string; text: string; createdAt: string };
+export type UnregisteredProductDto = { productCode: string; name: string; priceInclTax: number; taxRate: 0 | 8 | 10; scanCount: number; firstScannedAt: string; lastScannedAt: string; lastActorId: string };
 
 export class CheckoutApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown>) { super(message); }
@@ -114,6 +115,7 @@ export const checkoutApi = {
   getIsdnProduct: (code: string) => request<{ info: IsdnProductInfo }>(`/api/v1/isdn/${encodeURIComponent(code)}`),
   getIsbnProduct: (code: string) => request<{ info: import("@event-pos/contracts").IsbnProductInfo }>(`/api/v1/isbn/${encodeURIComponent(code)}`),
   lookupProduct: (eventId: string, code: string) => request<ProductLookupResult>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/${encodeURIComponent(code)}`),
+  getUnregisteredProducts: (eventId: string) => request<{ products: UnregisteredProductDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/unregistered-products`),
   recordProductLookupAdoption: (eventId: string, productCode: string, fieldName: string, candidate: ProductLookupResult["candidates"][number]) => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/adoptions`, { method: "POST", body: body({ productCode, fieldName, candidate }) }),
   recordProductLookupFeedback: (eventId: string, productCode: string, token: string, feedback: "negative" | "positive") => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/feedback`, { method: "POST", body: body({ productCode, token, feedback }) }),
   saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
@@ -155,6 +157,7 @@ export const checkoutApi = {
   createDraft: (registerId: string, input: { eventId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-drafts`, { method: "POST", body: body(input) }),
   getDraft: (draftId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`),
   addLine: (draftId: string, version: number, productCode: string, quantity = 1) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines`, { method: "POST", headers: versionHeaders(version), body: body({ productCode, quantity, source: "manual" }) }),
+  addUnregisteredLine: (draftId: string, version: number, input: { productCode: string; priceInclTax: number; taxRate: 0 | 8 | 10 }) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/unregistered-lines`, { method: "POST", headers: versionHeaders(version), body: body(input) }),
   addPeriodicalLine: (draftId: string, version: number, code: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/periodicals`, { method: "POST", headers: versionHeaders(version), body: body({ code }) }),
   addBundle: (draftId: string, version: number, bundleId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/bundles`, { method: "POST", headers: versionHeaders(version), body: body({ bundleId }) }),
   updateLine: (draftId: string, lineId: string, version: number, input: { quantity?: number; manualDiscount?: ManualDiscountInput | null }) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines/${encodeURIComponent(lineId)}`, { method: "PATCH", headers: versionHeaders(version), body: body(input) }),
