@@ -17,3 +17,4 @@ artifacts/
 tmp/
 .agents/skills/
 /skills-lock.json
+deploy/windows/printer-host.env
