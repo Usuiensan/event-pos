@@ -81,6 +81,7 @@ export type CustomerDisplayStatus = {
 export type AudioSettingsDto = { tapVolume: number; errorVolume: number; systemErrorVolume: number; speechVolume: number; speakerId: number; version: number; updatedAt: string };
 export type AudioAnnouncement = { sequence: number; announcementId: string; text: string; createdAt: string };
 export type UnregisteredProductDto = { productCode: string; name: string; priceInclTax: number; taxRate: 0 | 8 | 10; scanCount: number; firstScannedAt: string; lastScannedAt: string; lastActorId: string };
+export type ReceiptAssetDescriptor = { assetId: string; version: number; sha256: string; mime: "application/x-event-pos-mono-raster"; widthDots: number; heightDots: number; rasterBase64: string };
 
 export class CheckoutApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown>) { super(message); }
@@ -119,8 +120,8 @@ export const checkoutApi = {
   recordProductLookupAdoption: (eventId: string, productCode: string, fieldName: string, candidate: ProductLookupResult["candidates"][number]) => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/adoptions`, { method: "POST", body: body({ productCode, fieldName, candidate }) }),
   recordProductLookupFeedback: (eventId: string, productCode: string, token: string, feedback: "negative" | "positive") => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/feedback`, { method: "POST", body: body({ productCode, token, feedback }) }),
   saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
-  listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string }> }>("/api/v1/receipt-templates"),
-  createReceiptTemplate: (templateKey: string, sourceText: string) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText }) }),
+  listReceiptTemplates: () => request<{ templates: Array<{ templateKey: string; version: number; sourceText: string; sourceSha256: string; status: string; assets: ReceiptAssetDescriptor[] }> }>("/api/v1/receipt-templates"),
+  createReceiptTemplate: (templateKey: string, sourceText: string, assets: ReceiptAssetDescriptor[] = []) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText, assets }) }),
   validateReceiptTemplate: (templateKey: string, version: number) => request<{ sourceSha256: string }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/validate`, { method: "POST", body: body({}) }),
   previewReceiptTemplate: (templateKey: string, version: number) => request<{ humanReadable: string; warnings: string[] }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/preview`, { method: "POST", body: body({}) }),
   activateReceiptTemplate: (templateKey: string, version: number, sourceSha256: string) => request<unknown>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/activate`, { method: "POST", body: body({ sourceSha256 }) }),

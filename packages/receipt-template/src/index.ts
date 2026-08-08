@@ -279,7 +279,7 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 3;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 4;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -302,13 +302,9 @@ body:
   - rule: single
   - each: lines
     body:
-      - if: quantityOne
-        body:
-          - row: { left: "{{name}}", right: "{{netFormatted}}" }
-      - if: quantityMoreThanOne
-        body:
-          - text: "{{name}}"
-          - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+      - text: "{{name}}"
+      - text: "JAN {{productCode}}"
+      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - if: hasDiscounts
     body:
@@ -331,5 +327,22 @@ body:
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = DEFAULT_RECEIPT_TEMPLATE.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
+const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES = `  - each: lines
+    body:
+      - if: quantityOne
+        body:
+          - row: { left: "{{name}}", right: "{{netFormatted}}" }
+      - if: quantityMoreThanOne
+        body:
+          - text: "{{name}}"
+          - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+`;
+const DEFAULT_RECEIPT_TEMPLATE_V4_LINES = `  - each: lines
+    body:
+      - text: "{{name}}"
+      - text: "JAN {{productCode}}"
+      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+`;
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = DEFAULT_RECEIPT_TEMPLATE.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2.replace("feedLines: 8", "feedLines: 3");

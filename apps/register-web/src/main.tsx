@@ -494,7 +494,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setPendingUnknownProduct((current) => current ? { ...current, saving: true } : current);
     void runDraftMutation((draft) => checkoutApi.addUnregisteredLine(draft.draftId, draft.version, { productCode: pendingUnknownProduct.code, priceInclTax, taxRate: pendingUnknownProduct.taxRate })).then((next) => {
       if (!next) { setPendingUnknownProduct((current) => current ? { ...current, saving: false } : current); return; }
-      setPendingUnknownProduct(null); setPendingBook(null); setScanNotice(`未登録商品 ${pendingUnknownProduct.code} を ${priceInclTax.toLocaleString()}円で仮登録しました。会計後に商品マスタへ登録してください。`);
+      setPendingUnknownProduct(null); setPendingBook(null); setScanNotice("");
       const line = [...next.lines].reverse().find((candidate) => candidate.productCode === pendingUnknownProduct.code && candidate.status === "active");
       setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); if (line) highlightLine(line.productCode, "active", "add"); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(priceInclTax));
     });
