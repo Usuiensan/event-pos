@@ -47,6 +47,28 @@ pnpm --filter @event-pos/register-web dev
 
 `pnpm check`は全workspaceの型チェック、テスト、buildを実行。React画面の実テストはUI実装タスクで追加する。
 
+## Dockerの起動と開局
+
+本番POSはHTTPS `3443`、トレーニングPOSはHTTP `3002`、Windows PrinterHostはHTTP `4318`を使用する。`3000`はDocker本番の公開ポートではない。
+
+```powershell
+docker compose up -d --build --wait
+docker compose ps
+Invoke-WebRequest -SkipCertificateCheck https://127.0.0.1:3443/health/ready
+Invoke-WebRequest http://127.0.0.1:3002/health/ready
+```
+
+本番画面は `https://127.0.0.1:3443/?register=1&role=staff`、トレーニング画面は `http://127.0.0.1:3002/?register=1&role=staff&mode=training` を開く。責任者番号でサインオン後、「営業全体を開局する」→「レジ準備を開始する」→準備金の確定を順に実行する。
+
+Windowsの実機印刷を行う場合は、別ターミナルでPrinterHostを起動したままにする。
+
+```powershell
+.\deploy\windows\start-printer-host.ps1
+Invoke-WebRequest http://127.0.0.1:4318/health/live
+```
+
+`tools/hardware-test/start-goal7-pos-server.ps1` を使う単体試験では、Docker本番とは別にPOS serverを起動するため、既定のHTTP `3000`を使用する。単体試験とDocker本番を同時に同じポートで起動しない。
+
 ## 商品JSONの責任者設定
 
 商品JSONの`staffMembers`で責任者番号とレジ表示名を設定する。番号は先頭ゼロを含む重複不可の3桁文字列。表示名はペンネーム・ハンドルネーム可。

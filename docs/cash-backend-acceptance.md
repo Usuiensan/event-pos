@@ -4,10 +4,10 @@
 
 ```powershell
 pnpm check
-docker compose up -d --build
-Invoke-WebRequest http://127.0.0.1:3000/health/ready
+docker compose up -d --build --wait
+Invoke-WebRequest -SkipCertificateCheck https://127.0.0.1:3443/health/ready
 docker compose restart pos
-Invoke-WebRequest http://127.0.0.1:3000/health/ready
+Invoke-WebRequest -SkipCertificateCheck https://127.0.0.1:3443/health/ready
 docker compose down
 ```
 

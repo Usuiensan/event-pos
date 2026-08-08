@@ -12,7 +12,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 }
 if (!args.has("--run")) throw new Error("返品・中間点検を実機へ送信するため --run が必要です");
 
-const posUrl = String(args.get("--pos-url") ?? "http://127.0.0.1:3001").replace(/\/$/, "");
+const posUrl = String(args.get("--pos-url") ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 const output = resolve(String(args.get("--output") ?? `./docs/printer-baseline/windows/${Date.now()}-return-interim`));
 const runId = randomUUID();
 const suffix = runId.slice(0, 8);

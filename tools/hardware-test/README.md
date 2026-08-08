@@ -103,6 +103,16 @@ EPSON OPOS for .NET 1.14はPowerShell 7と互換ではないため、64-bit Wind
 
 build済みPOS serverとPrinterHostを起動したTTY terminalで、開局、現金会計初回、再印刷、中間計、精算を順に送信する。各紙面を確認するまで次のjobは作成しない。初回紙面が`printed`または`indeterminate`の場合、再印刷前に完全一致の`REPRINT`入力を必須とする。
 
+この試験スクリプトは、Docker本番のHTTPS `3443`ではなく、専用DBで起動した単体POS serverのHTTP `3000`を対象にする。Docker本番の画面・health checkはリポジトリrootのREADMEおよび`deploy/surface/README.md`を参照する。`start-goal7-pos-server.ps1`の`DatabasePath`は必須なので、プリンター名ではなく試験用SQLiteファイルのパスを指定する。
+
+```powershell
+New-Item -ItemType Directory -Force .\evidence\goal7 | Out-Null
+.\tools\hardware-test\start-goal7-pos-server.ps1 `
+  -DatabasePath .\evidence\goal7\event-pos.sqlite `
+  -Port 3000 `
+  -PrinterHostUrl http://127.0.0.1:4318
+```
+
 ```powershell
 node .\tools\hardware-test\run-goal7-pos-acceptance.mjs --run `
   --operator goal7-operator --manager goal7-manager `
@@ -125,6 +135,6 @@ node .\tools\hardware-test\run-goal7-pos-acceptance.mjs --run --resume `
 
 ```powershell
 node .\tools\hardware-test\run-return-interim-acceptance.mjs --run `
-  --pos-url http://127.0.0.1:3001 `
+  --pos-url http://127.0.0.1:3000 `
   --output .\docs\printer-baseline\windows\YYYYMMDD-HHMMSS-return-interim
 ```

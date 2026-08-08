@@ -51,11 +51,11 @@ try {
   $ready = $false
   for ($i = 0; $i -lt 30; $i++) {
     try {
-      $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:3000/health/ready" -TimeoutSec 3
+      $response = Invoke-WebRequest -UseBasicParsing -Uri "https://127.0.0.1:3443/health/ready" -SkipCertificateCheck -TimeoutSec 3
       if ($response.StatusCode -eq 200 -and $response.Content -match '"status"\s*:\s*"ok"') { $ready = $true; break }
     } catch { }
     Start-Sleep -Seconds 2
   }
-  if (-not $ready) { throw "Could not verify /health/ready after restart. Check docker compose ps pos." }
-  Write-Host "Brave Search API setup and POS restart completed. /health/ready: ok"
+  if (-not $ready) { throw "Could not verify https://127.0.0.1:3443/health/ready after restart. Check docker compose ps pos." }
+  Write-Host "Brave Search API setup and POS restart completed. https://127.0.0.1:3443/health/ready: ok"
 } finally { Pop-Location }

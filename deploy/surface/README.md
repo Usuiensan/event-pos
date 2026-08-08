@@ -15,7 +15,6 @@ Windows printer-hostは別ターミナルで起動します。
 ```powershell
 $env:PRINTER_BACKEND = "windows-spooler"
 $env:PRINTER_NAME = "EPSON TM-T70II Receipt"
-$env:POS_BASE_URL = "http://127.0.0.1:3000"
 $env:PORT = "4318"
 pnpm --filter @event-pos/printer-host dev
 ```
@@ -23,13 +22,15 @@ pnpm --filter @event-pos/printer-host dev
 ## 開局
 
 ```powershell
-docker compose up -d --build
+docker compose up -d --build --wait
 docker compose ps
-Invoke-WebRequest http://127.0.0.1:3000/health/ready
+Invoke-WebRequest -SkipCertificateCheck https://127.0.0.1:3443/health/ready
 Invoke-WebRequest http://127.0.0.1:4318/health/live
 ```
 
-ブラウザーで`http://127.0.0.1:3000`を開き、テストレシートを1枚印刷する。Windowsのプリンター状態がNormalで、印刷キューが0件へ戻ることを確認する。
+ブラウザーで`https://127.0.0.1:3443/?register=1&role=staff`を開く。証明書警告が出る場合は、開発用TLS証明書を端末で信頼してから使用する。責任者でサインオンし、「営業全体を開局する」→「レジ準備を開始する」→準備金確定を行った後、テストレシートを1枚印刷する。Windowsのプリンター状態がNormalで、印刷キューが0件へ戻ることを確認する。
+
+トレーニング画面は`http://127.0.0.1:3002/?register=1&role=staff&mode=training`を使用する。`3000`はホストから直接開くポートではない。
 
 ## 営業中の障害対応
 

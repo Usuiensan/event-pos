@@ -1,5 +1,7 @@
 [CmdletBinding()]
 param(
+  # Docker本番はこのスクリプトではなく docker compose を使用する。
+  # このスクリプトは専用DBを使うGoal 7単体試験用で、DatabasePathを必ず指定する。
   [Parameter(Mandatory = $true)][string]$DatabasePath,
   [string]$PrinterHostUrl = 'http://127.0.0.1:4318',
   [string]$ArtifactRoot,
