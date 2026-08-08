@@ -441,6 +441,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .checkout-payment-row strong { font-size: 1.6rem !important; font-variant-numeric: tabular-nums; }
 .checkout-payment-row:last-child strong { color: #b91c1c !important; }
 .subtotal-large { font-size: 1.65rem; }
+.subtotal-large:not(.next-sale) { background: #15803d; color: white; }
 .subtotal-large:disabled { background: #cbd5e1; color: #64748b; }
 .subtotal-payment-modal { border-color: #2563eb; }
 .subtotal-payment-modal > header { background: #dbeafe; color: #1e3a8a; }
