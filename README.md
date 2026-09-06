@@ -1,42 +1,34 @@
 # event-pos
 
-同人誌即売会向け複数端末POS。
+同人誌・グッズ等の即売会向けWeb POSです。単一のPOSサーバーとSQLiteを正本とし、レジ端末・顧客画面・管理画面をブラウザーから利用します。
 
-## 現在の段階
+## 文書の扱い
 
-Goal 5までの会計・レシート・永続印刷キュー実装済み。Windows/Linux双方のTM-T70II実機検証とOS adapter実装へ進行中。
+現行仕様の正本は [`docs/CURRENT_SPEC.md`](docs/CURRENT_SPEC.md) です。
 
-- 本番対応プリンターホスト: Windows x64、およびDebian・Ubuntu・Raspberry Pi OS等の64bit Linux
-- レシートプリンター: EPSON TM-T70II
-- 初期実機基準: `discord-printer-bot` が稼働する既存Debian環境
-- OS受入方針: Windows/Linuxの両方で送信、状態取得、障害復旧、紙面を受入する
-- 内部ID: UUIDv7
-- 取引・取り置き共通受付番号: 営業セッション1桁＋連番6桁＋Damm検査数字
-- 通常表示: `SNNN-NNNC`
+本番投入前に最低限確認する内容は [`docs/PRODUCTION_MINIMUM.md`](docs/PRODUCTION_MINIMUM.md) にまとめています。過去のGoal、ADR、受入台帳、AI向け継続プロンプトは正本にしません。
 
-## ディレクトリ
+実装と文書が食い違う場合は、現在のコードと自動テストを確認し、文書を実装へ合わせて更新します。新しい要件は、ユーザーが明示したものか、会計整合性・データ損失防止・セキュリティ上必要なものに限って追加します。
 
-```text
-docs/requirements/       元の要件定義
-docs/design/             ADR、アーキテクチャ、データ、印刷、試験設計
-docs/HANDOFF.md          別PCへ移るためのプロジェクト知識の正本
-docs/CODEX_CONTINUATION_PROMPT.md  新しいCodexタスクの開始文
-docs/printer-baseline/   Debian環境のbytes・設定・紙面比較資料
-tools/hardware-test/     Windows/Linux/TM-T70II実機検証ツール
-deploy/linux/            systemd、udev、導入・更新・復旧手順
-deploy/surface/          Windows native printer-host、導入・更新・復旧手順
-.github/workflows/       CI（型チェック、テスト、build）
-```
+## 現在の主な実装
 
-## リポジトリ境界
+- 永続sale draft、サーバー側金額再計算、draft version、Idempotency-Key
+- 売上・明細・支払・在庫・現金台帳・監査・初回印刷jobの原子的確定
+- 現金、クレジット記録、売掛、無配、預り金・釣銭
+- 在庫移動、マイナス在庫、取り置き
+- 18歳/20歳の年齢確認
+- 全部返品、レシートなし返品
+- 顧客画面、heartbeat、WebSocket/REST復元
+- EPSON TM-T70II向けESC/POS、永続印刷キュー、再印刷
+- 開局、入出金、中間点検、精算
+- SQLite backup、xlsx、manifest成果物
+- 分割YAMLの商品・イベント設定と、互換用JSONインポート
 
-このリポジトリは `discord-printer-bot` から独立させる。
+詳細と既知の制限は [`docs/CURRENT_SPEC.md`](docs/CURRENT_SPEC.md) を参照してください。
 
-ESC/POS生成、文字・画像ラスタ、Linux USB送信、カット、golden testは移植元commit・ファイルを記録して移植する。Discord連携、AI機能、Discord設定には依存しない。既存Debianのsystemd・udev・USB知見はPOS用に再設計する。
+## 開発環境
 
-## 開発コマンド
-
-Node.js 24以上、pnpm 11を使用。SQLiteはNode.jsの`node:sqlite`でWindows/Linuxの実行条件を統一する。
+Node.js 24以上、pnpm 11を使用します。
 
 ```powershell
 pnpm install
@@ -45,11 +37,11 @@ pnpm --filter @event-pos/server dev
 pnpm --filter @event-pos/register-web dev
 ```
 
-`pnpm check`は全workspaceの型チェック、テスト、buildを実行。React画面の実テストはUI実装タスクで追加する。
+`pnpm check` はbuild、typecheck、workspace test、PrinterHost smoke testを実行します。
 
-## Dockerの起動と開局
+## Docker
 
-本番POSはHTTPS `3443`、トレーニングPOSはHTTP `3002`、Windows PrinterHostはHTTP `4318`を使用する。`3000`はDocker本番の公開ポートではない。
+現在のDocker本番プロファイルはHTTPS `3443`、トレーニングPOSはHTTP `3002`です。
 
 ```powershell
 docker compose up -d --build --wait
@@ -58,65 +50,36 @@ Invoke-WebRequest -SkipCertificateCheck https://127.0.0.1:3443/health/ready
 Invoke-WebRequest http://127.0.0.1:3002/health/ready
 ```
 
-本番画面は `https://127.0.0.1:3443/?register=1&role=staff`、トレーニング画面は `http://127.0.0.1:3002/?register=1&role=staff&mode=training` を開く。責任者番号でサインオン後、「営業全体を開局する」→「レジ準備を開始する」→準備金の確定を順に実行する。
+本番画面例:
 
-Windowsの実機印刷を行う場合は、別ターミナルでPrinterHostを起動したままにする。
+```text
+https://127.0.0.1:3443/?register=1&role=staff
+```
+
+トレーニング画面例:
+
+```text
+http://127.0.0.1:3002/?register=1&role=staff&mode=training
+```
+
+WindowsでTM-T70IIへ印刷する場合はPrinterHostを起動します。
 
 ```powershell
 .\deploy\windows\start-printer-host.ps1
 Invoke-WebRequest http://127.0.0.1:4318/health/live
 ```
 
-`tools/hardware-test/start-goal7-pos-server.ps1` を使う単体試験では、Docker本番とは別にPOS serverを起動するため、既定のHTTP `3000`を使用する。単体試験とDocker本番を同時に同じポートで起動しない。
+## 設定・運用資料
 
-## 商品JSONの責任者設定
+- [`docs/CURRENT_SPEC.md`](docs/CURRENT_SPEC.md): 現行仕様
+- [`docs/PRODUCTION_MINIMUM.md`](docs/PRODUCTION_MINIMUM.md): 本番までの最低限
+- [`docs/operations/取扱説明書.md`](docs/operations/取扱説明書.md): 当日運用
+- [`docs/event-config-yaml.md`](docs/event-config-yaml.md): 分割YAML設定
+- [`docs/register-catalog-json.md`](docs/register-catalog-json.md): 互換用JSON設定
+- [`docs/UI_POLICY.md`](docs/UI_POLICY.md): UI変更時の方針
+- `docs/printer-baseline/`: 実機で取得したプリンター証跡。要件ではなく技術資料
+- `docs/意匠チェック/`: UIの意匠確認資料
 
-商品JSONの`staffMembers`で責任者番号とレジ表示名を設定する。番号は先頭ゼロを含む重複不可の3桁文字列。表示名はペンネーム・ハンドルネーム可。
+## 秘密情報
 
-```json
-{
-  "eventId": "demo-event",
-  "staffMembers": [
-    { "responsibleNumber": "001", "displayName": "テスト管理者" },
-    { "responsibleNumber": "002", "displayName": "売り子A" }
-  ],
-  "products": [],
-  "quickEntries": []
-}
-```
-
-店員画面は未登録番号、空欄、3桁以外の番号でのサインオンを拒否する。
-
-### 商品検索と未登録JAN
-
-管理画面の「候補をネット検索」は、商品コード完全一致のYahoo!ショッピング公式APIを優先し、結果がない場合だけBrave Search APIへフォールバックします。HTMLスクレイピングは行いません。Yahooの価格は参考価格として表示し、POS売価へ自動反映しません。利用する場合は`.env`に`YAHOO_SHOPPING_APP_ID`を設定してください。
-
-レジで商品マスタにない有効なJANを読み取った場合は、エラーにせず税込価格と税率を入力して仮登録できます。仮商品は本番ではSQLite、トレーニングではインメモリDBに保存され、管理画面の「未登録商品候補」から商品マスタ登録画面へ引き継ぎます。商品マスタの保存確定まではYAMLへ書き込みません。
-
-### 顧客画面の登録待ち表示
-
-未登録商品時の顧客画面は`customerWelcome`でサークル名、配置、案内文、画像を設定する。`message`は改行可。`imageUrl`はブラウザ参照可能なURLまたは配信パス。
-
-```json
-{
-  "customerWelcome": {
-    "circleName": "サークル名",
-    "space": "東A-01a",
-    "message": "いらっしゃいませ\n新刊を頒布しています",
-    "imageUrl": "/welcome.png"
-  }
-}
-```
-
-各項目は省略可。`message`未設定時は「いらっしゃいませ」を表示する。
-
-## 次の作業
-
-1. 既存Debianの基準bytes・紙面・USB/systemd/udev証拠を保存する。
-2. Windows x64ではRAW spoolerと必要なEPSON/OPOS状態取得、Linuxでは`/dev/usb/lp*`と必要な双方向方式を実測する。
-3. 両OSでUSB切断、再接続、紙切れ、カバー開、排他、部分カット、service再起動を測定する。
-4. ADR-P001/P002をOS別の能力表付きで確定し、Windows/Linux PrinterTransportを同じ契約へ実装する。
-5. Windows x64、Linux x86_64/ARM64の全プロファイルで自動・実機・運用受入を完了する。
-# event-pos
-
-イベント設定は [分割イベント設定](docs/event-config-yaml.md) を参照してください。
+`.env`、token、PIN、秘密鍵、本番DB、身分証情報、個人情報を含むログはGitへcommitしません。
