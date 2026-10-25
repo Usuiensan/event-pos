@@ -2,6 +2,6 @@ schemaVersion: 1
 departments:
   - departmentId: "001"
     code: "001"
-    name: 新しい部門
+    name: "1"
     settlementOwnerId: "001"
     enabled: true
