@@ -1,7 +1,7 @@
 schemaVersion: 1
 event:
   eventId: demo-event-large
-  name: Vライフ！
+  name: Vライフ！7
   businessDate: 1970-01-01
 seller:
   circleName: circleName
