@@ -19,3 +19,21 @@ products:
       sortOrder: 0
     sales:
       enabled: true
+  - productCode: "00000024"
+    name: GHSｱｸｷｰ 爆発
+    shortName: GHSｱｸｷｰ 爆発
+    priceYen: 0
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fish
+      buttonLabel: GHSｱｸｷｰ 爆発
+      sortOrder: 1
+    sales:
+      enabled: true
