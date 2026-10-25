@@ -9,7 +9,7 @@ tabs:
     sortOrder: 1
     color: "#fef9c3"
   - tabId: fish
-    label: 鮮魚
+    label: アクキー
     sortOrder: 2
     color: "#cffafe"
   - tabId: meat
