@@ -2,8 +2,8 @@ schemaVersion: 1
 departmentId: "001"
 products:
   - productCode: "00000017"
-    name: GHSｱｸｷｰ 腐食性
-    shortName: GHSｱｸｷｰ 腐食性
+    name: GHSｱｸｷｰ 腐食
+    shortName: GHSｱｸｷｰ 腐食
     priceYen: 200
     tax:
       category: tax_included
@@ -15,7 +15,7 @@ products:
       allowNegative: true
     display:
       tabId: fish
-      buttonLabel: GHSｱｸｷｰ 腐食性
+      buttonLabel: GHSｱｸｷｰ 腐食
       sortOrder: 0
     sales:
       enabled: true
