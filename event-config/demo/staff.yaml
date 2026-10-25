@@ -3,6 +3,7 @@ staff:
   - staffId: "001"
     responsibleNumber: "001"
     displayName: テスト管理者
+    receiptDisplay: number
     role: admin
     enabled: true
     permissions:
@@ -12,6 +13,7 @@ staff:
   - staffId: "002"
     responsibleNumber: "002"
     displayName: 売り子A
+    receiptDisplay: number
     role: operator
     enabled: true
     permissions: []
