@@ -1,7 +1,7 @@
 schemaVersion: 1
 event:
   eventId: demo-event-large
-  name: Vライふ
+  name: Vライフ
   businessDate: 1970-01-01
 seller:
   circleName: circleName
