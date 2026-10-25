@@ -5,3 +5,8 @@ departments:
     name: "1"
     settlementOwnerId: "001"
     enabled: true
+  - departmentId: "002"
+    code: "002"
+    name: 新しい部門
+    settlementOwnerId: "002"
+    enabled: true
