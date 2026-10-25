@@ -17,7 +17,7 @@ tabs:
     sortOrder: 3
     color: "#fee2e2"
   - tabId: deli
-    label: 惣菜
+    label: 文房具
     sortOrder: 4
     color: "#ffedd5"
   - tabId: gift
