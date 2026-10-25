@@ -1,0 +1,21 @@
+schemaVersion: 1
+departmentId: "001"
+products:
+  - productCode: "00000017"
+    name: GHSｱｸｷｰ 腐食性
+    shortName: GHSｱｸｷｰ 腐食性
+    priceYen: 200
+    tax:
+      category: tax_included
+      ratePercent: 10
+    ageRestriction:
+      category: general
+    inventory:
+      openingQuantity: 0
+      allowNegative: true
+    display:
+      tabId: fish
+      buttonLabel: GHSｱｸｷｰ 腐食性
+      sortOrder: 0
+    sales:
+      enabled: true
