@@ -5,7 +5,7 @@ tabs:
     sortOrder: 0
     color: "#dcfce7"
   - tabId: fruit
-    label: 青果
+    label: マグネット
     sortOrder: 1
     color: "#fef9c3"
   - tabId: fish
