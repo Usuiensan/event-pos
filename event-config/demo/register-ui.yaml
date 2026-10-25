@@ -1,7 +1,7 @@
 schemaVersion: 1
 tabs:
   - tabId: vegetables
-    label: 野菜
+    label: ステッカー
     sortOrder: 0
     color: "#dcfce7"
   - tabId: fruit
