@@ -4,7 +4,7 @@ event:
   name: Vライフ！7巡目
   businessDate: 1970-01-01
 seller:
-  circleName: 毎日ぽす1健康生活
+  circleName: 毎日ぽす健康生活
   space: space
   receiptIssuerName: event-pos テストサークル
 locale:
