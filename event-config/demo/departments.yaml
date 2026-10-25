@@ -7,6 +7,6 @@ departments:
     enabled: true
   - departmentId: "002"
     code: "002"
-    name: 新しい部門
+    name: "2"
     settlementOwnerId: "002"
     enabled: true
