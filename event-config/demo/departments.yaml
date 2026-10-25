@@ -1,2 +1,7 @@
 schemaVersion: 1
-departments: []
+departments:
+  - departmentId: "001"
+    code: "001"
+    name: 新しい部門
+    settlementOwnerId: "001"
+    enabled: true
