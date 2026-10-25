@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, productFromNewProductDraft, validateNewProductDraft } from "./admin-settings.js";
+import { validGtin } from "@event-pos/contracts";
+import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, nextProductCode, productFromNewProductDraft, validateNewProductDraft } from "./admin-settings.js";
 
 describe("商品名候補の整理", () => {
   it("重複語と販売者ノイズを除き、短い候補を生成する", () => {
@@ -42,5 +43,18 @@ describe("商品データ新規登録", () => {
   it("税込・税抜価格と初期のタブ、部門を商品定義へ変換する", () => {
     const product = productFromNewProductDraft({ ...createNewProductDraft(catalog), productCode: "A002", name: "新刊", priceInput: 100, priceMode: "excluded", taxRate: 10 });
     expect(product).toMatchObject({ productCode: "A002", name: "新刊", priceInclTax: 110, priceExclTax: 100, taxCategory: "exclusive_10", tabId: "tab-1", departmentId: "001" });
+  });
+});
+
+describe("000始まりの商品コード自動付番", () => {
+  it("先頭000の8桁コードを発行し、GTINチェックデジットが有効", () => {
+    const code = nextProductCode([]);
+    expect(code).toBe("00000017");
+    expect(code).toMatch(/^000\d{5}$/);
+    expect(validGtin(code)).toBe(true);
+  });
+
+  it("使用済みコードを飛ばす", () => {
+    expect(nextProductCode([{ productCode: "00000017", name: "商品", priceInclTax: 0, taxRate: 0, taxCategory: "exempt", saleState: "on_sale" }])).toBe("00000024");
   });
 });
