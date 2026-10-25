@@ -13,7 +13,7 @@ tabs:
     sortOrder: 2
     color: "#cffafe"
   - tabId: meat
-    label: 精肉
+    label: アクスタ
     sortOrder: 3
     color: "#fee2e2"
   - tabId: deli
