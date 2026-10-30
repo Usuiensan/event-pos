@@ -74,7 +74,14 @@ function querySnapshot(db: PosDatabase, artifact: BackupArtifactRecord): Snapsho
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,ad.application_no,ad.applied_discount_id`).all(...scope) as Array<Record<string, unknown>>;
   const catalogJson = (db.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(artifact.eventId) as { catalog_json?: string } | undefined)?.catalog_json;
   const departmentByCode = new Map<string, string>();
-  try { for (const product of (JSON.parse(catalogJson ?? "{}").products ?? []) as Array<{ productCode?: string; tabId?: string }>) if (product.productCode) departmentByCode.set(product.productCode, product.tabId || "未分類"); } catch { /* 元データが不正でも成果物生成を継続 */ }
+  try {
+    const catalog = JSON.parse(catalogJson ?? "{}") as { products?: Array<{ productCode?: string; departmentId?: string }>; departments?: Array<{ departmentId?: string; name?: string }> };
+    const departmentNames = new Map((catalog.departments ?? []).filter((department) => department.departmentId).map((department) => [String(department.departmentId), String(department.name || department.departmentId)]));
+    for (const product of catalog.products ?? []) if (product.productCode) {
+      const departmentId = String(product.departmentId ?? "");
+      departmentByCode.set(product.productCode, departmentId ? departmentNames.get(departmentId) ?? departmentId : "未分類");
+    }
+  } catch { /* 元データが不正でも成果物生成を継続 */ }
   for (const line of transactionLines) line.department = departmentByCode.get(String(line.product_code)) ?? "未分類";
   const payments = db.prepare(`SELECT p.* FROM payments p JOIN transactions t ON t.transaction_id=p.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,p.sequence,p.payment_id`).all(...scope) as Array<Record<string, unknown>>;
