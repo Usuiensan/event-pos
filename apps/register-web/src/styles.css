@@ -465,3 +465,4 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
   .staff-bottom { grid-template-columns: minmax(0, 1fr) minmax(420px, 52%); }
   .detail-head, .detail-row { grid-template-columns: 2.2rem 3.5rem minmax(8rem, 1fr) 3rem 5.5rem 5.5rem 6.5rem 6rem; }
 }
+.admin-console { font-family: "BIZ UDPGothic", "BIZ UDゴシック P", sans-serif; }

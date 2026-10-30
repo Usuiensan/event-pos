@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit", "test": "vitest run --passWithNoTests", "build": "vite build", "dev": "vite" },
-  "dependencies": { "@event-pos/contracts": "workspace:*", "@vitejs/plugin-react": "^5.0.2", "react": "^19.1.1", "react-dom": "^19.1.1", "vite": "^7.1.2" },
+  "dependencies": { "@event-pos/contracts": "workspace:*", "@vitejs/plugin-react": "^5.0.2", "fundamental-styles": "^0.42.0", "react": "^19.1.1", "react-dom": "^19.1.1", "vite": "^7.1.2" },
   "devDependencies": { "@types/react": "^19.1.10", "@types/react-dom": "^19.1.7", "typescript": "^5.9.2", "vitest": "^3.2.4" }
 }
