@@ -59,4 +59,15 @@ describe("BridgeTransport", () => {
     const stopped = new BridgeTransport("http://127.0.0.1:1", { timeoutMs: 100 });
     expect(await stopped.getStatus()).toMatchObject({ reachable: { support: "unknown" }, raw: { adapter: "bridge" } });
   });
+
+  it("getStatusでもAuthorizationを付ける", async () => {
+    const url = await startServer((request, response) => {
+      expect(request.url).toBe("/bridge/health");
+      expect(request.headers.authorization).toBe("Bearer test-token");
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify({ ok: true }));
+    });
+    const transport = new BridgeTransport(url, { token: "test-token" });
+    expect(await transport.getStatus()).toMatchObject({ reachable: { value: true }, raw: { adapter: "bridge", health: "ok" } });
+  });
 });
