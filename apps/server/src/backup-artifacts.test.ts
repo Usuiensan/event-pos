@@ -19,7 +19,7 @@ afterEach(async () => {
 
 const catalog = {
   eventId: "event-backup", customerWelcome: { circleName: "バックアップ試験" },
-  products: [{ productCode: "00000001", name: "新刊", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", internalToken: "P1BACKUP" }], quickEntries: [], autoDiscountRules: [],
+  products: [{ productCode: "00000001", name: "新刊", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", internalToken: "P1BACKUP", departmentId: "001" }], departments: [{ departmentId: "001", code: "001", name: "書籍", settlementOwnerId: "001", enabled: true }], quickEntries: [], autoDiscountRules: [],
   staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
@@ -62,6 +62,7 @@ describe("Goal 8 backup artifacts", () => {
     expect(workbook.getWorksheet("売上")?.getRow(2).getCell(9).value).toBe(220);
     expect(workbook.getWorksheet("担当者別")?.getRow(2).getCell(3).value).toBe(220);
     expect(workbook.getWorksheet("商品別")?.getRow(2).getCell(3).value).toBe(2);
+    expect(workbook.getWorksheet("部門別")?.getRow(2).values).toEqual([, "書籍", 2, 220]);
     expect(workbook.getWorksheet("支払")?.getRow(2).getCell(6).value).toBe(220);
     expect(workbook.getWorksheet("税")?.getRow(2).getCell(7).value).toBe(20);
     expect(workbook.getWorksheet("現金台帳")?.getRow(2).getCell(4).value).toBe(220);
