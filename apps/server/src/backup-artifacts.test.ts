@@ -68,7 +68,7 @@ describe("Goal 8 backup artifacts", () => {
     for (const sheet of workbook.worksheets) { expect(sheet.views[0]).toMatchObject({ state: "frozen", ySplit: 1 }); expect(sheet.autoFilter).toBeTruthy(); }
 
     const manifest = JSON.parse(readFileSync(interim.manifestPath!, "utf8"));
-    expect(manifest).toMatchObject({ artifactId: interim.artifactId, snapshotLogicalSha256: interim.snapshotLogicalSha256, rowCounts: interim.rowCounts, totals: { sales_yen: 220, payments_yen: 220, tax_yen: 20, cash_ledger_yen: 220 }, files: { backup: { sha256: interim.backupSha256 }, workbook: { sha256: interim.workbookSha256 } } });
+    expect(manifest).toMatchObject({ artifactId: interim.artifactId, snapshotLogicalSha256: interim.snapshotLogicalSha256, rowCounts: interim.rowCounts, totals: { sales_yen: 220, payments_yen: 220, tax_yen: 20, cash_ledger_yen: 220, no_charge_yen: 0 }, files: { backup: { sha256: interim.backupSha256 }, workbook: { sha256: interim.workbookSha256 } } });
     expect(interim.manifestSha256).toMatch(/^[0-9a-f]{64}$/);
 
     const sourceVerification = verifySnapshotDatabase(databasePath, interim);
