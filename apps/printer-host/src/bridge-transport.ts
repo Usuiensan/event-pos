@@ -22,7 +22,8 @@ export class BridgeTransport implements PrinterTransport {
   private async request(path: string, init: RequestInit): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    try { return await this.fetchImpl(new URL(path, this.url), { ...init, signal: controller.signal }); }
+    const headers = { ...(init.headers as Record<string, string> | undefined), ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
+    try { return await this.fetchImpl(new URL(path, this.url), { ...init, headers, signal: controller.signal }); }
     finally { clearTimeout(timeout); }
   }
 
@@ -42,7 +43,7 @@ export class BridgeTransport implements PrinterTransport {
     try {
       response = await this.request("print", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: Buffer.from(bytes).toString("base64") }),
       });
     } catch (error) {
