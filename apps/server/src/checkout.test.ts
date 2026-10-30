@@ -174,6 +174,16 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT type FROM inventory_movements WHERE type='distribution'").get()).toMatchObject({ type: "distribution" });
   });
 
+  it("精算サマリに無配の件数と値引額を集計する", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "no_charge", 0);
+    expect((await finalize(app, draft, "settlement-no-charge")).statusCode).toBe(201);
+    const sessionId = (await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=checkout-event&businessDate=2026-08-02&cashboxId=register-1" })).json().session.sessionId as string;
+    const summary = await app.inject({ method: "GET", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/settlement-summary` });
+    expect(summary.statusCode).toBe(200);
+    expect(summary.json()).toMatchObject({ salesCount: 1, salesYen: 0, noChargeCount: 1, noChargeYen: 110 });
+  });
+
   it("recalculates automatic/manual discounts and taxes from the product master", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft, "00000001", 2); draft = await addLine(app, draft, "00000002", 1);
