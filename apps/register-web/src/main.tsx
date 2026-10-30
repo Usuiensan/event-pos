@@ -20,6 +20,7 @@ import { ReturnOperations } from "./return-operations.js";
 import { HoldOperations } from "./hold-operations.js";
 import { AdminSettings } from "./admin-settings.js";
 import { createUuid } from "./uuid.js";
+import "fundamental-styles/dist/fundamental-styles.css";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = demoCatalog;
