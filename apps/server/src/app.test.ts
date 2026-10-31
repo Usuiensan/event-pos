@@ -68,6 +68,10 @@ describe("server foundation", () => {
     const cashReceipts = database.prepare("SELECT canonical_ir,renderer_version,finishing_policy_id,finishing_policy_version FROM print_jobs ORDER BY created_at,kind").all() as Array<Record<string, unknown>>;
     expect(cashReceipts).toHaveLength(3);
     for (const receipt of cashReceipts) expect(receipt).toMatchObject({ renderer_version: "event-pos-cash-check-v3", finishing_policy_id: "receipt-partial-cut", finishing_policy_version: 2, canonical_ir: expect.stringContaining("!feed 8") });
+    expect(cashReceipts[0]!.canonical_ir).not.toContain("記入欄");
+    expect(cashReceipts[1]!.canonical_ir).toContain('!text "記入欄"');
+    expect(cashReceipts[1]!.canonical_ir).toContain("!feed 2");
+    expect(cashReceipts[2]!.canonical_ir).toContain('!text "記入欄"');
     expect(cashReceipts[1]!.canonical_ir).toEqual(expect.stringContaining("商品別"));
     expect((await app.inject({ method: "GET", url: "/api/v1/cash-sessions/cash-1/settlement-summary" })).json()).toMatchObject({ cashSessionId: "cash-1", salesCount: 0, products: [], staff: [], payments: [], timeBands: [] });
     expect(database.prepare("SELECT kind,sequence FROM printer_operations ORDER BY sequence").all()).toEqual([{ kind: "print", sequence: 1 }, { kind: "print", sequence: 2 }, { kind: "print", sequence: 3 }]);
