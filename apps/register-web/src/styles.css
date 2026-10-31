@@ -478,6 +478,17 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .line-delete-confirm { width: min(620px, 92vw); padding: 1.25rem; border: 5px solid #b91c1c; border-radius: .8rem; background: #fff; box-shadow: 0 16px 60px #0009; }
 .line-delete-confirm h2 { margin: -1.25rem -1.25rem 1rem; padding: .8rem 1rem; background: #b91c1c; color: white; font-size: 1.35rem; }
 .line-delete-confirm p { margin: .5rem 0; }
+.cancel-feedback-line { color: #dc2626 !important; text-decoration-line: line-through; text-decoration-style: double; text-decoration-color: #dc2626; }
+.quantity-layer { z-index: 40; }
+.quantity-modal { width: min(720px, 94vw); overflow: hidden; border: 5px solid #2563eb; background: #f8fafc; box-shadow: 0 16px 60px #0009; }
+.quantity-modal > header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.3rem; background: #dbeafe; font-size: 22px; }
+.quantity-modal > header span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quantity-modal > header strong { white-space: nowrap; font-size: 26px; }
+.quantity-display { display: grid; gap: .35rem; margin: 1.2rem; padding: 1rem; border: 3px solid #2563eb; background: white; text-align: center; }
+.quantity-display span { font-size: 22px; }.quantity-display strong { color: #1d4ed8; font-size: 48px; }
+.quantity-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; padding: 0 1.2rem 1.2rem; }
+.quantity-keypad button { min-height: 58px; border: 1px solid #64748b; font-size: 25px; font-weight: 700; }
+.quantity-keypad .quantity-clear { background: #fca5a5; color: #7f1d1d; }.quantity-keypad .quantity-back { background: #64748b; color: white; }.quantity-keypad .quantity-apply { grid-column: span 2; background: #2563eb; color: white; }
 .delete-line-list { display: grid; gap: .45rem; max-height: 32vh; overflow: auto; padding: .55rem; border: 2px solid #fecaca; background: #fff7f7; }
 .delete-line-list > div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 3.5rem 6rem; gap: .45rem; align-items: center; padding: .5rem; border-bottom: 1px solid #fecaca; }
 .delete-line-list > div:last-child { border-bottom: 0; }
