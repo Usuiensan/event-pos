@@ -5,7 +5,7 @@ import { createSpeechPlayer, playOperationSound, previewSystemErrorSound, speakA
 import { demoCatalog } from "./demo-catalog.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
 import { convertToTenThousands } from "./tender-input.js";
-import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CustomerProjection, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
+import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CustomerProjection, type ParkedDraftDto, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
 import { connectRealtime } from "./realtime-client.js";
 import { ageSkipRemainingSeconds, canSkipCustomerAgeConfirmation } from "./age-skip.js";
@@ -20,6 +20,8 @@ import { ReturnOperations } from "./return-operations.js";
 import { HoldOperations } from "./hold-operations.js";
 import { AdminSettings } from "./admin-settings.js";
 import { createUuid } from "./uuid.js";
+import { stockTier } from "./stock.js";
+import { classifyScan } from "./scan-routing.js";
 import "fundamental-styles/dist/fundamental-styles.css";
 import "./styles.css";
 
@@ -108,6 +110,15 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [showOperationsDashboard, setShowOperationsDashboard] = useState(false);
   const [showReturnOperations, setShowReturnOperations] = useState(false);
   const [showHoldOperations, setShowHoldOperations] = useState(false);
+  const [holdSearchReference, setHoldSearchReference] = useState("");
+  const [showParkedDrafts, setShowParkedDrafts] = useState(false);
+  const [parkedDrafts, setParkedDrafts] = useState<ParkedDraftDto[]>([]);
+  const [parkedDraftsLoading, setParkedDraftsLoading] = useState(false);
+  const [inventory, setInventory] = useState<Map<string, number | null>>(new Map());
+  const [showOfficialReceipt, setShowOfficialReceipt] = useState(false);
+  const [officialReceiptPayee, setOfficialReceiptPayee] = useState("");
+  const [officialReceiptMemo, setOfficialReceiptMemo] = useState("");
+  const [officialReceiptBusy, setOfficialReceiptBusy] = useState(false);
   const [errorModal, setErrorModal] = useState<PosError | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
@@ -181,6 +192,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const projectionRefreshRef = useRef<() => void>(() => undefined);
   const draftRefreshRef = useRef<() => void>(() => undefined);
   const lifecycleRefreshRef = useRef<() => void>(() => undefined);
+  const inventoryRefreshRef = useRef<() => void>(() => undefined);
   const updateInputBuffer = (next: string | ((current: string) => string)) => { const value = typeof next === "function" ? next(inputBufferRef.current) : next; inputBufferRef.current = value; setInputBuffer(value); };
   const triggerHighlight = (highlightKey: string, animation: LineAnimationKind = highlightKey.startsWith("cancelled:") ? "cancel" : "update") => {
     setHighlighted(highlightKey);
@@ -199,6 +211,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const applyDraft = (draft: CheckoutDraft) => {
     const current = draftRef.current;
     if (!shouldApplyDraft(current, draft)) return;
+    if (draft.state === "parked") {
+      draftRef.current = draft; setServerDraft(draft); setCart([]); setAuthoritativeTotal(0); setProjectedDiscounts([]); setPaymentFinished(false); setReceived(0); setShowPayment(false); setSelectedLine(null); return;
+    }
     const canceled = draft.state === "canceled";
     draftRef.current = draft; setServerDraft(draft); setAuthoritativeTotal(canceled ? 0 : draft.calculation.totalYen); setProjectedDiscounts(canceled ? [] : draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })));
     setCart(canceled ? [] : draft.lines.map((line) => ({ lineId: line.lineId, product: productForLine(line), quantity: line.quantity, ...(line.status === "canceled" ? { cancelled: true } : {}) })));
@@ -271,6 +286,29 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       .then((job) => { setPrintJob(job); setShowReprint(false); setReprintReason(""); setReprintRiskAccepted(false); setReprintManagerApproved(false); })
       .catch((error) => showSystemError(errorMessage(error), error));
   };
+  const refreshInventory = () => {
+    if (role !== "staff") return;
+    void checkoutApi.getInventory(catalog.eventId).then(({ products }) => setInventory(new Map(products.map((product) => [product.productCode, product.tracked ? product.available : null])))).catch(() => undefined);
+  };
+  const refreshParkedDrafts = () => {
+    setParkedDraftsLoading(true);
+    void checkoutApi.getParkedDrafts(registerId, catalog.eventId).then(setParkedDrafts).catch((error) => showSystemError(errorMessage(error), error)).finally(() => setParkedDraftsLoading(false));
+  };
+  const clearParkedCart = () => { setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); updateInputBuffer(""); setSelectedLine(null); setRecentAddedProducts([]); setLastAddedShortcut(null); };
+  const parkCurrentDraft = () => {
+    const draft = draftRef.current;
+    if (!draft || activeCart.length === 0) return showOperationError("保留する明細がありません。");
+    if (draft.state !== "editing") return showOperationError("支払前の登録明細だけ保留できます。");
+    void checkoutApi.parkDraft(draft.draftId, terminalId).then((result) => { clearParkedCart(); setScanNotice(`保留しました（受付番号 ${result.parkReferenceDisplay}）`); refreshParkedDrafts(); }).catch((error) => showSystemError(errorMessage(error), error));
+  };
+  const resumeParkedDraft = (parkReference: string) => {
+    void checkoutApi.resumeParkedDraft(registerId, parkReference, terminalId).then((draft) => { applyDraft(draft); setShowParkedDrafts(false); setScanNotice(`保留中の受付番号 ${parkReference} を呼び戻しました`); }).catch((error) => { if (error instanceof CheckoutApiError && error.status === 409) showOperationError("現在の会計に明細があるため、呼び戻せません。"); else showSystemError(errorMessage(error), error); });
+  };
+  const issueOfficialReceipt = () => {
+    if (!currentTransactionId) return showOperationError("会計済み取引を取得できません。");
+    setOfficialReceiptBusy(true);
+    void checkoutApi.createOfficialReceipt(currentTransactionId, { terminalId, ...(officialReceiptPayee.trim() ? { payeeName: officialReceiptPayee.trim() } : {}), ...(officialReceiptMemo.trim() ? { memo: officialReceiptMemo.trim() } : {}) }).then(() => { setShowOfficialReceipt(false); setOfficialReceiptPayee(""); setOfficialReceiptMemo(""); setScanNotice("領収書を発行しました。"); }).catch((error) => showSystemError(errorMessage(error), error)).finally(() => setOfficialReceiptBusy(false));
+  };
   const regenerateBackupArtifact = (artifact: BackupArtifactDto) => {
     if (!artifact.canRegenerate || regeneratingArtifactId) return;
     const keyName = storageKey(`backup-regenerate-${artifact.artifactId}`); const idempotencyKey = localStorage.getItem(keyName) ?? createUuid(); localStorage.setItem(keyName, idempotencyKey);
@@ -295,6 +333,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       if (draft.payments.length === 0) { draft = await checkoutApi.addPayment(draft.draftId, draft.version, { kind, amountYen: kind === "no_charge" ? 0 : total, ...(kind === "cash" ? { tenderedYen: amount } : {}) }); applyDraft(draft); }
       const keyName = storageKey(`finalize-${draft.draftId}`); const idempotencyKey = localStorage.getItem(keyName) ?? createUuid(); localStorage.setItem(keyName, idempotencyKey);
       await checkoutApi.finalize(draft.draftId, draft.version, idempotencyKey);
+      inventoryRefreshRef.current();
       const completed = await checkoutApi.getDraft(draft.draftId); applyDraft(completed);
       setReceived(amount); setCompletedPaymentLabel(method); setPaymentFinished(true); setShowPayment(false); updateInputBuffer(""); playOperationSound("complete", audioSettings.tapVolume); localStorage.removeItem(keyName);
       if (method === "現金" && amount > total) speakChangeReady(routedSpeech); else speakReceiptReady(routedSpeech);
@@ -434,6 +473,28 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
    }, [checkoutLocked, lastAddedShortcut, role, selectedLine, showSignIn, total, catalog.products]);
   useEffect(() => { fetch(apiUrl(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`)).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
   useEffect(() => {
+    if (role !== "staff" || !authActor) return;
+    inventoryRefreshRef.current = refreshInventory;
+    refreshInventory();
+    const timer = window.setInterval(refreshInventory, 10_000);
+    return () => { inventoryRefreshRef.current = () => undefined; window.clearInterval(timer); };
+  }, [authActor, catalog.eventId, role]);
+  useEffect(() => {
+    if (role !== "staff" || panel !== "products") return;
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".product-grid > button")).slice(0, visibleProducts.length);
+    buttons.forEach((button, index) => {
+      const product = visibleProducts[index];
+      if (!product) return;
+      const available = inventory.get(product.productCode);
+      button.querySelector(".stock-indicator")?.remove();
+      button.classList.remove("stock-low", "stock-out");
+      if (available === null || available === undefined) return;
+      const tier = stockTier(available);
+      button.classList.toggle("stock-low", tier === "low"); button.classList.toggle("stock-out", tier === "out");
+      const indicator = document.createElement("small"); indicator.className = "stock-indicator"; indicator.textContent = `${tier === "normal" ? "○" : tier === "low" ? "△" : "×"} 残${Math.max(0, available)}`; button.append(indicator);
+    });
+  }, [inventory, panel, role, visibleProducts]);
+  useEffect(() => {
     const transactionId = serverDraft?.completedTransactionId;
     if (!transactionId) { setCurrentTransactionId(null); setCurrentPublicReference(""); setPrintJob(null); return; }
     let stopped = false; let jobId = "";
@@ -501,6 +562,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     });
   };
   const handleBarcode = (raw: string) => {
+    const classification = classifyScan(raw);
+    if (classification.kind === "parked-draft") { if (!classification.parkReference) return showOperationError("保留受付番号が空です。"); resumeParkedDraft(classification.parkReference); return; }
+    if (classification.kind === "hold") { if (!classification.reference) return showOperationError("取り置き受付番号が空です。"); setHoldSearchReference(classification.reference); setShowHoldOperations(true); return; }
     const parsed = parseBarcode(raw);
     if (parsed.kind === "payment-slip" && parsed.paymentSlip) {
       setScanNotice("払込票を確認しました。リマインダーレシートを発行します（収納処理は行いません）。");
@@ -589,7 +653,12 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
    const isLineHighlighted = (line: { product: ProductDefinition; cancelled?: boolean }) => highlighted === `${line.cancelled ? "cancelled" : "active"}:${line.product.productCode}`;
    const lineClassName = (line: { product: ProductDefinition; cancelled?: boolean }) => `${line.cancelled ? "cancelled-line" : ""} ${isLineHighlighted(line) ? `line-highlight line-animation-${highlightAnimation}` : ""}`;
    const isQuantityAnimated = (line: { product: ProductDefinition; cancelled?: boolean }) => isLineHighlighted(line) && highlightAnimation === "quantity";
-  const emergencyModal = emergencyAlert && <div className="modal-backdrop emergency-layer"><section className="emergency-modal" role="alertdialog" aria-modal="true"><h2>緊急情報</h2><h3>{emergencyAlert.title}</h3><p>{emergencyAlert.message}</p><small>受信時刻 {new Date(emergencyAlert.receivedAt).toLocaleString("ja-JP")}</small><button onClick={() => setEmergencyAlert(null)}>確認</button></section></div>;
+   const emergencyModal = emergencyAlert && <div className="modal-backdrop emergency-layer"><section className="emergency-modal" role="alertdialog" aria-modal="true"><h2>緊急情報</h2><h3>{emergencyAlert.title}</h3><p>{emergencyAlert.message}</p><small>受信時刻 {new Date(emergencyAlert.receivedAt).toLocaleString("ja-JP")}</small><button onClick={() => setEmergencyAlert(null)}>確認</button></section></div>;
+   const supplementalUi = <>
+     <div className="park-toolbar"><button disabled={activeCart.length === 0 || checkoutLocked} onClick={parkCurrentDraft}>保留</button><button onClick={() => { setShowParkedDrafts(true); refreshParkedDrafts(); }}>保留中</button>{currentTransactionId && checkoutLocked && <button onClick={() => setShowOfficialReceipt(true)}>領収書を発行</button>}</div>
+     {showParkedDrafts && <div className="modal-backdrop"><section className="parked-drafts-modal"><header><h2>保留中の会計</h2><button onClick={() => setShowParkedDrafts(false)}>閉じる</button></header>{parkedDraftsLoading && <p>読み込み中…</p>}{!parkedDraftsLoading && parkedDrafts.length === 0 && <p>保留中の会計はありません。</p>}{parkedDrafts.map((parked) => <div className="parked-draft-row" key={parked.draftId}><div><strong>{parked.parkReferenceDisplay}</strong><span>{parked.lineCount}点／{parked.totalYen.toLocaleString()}円</span><small>{new Date(parked.createdAt).toLocaleString("ja-JP")}</small></div><button onClick={() => resumeParkedDraft(parked.parkReference)}>呼び戻す</button></div>)}</section></div>}
+     {showOfficialReceipt && <div className="modal-backdrop"><form className="official-receipt-modal" onSubmit={(event) => { event.preventDefault(); issueOfficialReceipt(); }}><h2>領収書を発行</h2><label>宛名（任意）<input autoFocus value={officialReceiptPayee} onChange={(event) => setOfficialReceiptPayee(event.target.value)} /></label><label>但し書き（任意）<input value={officialReceiptMemo} onChange={(event) => setOfficialReceiptMemo(event.target.value)} /></label><div><button type="submit" disabled={officialReceiptBusy}>{officialReceiptBusy ? "発行中…" : "発行する"}</button><button type="button" onClick={() => setShowOfficialReceipt(false)}>戻る</button></div></form></div>}
+   </>;
    if (role === "customer") return <main className="pos-screen customer-screen"><section className="customer-lines">{(customerAgeNotice || customerRequiresAge) && <div className={`age-notice ${customerAgeNotice === "verified" ? "" : "customer-age-prompt"} ${customerAgeNotice ?? "required"}`}><strong>{customerAgeNotice === "verified" ? `年齢確認済み（${customerAgeMinimum}歳以上）` : `あなたは${customerAgeMinimum}歳以上ですか？`}</strong>{customerAgeNotice !== "verified" && <button className="customer-age-yes" onPointerUp={() => { if (!ageConfirmationRequest || ageConfirmationRequest.state !== "requested") return; void checkoutApi.acknowledgeAgeConfirmation(terminalId, registerId, ageConfirmationRequest.requestId).then(() => { setCustomerAgeAcknowledged(true); setCustomerAgeNotice("verified"); speakIdentityMayBeRequested(speech); }).catch((error) => showSystemError(errorMessage(error))); }}>はい</button>}</div>}{cart.length === 0 ? <div className="customer-empty customer-welcome">{catalog.customerWelcome?.imageUrl && <img src={catalog.customerWelcome.imageUrl} alt="" />}{catalog.customerWelcome?.circleName && <strong>{catalog.customerWelcome.circleName}</strong>}{catalog.customerWelcome?.space && <span>{catalog.customerWelcome.space}</span>}<p>{catalog.customerWelcome?.message ?? "いらっしゃいませ"}</p></div> : <><div className="customer-line customer-line-head"><span>商品名</span><span>税区分</span><span>点数</span></div>{cart.map((line, index) => <div data-product-code={line.product.productCode} className={`customer-line ${lineClassName(line)}`} key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{taxCategoryLabel(line.product.taxCategory)}</span><span>{isQuantityAnimated(line) ? <span className="line-quantity-change">{line.quantity}</span> : line.quantity}点</span></div>)}</>}{displayDiscounts.map((discount, index) => <div className="customer-discount" key={`${discount.label}-${index}`}><span>{discount.label}</span><strong>-{discount.amountYen.toLocaleString()}円</strong></div>)}</section><footer className="customer-total"><span>{customerCheckoutStatus ?? `合計 ${activeCart.reduce((sum, line) => sum + line.quantity, 0)}点`}</span><strong>{total.toLocaleString()}円</strong></footer>{emergencyModal}</main>;
   if (!authActor || !businessSession || registerState?.state !== "open") return <main className="pos-screen lifecycle-shell">
     <header className="lifecycle-header"><strong>event-pos</strong><span>{catalog.eventId}</span><span>{registerId}</span><span className={serverOnline ? "status-online" : "status-offline"}>{serverOnline ? "サーバー接続" : "サーバー未接続"}</span><a className="lifecycle-top-link" href="/">トップページへ</a></header>
@@ -615,7 +684,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     {showCashOperations && <CashOperations eventId={catalog.eventId} businessSessionId={businessSession.businessSessionId} businessDate={businessSession.businessDate} cashboxId={registerId} actorId={signedInResponsibleNumber} terminalId={registerId} onClose={() => { setShowCashOperations(false); void refreshLifecycle(); }} onArtifact={(artifact) => setBackupArtifacts((current) => [artifact, ...current.filter((item) => item.artifactId !== artifact.artifactId)])} />}
     {showOperationsDashboard && <OperationsDashboard eventId={catalog.eventId} businessDate={localBusinessDate()} actorId={signedInResponsibleNumber} onClose={() => setShowOperationsDashboard(false)} />}
     {showReturnOperations && <ReturnOperations eventId={catalog.eventId} businessDate={localBusinessDate()} cashboxId={registerId} actorId={signedInResponsibleNumber} terminalId={registerId} onClose={() => setShowReturnOperations(false)} />}
-    {showHoldOperations && <HoldOperations eventId={catalog.eventId} registerId={registerId} terminalId={terminalId} draft={serverDraft} isManager={authActor?.role === "manager" || authActor?.role === "admin"} onDraft={applyDraft} onClose={() => setShowHoldOperations(false)} />}
+    {showHoldOperations && <HoldOperations eventId={catalog.eventId} registerId={registerId} terminalId={terminalId} draft={serverDraft} isManager={authActor?.role === "manager" || authActor?.role === "admin"} onDraft={applyDraft} onClose={() => { setShowHoldOperations(false); setHoldSearchReference(""); }} initialReference={holdSearchReference} />}
     {showReprint && <div className="modal-backdrop reprint-layer"><section className="reprint-modal"><h2>再印刷の確認</h2><p>元受付番号 <strong>{currentPublicReference}</strong></p><label>実物結果<select value={reprintOutcome} onChange={(event) => setReprintOutcome(event.target.value as typeof reprintOutcome)}><option value="not_printed">印字されていない</option><option value="printed">印字済み</option><option value="indeterminate">結果不明</option></select></label><label>理由<textarea value={reprintReason} onChange={(event) => setReprintReason(event.target.value)} placeholder="再印刷する理由を入力" /></label><label className="reprint-check"><input type="checkbox" checked={reprintRiskAccepted} onChange={(event) => setReprintRiskAccepted(event.target.checked)} />二重印刷リスクを承認する</label><label className="reprint-check"><input type="checkbox" checked={reprintManagerApproved} onChange={(event) => setReprintManagerApproved(event.target.checked)} />責任者 {signedInResponsibleNumber} として承認する（自己承認を監査）</label><p className="reprint-warning">印字済み・結果不明では、両方の承認が必須です。元jobは再送せず、新しい再印刷jobを作成します。</p><div><button onClick={submitReprint}>再印刷jobを作成</button><button onClick={() => setShowReprint(false)}>戻る</button></div></section></div>}
     {lineDeleteConfirm && <div className="modal-backdrop error-layer"><section className="line-delete-confirm"><h2>明細の取り消し確認</h2><p>次の明細を取り消しますか？</p><div className="delete-line-list"><div><span>No. {cart.findIndex((line) => line.lineId === lineDeleteConfirm.lineId) + 1}</span><strong>{lineDeleteConfirm.product.name}</strong><span>{lineDeleteConfirm.quantity}点</span><strong>{(serverDraft?.calculation.lines.find((line) => line.lineId === lineDeleteConfirm.lineId)?.netYen ?? lineDeleteConfirm.product.priceInclTax * lineDeleteConfirm.quantity).toLocaleString()}円</strong></div></div><div className="confirm-actions"><button className="danger-action" onClick={finishSelectedLineDeletion}>取り消す</button><button className="secondary-action" onClick={() => setLineDeleteConfirm(null)}>戻る</button></div></section></div>}
     {selectedLineItem && selectedLine !== null && showPriceChange && <div className="modal-backdrop price-change-layer"><section className="price-change-modal"><header><span>{selectedLineItem.product.name}</span><strong>現在単価 {selectedLineItem.product.priceInclTax.toLocaleString()}円</strong></header>{discountMode === null ? <div className="discount-mode-selector"><p>値引き方法を選択してください</p><button onClick={() => { setDiscountMode("percent"); setDiscountInput(""); }}>％引き</button><button onClick={() => { setDiscountMode("amount"); setDiscountInput(""); }}>金額値引き</button><button className="price-change-back" onClick={closePriceChange}>戻る</button></div> : <div className="discount-entry"><div className="discount-display"><span>{discountMode === "percent" ? "値引率" : "値引額"}</span><strong>{discountInput ? Number(discountInput).toLocaleString() : "0"}{discountMode === "percent" ? "％" : "円"}</strong><small>変更後単価　{priceChangePreview === null ? "—" : `${priceChangePreview.toLocaleString()}円`}</small></div><div className="discount-keypad">{["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "00"].map((key) => <button key={key} onClick={() => setDiscountInput((current) => `${current}${key}`.replace(/^0+(?=\d)/, "").slice(0, 7))}>{key}</button>)}<button className="discount-clear" onClick={() => setDiscountInput("")}>C</button><button className="discount-back" onClick={() => { setDiscountMode(null); setDiscountInput(""); }}>戻る</button><button className="discount-apply" disabled={priceChangePreview === null} onClick={applySelectedDiscount}>確定</button></div></div>}</section></div>}
@@ -624,6 +693,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     {ageProduct && <div className="modal-backdrop"><div className="modal age-modal"><h2>🔞 年齢確認</h2><p>{ageProduct.name}<br />身分証を目視し、{ageRequirement(ageProduct)}歳以上であることを確認してください。</p><div className="age-cutoff">今日{ageRequirement(ageProduct)}歳になる生年月日<br /><strong>西暦 {formatDateJa(twentiethBirthday)}</strong><br /><strong>和暦 {formatDateWareki(twentiethBirthday)}</strong><br /><small>この日以前の生年月日なら{ageRequirement(ageProduct)}歳以上です</small></div>{ageFlowState === "staff_pending" && <><button onPointerUp={confirmAge}>確認できた</button><button onPointerUp={() => { if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }}>確認できない</button></>}{ageFlowState === "customer_pending" && <><p className="age-skip-status">{ageCustomerSkipAvailable ? (customerDisplayAvailable ? "客側確認をスキップできます" : "顧客画面が未接続のため、すぐにスキップできます") : `客側スキップまで 残り${ageCountdownSeconds}秒`}</p><button className="customer-age-skip" disabled={!ageCustomerSkipAvailable} onPointerUp={() => { if (ageCustomerSkipAvailable) confirmAge(); }}>客側スキップ</button></>}</div></div>}
     {errorModal && <ErrorDialog error={errorModal} onConfirm={() => { stopOperationSound(); setErrorModal(null); }} onStop={stopOperationSound} onCreateReport={(error) => { const mailto = createErrorReportMailto(error); if (mailto) window.location.href = mailto; }} />}
     {cancelConfirm && <div className="modal-backdrop error-layer"><section className="error-modal cancel-confirm"><h2>登録中止</h2><p>次の明細をすべて取り消して、登録を中止しますか？</p><div className="delete-line-list">{activeCart.map((line, index) => <div key={`${line.product.productCode}-${index}`}><span>No. {index + 1}</span><strong>{line.product.name}</strong><span>{line.quantity}点</span><strong>{(serverDraft?.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? line.product.priceInclTax * line.quantity).toLocaleString()}円</strong></div>)}</div><button className="danger-action" onClick={() => { cancelRegistration(); setCancelConfirm(false); }}>中止する</button><button className="secondary-action" onClick={() => setCancelConfirm(false)}>戻る</button></section></div>}
+    {supplementalUi}
     {emergencyModal}
   </main>;
 }
