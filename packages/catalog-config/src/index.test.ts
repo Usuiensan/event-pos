@@ -42,14 +42,14 @@ describe("分割イベント設定", () => {
   it("commonTextの空文字（footer/returnPolicy）を許可し、書き戻しても保持する", async () => {
     const directory = await copiedDemo();
     const settingsPath = join(directory, "receipt-settings.yaml");
-    await writeFile(settingsPath, "schemaVersion: 1\ntemplates: {}\ncommonText:\n  footer: \"\"\n  returnPolicy: \"\"\n", "utf8");
+    await writeFile(settingsPath, "schemaVersion: 1\ntemplates: {}\ncommonText:\n  footer: \"\"\n  returnPolicy: \"\"\n  reprintLabel: \"\"\n", "utf8");
     const catalog = await buildCatalog(directory);
-    expect(catalog.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "" });
+    expect(catalog.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "", reprintLabel: "" });
     await writeCatalog(directory, catalog);
     const written = await readFile(settingsPath, "utf8");
     expect(written).toMatch(/returnPolicy:\s*""/);
     const reloaded = await buildCatalog(directory);
-    expect(reloaded.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "" });
+    expect(reloaded.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "", reprintLabel: "" });
   }, 30_000);
   it("参照切れ・重複・未知fieldをファイルと設定パス付きで拒否する", async () => {
     const duplicateDirectory = await copiedDemo();
