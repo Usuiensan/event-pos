@@ -21,8 +21,8 @@ function makeApp(): { app: FastifyInstance; db: PosDatabase } {
   const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app); return { app, db };
 }
 
-async function finalizeSale(app: FastifyInstance): Promise<{ transactionId: string; printJobId: string }> {
-  expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+async function finalizeSale(app: FastifyInstance, saleCatalog = catalog): Promise<{ transactionId: string; printJobId: string }> {
+  expect((await app.inject({ method: "PUT", url: `/api/v1/events/${saleCatalog.eventId}/catalog`, payload: saleCatalog })).statusCode).toBe(200);
   await openRegisterForTest(app, catalog.eventId, "2026-08-02", "register-1");
   let response = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-001", terminalId: "register-1", businessDate: "2026-08-02", sessionNo: 1 } });
   expect(response.statusCode).toBe(201); let draft = response.json();
@@ -130,5 +130,20 @@ describe("receipt template and reprint routes", () => {
     expect(approval).toEqual({ executor_id: "manager-1", approver_id: "manager-1", self_approved: 1, risk_accepted: 1 });
     const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='receipt_reprint' AND entity_id=?").get(reprint.jobId) as { detail_json: string };
     expect(JSON.parse(audit.detail_json)).toMatchObject({ sourcePrintJobId: sale.printJobId, self_approved: true, physicalOutcome: "printed", riskAccepted: true });
+  });
+
+  it("カタログのcommonText.reprintLabelを再印刷スナップショットへ反映する", async () => {
+    const { app, db } = makeApp();
+    const configuredCatalog = { ...catalog, receiptSettings: { templates: {}, commonText: { reprintLabel: "控え再発行" } } };
+    const sale = await finalizeSale(app, configuredCatalog);
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/transactions/${sale.transactionId}/reprints`,
+      headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" },
+      payload: { sourcePrintJobId: sale.printJobId, reason: "ラベル設定確認", physicalOutcome: "not_printed", riskAccepted: false },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE job_id=?").get(response.json().jobId) as { receipt_snapshot_json: string }).receipt_snapshot_json)) as ReceiptSnapshot;
+    expect(snapshot).toMatchObject({ reprintLabel: "控え再発行", reprintNo: 1 });
   });
 });

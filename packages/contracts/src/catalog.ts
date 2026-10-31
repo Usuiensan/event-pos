@@ -58,7 +58,7 @@ export type StaffMember = { staffId?: string; responsibleNumber: string; display
 export type CustomerWelcome = { message?: string; circleName?: string; space?: string; imageUrl?: string };
 export type EventDetails = { name: string; businessDate: string; seller: { circleName: string; space: string; receiptIssuerName: string }; locale: { language: string; currency: string; timezone: string } };
 export type Department = { departmentId: string; code: string; name: string; settlementOwnerId: string; enabled: boolean };
-export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string } };
+export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string; reprintLabel?: string } };
 
 export type QuickEntry = {
   id: string;
