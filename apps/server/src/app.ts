@@ -19,6 +19,7 @@ import { synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
 import { registerConfigManagementRoutes } from "./config-management.js";
+import { registerServerFeatureRoutes } from "./server-features.js";
 
 export type { PrinterHost } from "./print-queue.js";
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
@@ -248,6 +249,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
+  registerServerFeatureRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}) });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
   registerPrintingRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });

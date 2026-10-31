@@ -25,7 +25,7 @@ export type CheckoutDraft = {
   businessDate: string;
   sessionNo: number;
   version: number;
-  state: "editing" | "payment" | "finalizing" | "completed" | "canceled";
+  state: "editing" | "payment" | "finalizing" | "completed" | "canceled" | "parked";
   completedTransactionId?: string;
   lines: CheckoutDraftLine[];
   payments: CheckoutDraftPayment[];
@@ -82,6 +82,8 @@ export type AudioSettingsDto = { tapVolume: number; errorVolume: number; systemE
 export type AudioAnnouncement = { sequence: number; announcementId: string; text: string; createdAt: string };
 export type UnregisteredProductDto = { productCode: string; name: string; priceInclTax: number; taxRate: 0 | 8 | 10; scanCount: number; firstScannedAt: string; lastScannedAt: string; lastActorId: string };
 export type ReceiptAssetDescriptor = { assetId: string; version: number; sha256: string; mime: "application/x-event-pos-mono-raster"; widthDots: number; heightDots: number; rasterBase64: string };
+export type InventoryProductDto = { productCode: string; tracked: boolean; openingQuantity: number | null; remaining: number | null; reserved: number | null; available: number | null };
+export type ParkedDraftDto = { draftId: string; parkReference: string; parkReferenceDisplay: string; createdAt: string; lineCount: number; totalYen: number };
 
 export class CheckoutApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly details: Record<string, unknown>) { super(message); }
@@ -117,6 +119,7 @@ export const checkoutApi = {
   getIsbnProduct: (code: string) => request<{ info: import("@event-pos/contracts").IsbnProductInfo }>(`/api/v1/isbn/${encodeURIComponent(code)}`),
   lookupProduct: (eventId: string, code: string) => request<ProductLookupResult>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/${encodeURIComponent(code)}`),
   getUnregisteredProducts: (eventId: string) => request<{ products: UnregisteredProductDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/unregistered-products`),
+  getInventory: (eventId: string) => request<{ products: InventoryProductDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/inventory`),
   recordProductLookupAdoption: (eventId: string, productCode: string, fieldName: string, candidate: ProductLookupResult["candidates"][number]) => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/adoptions`, { method: "POST", body: body({ productCode, fieldName, candidate }) }),
   recordProductLookupFeedback: (eventId: string, productCode: string, token: string, feedback: "negative" | "positive") => request<{ recorded: true }>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/feedback`, { method: "POST", body: body({ productCode, token, feedback }) }),
   saveManagementConfig: (eventId: string, catalog: unknown) => request<{ catalog: unknown; gitCommitId: string | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`, { method: "PUT", body: body({ catalog }) }),
@@ -155,6 +158,9 @@ export const checkoutApi = {
   createFullReturn: (transactionId: string, input: { cashSessionId: string; terminalId: string; reason: string }, actorId: string, idempotencyKey: string) => request<{ transactionId: string; originalTransactionId: string; publicReferenceDisplay: string; totalYen: number; printJobId: string; createdAt: string }>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/full-return`, { method: "POST", headers: { "x-pos-actor-id": actorId, "idempotency-key": idempotencyKey }, body: body(input) }),
   createManualRefund: (input: { eventId: string; cashSessionId: string; terminalId: string; description: string; amountYen: number; productCode?: string; quantity?: number; paymentKind: "cash" | "credit" | "accounts_receivable" }, actorId: string, idempotencyKey: string) => request<{ transactionId: string; publicReferenceDisplay: string; totalYen: number; printJobId: string; createdAt: string }>("/api/v1/refunds/manual", { method: "POST", headers: { "x-pos-actor-id": actorId, "idempotency-key": idempotencyKey }, body: body(input) }),
   getRegisterDraft: (registerId: string) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-draft`),
+  parkDraft: (draftId: string, terminalId: string) => request<{ draftId: string; parkReference: string; parkReferenceDisplay: string; printJobId: string }>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/park`, { method: "POST", body: body({ terminalId }) }),
+  getParkedDrafts: (registerId: string, eventId: string) => request<ParkedDraftDto[]>(`/api/v1/registers/${encodeURIComponent(registerId)}/parked-drafts?eventId=${encodeURIComponent(eventId)}`),
+  resumeParkedDraft: (registerId: string, parkReference: string, terminalId: string) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/parked-drafts/resume`, { method: "POST", body: body({ parkReference, terminalId }) }),
   createDraft: (registerId: string, input: { eventId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }) => request<CheckoutDraft>(`/api/v1/registers/${encodeURIComponent(registerId)}/sale-drafts`, { method: "POST", body: body(input) }),
   getDraft: (draftId: string) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`),
   addLine: (draftId: string, version: number, productCode: string, quantity = 1) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/lines`, { method: "POST", headers: versionHeaders(version), body: body({ productCode, quantity, source: "manual" }) }),
@@ -168,6 +174,7 @@ export const checkoutApi = {
   cancelDraft: (draftId: string, version: number) => request<CheckoutDraft>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}`, { method: "DELETE", headers: versionHeaders(version) }),
   finalize: (draftId: string, version: number, idempotencyKey: string) => request<FinalizeResult>(`/api/v1/sale-drafts/${encodeURIComponent(draftId)}/finalize`, { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: body({ version }) }),
   getTransaction: (transactionId: string) => request<TransactionDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}`),
+  createOfficialReceipt: (transactionId: string, input: { payeeName?: string; memo?: string; terminalId: string }) => request<{ receiptId: string; printJobId: string; amountYen: number }>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/official-receipts`, { method: "POST", body: body(input) }),
   getPrintJob: (jobId: string) => request<PrintJobDto>(`/api/v1/print-jobs/${encodeURIComponent(jobId)}`),
   createPaymentSlipReminder: (code: string, terminalId: string) => request<{ job: PrintJobDto; reminder: { dueDate: unknown; amount: number; issuerCode: string; gs1CompanyPrefix7: string } }>("/api/v1/payment-slip-reminders", { method: "POST", body: body({ code, terminalId }) }),
   createReprint: (transactionId: string, actorId: string, input: { sourcePrintJobId: string; reason: string; physicalOutcome: "printed" | "not_printed" | "indeterminate"; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } }) => request<PrintJobDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/reprints`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
