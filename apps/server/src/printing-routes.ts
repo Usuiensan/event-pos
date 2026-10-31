@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { PrinterStatusObservation } from "@event-pos/contracts";
+import { importEventCatalog } from "@event-pos/contracts";
 import type { PrintJob } from "@event-pos/contracts";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 import { uuidV7 } from "./checkout-store.js";
-import { getPrintJob, type PosDatabase } from "./db.js";
+import { getCatalog, getPrintJob, type PosDatabase } from "./db.js";
 import type { PersistentPrintQueue } from "./print-queue.js";
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
 import { createPrintJob } from "./db.js";
@@ -37,7 +38,10 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   if (requiresRiskApproval && (!body.riskAccepted || !body.approval?.approverId || !body.approval.approvedAt)) throw new Error("REPRINT_RISK_APPROVAL_REQUIRED");
   const sourceSnapshot = JSON.parse(String(sourceRow.receipt_snapshot_json)) as ReceiptSnapshot;
   const reprintNo = Number((db.prepare("SELECT COALESCE(MAX(reprint_no),0)+1 AS next FROM print_jobs WHERE transaction_id=?").get(transactionId) as { next: number }).next);
-  const snapshot: ReceiptSnapshot = { ...sourceSnapshot, isReprint: true, reprintLabel: "再印刷", reprintNo, originalReceiptNumber: sourceSnapshot.publicReference };
+  const transaction = db.prepare("SELECT event_id FROM transactions WHERE transaction_id=?").get(transactionId) as { event_id?: string } | undefined;
+  const catalogRecord = transaction?.event_id ? getCatalog(db, transaction.event_id) : undefined;
+  const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
+  const snapshot: ReceiptSnapshot = { ...sourceSnapshot, isReprint: true, reprintLabel: catalog?.receiptSettings?.commonText?.reprintLabel ?? "再印刷", reprintNo, originalReceiptNumber: sourceSnapshot.publicReference };
   const artifacts = renderReceipt(db, snapshot, { templateKey: String(sourceRow.template_key), version: Number(sourceRow.template_version) });
   const assetManifest = JSON.stringify(artifacts.assets.map(({ rasterBase64: _raster, mime: _mime, ...asset }) => asset));
   if (artifacts.templateSourceSha256 !== sourceRow.template_source_sha256 || assetManifest !== sourceRow.asset_manifest_json || artifacts.rendererVersion !== sourceRow.renderer_version || artifacts.fontId !== sourceRow.font_id || artifacts.fontVersion !== sourceRow.font_version || artifacts.fontSha256 !== sourceRow.font_sha256 || artifacts.finishingPolicyId !== sourceRow.finishing_policy_id || artifacts.finishingPolicyVersion !== sourceRow.finishing_policy_version) throw new Error("SOURCE_VERSION_MISMATCH");
