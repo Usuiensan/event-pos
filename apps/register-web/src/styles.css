@@ -89,7 +89,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .business-menu { width: min(760px, 92vw); max-height: 92vh; box-sizing: border-box; overflow-y: auto; padding: 1.5rem; background: #f8fafc; border: 4px solid #0ea5e9; display: grid; gap: .8rem; text-align: center; } .business-menu h2 { order: -2; background: #0ea5e9; color: white; padding: .7rem; } .business-menu label { display: grid; gap: .35rem; text-align: left; font-size: 1.1rem; } .business-menu select { padding: .7rem; font: inherit; } .business-menu button { font-size: 1.3rem; } .cancel-registration { background: #dc2626 !important; color: white; }
 .audio-volume-settings { display: grid; gap: .6rem; padding: .8rem; border: 1px solid #94a3b8; background: #fff; } .audio-volume-settings label { grid-template-columns: 7.5rem minmax(0, 1fr) 3rem 5rem; align-items: center; gap: .5rem; } .audio-volume-settings input { width: 100%; } .audio-volume-settings output { text-align: right; font-variant-numeric: tabular-nums; } .audio-volume-settings button { padding: .45rem .7rem; font-size: 1rem; }
 .age-skip-status { margin: .7rem 0; color: #9a3412; font-weight: 700; } .next-sale { background: #15803d; }
-.cancel-top { margin-left: auto; background: #dc2626 !important; color: white; font-weight: 700; } .line-menu { width: 420px; padding: 1.4rem; background: #f8fafc; border: 4px solid #dc2626; display: grid; gap: .8rem; text-align: center; } .line-menu h2 { background: #1f2937; color: white; padding: .7rem; } .line-menu button { font-size: 1.35rem; }
+.cancel-top { margin-left: auto; background: #dc2626 !important; color: white; font-weight: 700; } .park-top { background: #e0f2fe !important; color: #075985; font-weight: 700; } .line-menu { width: 420px; padding: 1.4rem; background: #f8fafc; border: 4px solid #dc2626; display: grid; gap: .8rem; text-align: center; } .line-menu h2 { background: #1f2937; color: white; padding: .7rem; } .line-menu button { font-size: 1.35rem; }
 .price-change-layer { z-index: 40; }
 .price-change-modal { width: min(720px, 94vw); overflow: hidden; border: 5px solid #2563eb; background: #f8fafc; box-shadow: 0 16px 60px #0009; }
 .price-change-modal > header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.3rem; background: #dbeafe; font-size: 22px; }
@@ -451,6 +451,10 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .park-toolbar button { padding: .55rem .8rem; background: #e0f2fe; color: #075985; font-size: .95rem; font-weight: 800; }
 .parked-drafts-modal, .official-receipt-modal { width: min(620px, 92vw); max-height: 85vh; overflow: auto; padding: 1.2rem; border: 3px solid #2563eb; border-radius: .8rem; background: white; display: grid; gap: .8rem; }
 .parked-drafts-modal header { display: flex; justify-content: space-between; align-items: center; }
+.parked-draft-current { display: grid; gap: .45rem; padding: .7rem; border: 1px solid #bfdbfe; border-radius: .5rem; background: #eff6ff; }
+.parked-draft-current h3 { margin: 0; font-size: 1rem; }
+.parked-draft-current button { padding: .6rem .8rem; background: #2563eb; color: white; font-weight: 800; }
+.parked-draft-current small { color: #64748b; }
 .parked-draft-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem; border: 1px solid #cbd5e1; border-radius: .5rem; }
 .parked-draft-row div { display: grid; gap: .2rem; text-align: left; }
 .official-receipt-modal label { display: grid; gap: .3rem; text-align: left; font-weight: 700; }
