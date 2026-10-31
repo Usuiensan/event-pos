@@ -21,9 +21,17 @@ const yamlText = (value: string): string => JSON.stringify(value.replace(/\r\n?/
 export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   const body: string[] = ["schemaVersion: 1", "body:", "  - reset: true"];
   if (settings.headerAsset) body.push(`  - image: { assetId: ${yamlText(settings.headerAsset.assetId)}, widthDots: ${settings.headerAsset.widthDots} }`);
-  if (settings.headerText) body.push(`  - text: ${yamlText(settings.headerText)}`);
+  if (settings.headerText) {
+    body.push(
+      "  - align: center",
+      "  - emphasis: { bold: true, underline: false, invert: false }",
+      ...settings.headerText.replace(/\r\n?/g, "\n").split("\n").map((line) => `  - text: ${yamlText(line)}`),
+      "  - emphasis: { bold: false, underline: false, invert: false }",
+      "  - align: left",
+    );
+  }
+  else body.push("  - align: left");
   body.push(
-    "  - align: left",
     "  - if: isReprint",
     "    body:",
     "      - emphasis: { bold: true, underline: false, invert: true }",
@@ -60,7 +68,7 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
     '      - row: { left: "釣銭", right: "{{changeFormatted}}" }',
   );
   if (settings.footerAsset) body.push(`  - image: { assetId: ${yamlText(settings.footerAsset.assetId)}, widthDots: ${settings.footerAsset.widthDots} }`);
-  if (settings.footerText) body.push(`  - text: ${yamlText(settings.footerText)}`);
+  if (settings.footerText) body.push(...settings.footerText.replace(/\r\n?/g, "\n").split("\n").map((line) => `  - text: ${yamlText(line)}`));
   body.push("  - finish: { feedLines: 8, cutMode: partial }");
   return `${body.join("\n")}\n`;
 }
