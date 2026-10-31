@@ -17,7 +17,7 @@ import { assertRegisterOpen } from "./business-store.js";
 import { uuidV7 } from "./ids.js";
 import { recordProvisionalProductScan } from "./provisional-products.js";
 
-export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
+export type DraftState = "editing" | "payment" | "finalizing" | "parked" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
 export type ProductOptions = Record<string, unknown>;
 export type DraftLineDto = SaleCalculationLineInput & { productId: string; source: "manual" | "scan" | "bundle" | "hold"; bundleInstanceId?: string; productOptions?: ProductOptions };
@@ -191,6 +191,7 @@ export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleD
 
 function assertMutable(db: PosDatabase, row: Record<string, unknown>, expectedVersion: number): void {
   if (Number(row.version) !== expectedVersion) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています", { latestVersion: Number(row.version), draftId: String(row.draft_id) });
+  if (row.state === "parked") throw new CheckoutError(409, "DRAFT_PARKED", "保留中の販売ドラフトは変更できません", { state: row.state });
   if (row.state !== "editing" && row.state !== "payment") throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは変更できません", { state: row.state });
   const register = assertRegisterOpen(db, String(row.event_id), String(row.register_id));
   if (register.cashSessionId !== row.cash_session_id) throw new CheckoutError(409, "BUSINESS_CLOSED", "この会計を開始した営業は終了しています");
@@ -404,7 +405,9 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
 
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    const row = draftRow(db, draftId);
+    if (row.state !== "parked") assertMutable(db, row, version);
+    else if (Number(row.version) !== version) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
     bump(db, draftId, version);
     db.prepare("UPDATE sale_drafts SET state='canceled' WHERE draft_id=?").run(draftId);
     return updateProjection(db, draftId);
