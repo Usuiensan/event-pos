@@ -57,7 +57,14 @@ describe("在庫残数・領収書・会計保留", () => {
     const second = await app.inject({ method: "POST", url: `/api/v1/transactions/${sale.json().transactionId}/official-receipts`, payload: input }); expect(second.statusCode).toBe(201);
     expect(db.prepare("SELECT COUNT(*) AS count FROM official_receipts WHERE transaction_id=?").get(sale.json().transactionId)).toEqual({ count: 2 });
     expect(db.prepare("SELECT document_type FROM print_jobs WHERE job_id=?").get(first.json().printJobId)).toEqual({ document_type: "official_receipt" });
-    expect(db.prepare("SELECT canonical_ir FROM print_jobs WHERE job_id=?").get(second.json().printJobId)).toMatchObject({ canonical_ir: expect.stringContaining("再発行") });
+    const canonicalIr = String((db.prepare("SELECT canonical_ir FROM print_jobs WHERE job_id=?").get(second.json().printJobId) as { canonical_ir: string }).canonical_ir);
+    expect(canonicalIr).toContain("再発行");
+    expect(canonicalIr).toContain('!text "宛名"');
+    expect(canonicalIr).toContain('!text "但し"');
+    expect(canonicalIr).toContain("!feed 2");
+    expect(canonicalIr).toContain("!feed 6");
+    expect(canonicalIr).not.toContain("山田");
+    expect(canonicalIr).not.toContain("商品代");
     expect((await app.inject({ method: "POST", url: "/api/v1/transactions/not-found/official-receipts", payload: input })).statusCode).toBe(404);
   });
 });
