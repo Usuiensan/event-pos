@@ -32,8 +32,8 @@ function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Par
   return { app, db: database };
 }
 
-async function installCatalog(app: FastifyInstance): Promise<void> {
-  const response = await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog });
+async function installCatalog(app: FastifyInstance, catalogOverride = catalog): Promise<void> {
+  const response = await app.inject({ method: "PUT", url: `/api/v1/events/${catalogOverride.eventId}/catalog`, payload: catalogOverride });
   expect(response.statusCode).toBe(200);
 }
 
@@ -132,6 +132,26 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT document_type,payload_json FROM print_jobs WHERE transaction_id=? ORDER BY created_at,document_type").all(result.transactionId)).toContainEqual({ document_type: "drawer", payload_json: JSON.stringify({ pin: 2, onMs: 40, offMs: 200, reason: "cash_sale" }) });
     const transaction = await app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` });
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
+  });
+
+  it("販売レシートの共通文言をカタログからスナップショットへ取り込む", async () => {
+    const cases: Array<{ commonText?: { footer: string; returnPolicy: string }; expected: { footer: string; returnPolicy: string } }> = [
+      { commonText: { footer: "イベントありがとうございました", returnPolicy: "返品は受付へ" }, expected: { footer: "イベントありがとうございました", returnPolicy: "返品は受付へ" } },
+      { expected: { footer: "ありがとうございました", returnPolicy: "返品は責任者へお申し出ください" } },
+      { commonText: { footer: "", returnPolicy: "" }, expected: { footer: "", returnPolicy: "" } },
+    ];
+    for (const [index, testCase] of cases.entries()) {
+      const { app, db } = makeApp();
+      const catalogOverride = testCase.commonText === undefined ? catalog : { ...catalog, receiptSettings: { templates: {}, commonText: testCase.commonText } };
+      await installCatalog(app, catalogOverride);
+      let draft = await startDraft(app, `register-common-text-${index}`);
+      draft = await addLine(app, draft);
+      draft = await addPayment(app, draft, "credit", 110);
+      const response = await finalize(app, draft, `common-text-${index}`);
+      expect(response.statusCode).toBe(201);
+      const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(response.json().transactionId) as { receipt_snapshot_json: string }).receipt_snapshot_json));
+      expect(snapshot).toMatchObject(testCase.expected);
+    }
   });
 
   it("drawer未受入時は現金会計でもpulse jobを作らない", async () => {
