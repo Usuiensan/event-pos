@@ -39,6 +39,18 @@ describe("分割イベント設定", () => {
     expect(catalog.quickEntries).toContainEqual({ id: "adult-new", label: "R18新刊 小説A", components: [{ productCode: "T0000141", quantity: 1 }], tabId: "adult" });
   }, 30_000);
 
+  it("commonTextの空文字（footer/returnPolicy）を許可し、書き戻しても保持する", async () => {
+    const directory = await copiedDemo();
+    const settingsPath = join(directory, "receipt-settings.yaml");
+    await writeFile(settingsPath, "schemaVersion: 1\ntemplates: {}\ncommonText:\n  footer: \"\"\n  returnPolicy: \"\"\n", "utf8");
+    const catalog = await buildCatalog(directory);
+    expect(catalog.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "" });
+    await writeCatalog(directory, catalog);
+    const written = await readFile(settingsPath, "utf8");
+    expect(written).toMatch(/returnPolicy:\s*""/);
+    const reloaded = await buildCatalog(directory);
+    expect(reloaded.receiptSettings?.commonText).toEqual({ footer: "", returnPolicy: "" });
+  }, 30_000);
   it("参照切れ・重複・未知fieldをファイルと設定パス付きで拒否する", async () => {
     const duplicateDirectory = await copiedDemo();
     const productPath = join(duplicateDirectory, "products", "vegetables.yaml");
