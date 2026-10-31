@@ -278,6 +278,9 @@ function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; b
     ...section("決済手段別", summary.payments.map((row) => ({ left: `${row.methodName.slice(0, 14)} ${row.salesCount}件`, right: yen(row.salesYen) }))),
     ...section("時間帯別（JST）", summary.timeBands.map((row) => ({ left: `${row.timeBand} ${row.salesCount}件`, right: yen(row.salesYen) }))),
   );
+  if (check.kind === "closing" || check.kind === "interim") document.nodes.splice(-2, 0,
+    { kind: "text", value: "記入欄" }, { kind: "rule", style: "single" }, { kind: "feed", lines: 2 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 2 },
+  );
   const canonicalIr = canonicalizeReceiptDocument(document); const bytes = receiptDocumentToEscPos(document); const jobId = randomUUID(); const operationId = randomUUID();
   db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,finishing_policy_id,finishing_policy_version,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')")
     .run(jobId, operationId, `cash-check:${check.sessionId}:${check.kind}:${check.createdAt}`, "receipt-1", "cash-check", check.kind, JSON.stringify({ escposBase64: Buffer.from(bytes).toString("base64"), cashCheck: check, settlementSummary: summary, eventId: session.event_id }), check.createdAt, "pending", check.createdAt, "event-pos", "event-pos-cash-check-v3", bytesSha256(bytes), DEFAULT_FINISHING_POLICY.id, DEFAULT_FINISHING_POLICY.version, canonicalIr, bytesSha256(new TextEncoder().encode(canonicalIr)), Buffer.from(bytes), bytes.length);
