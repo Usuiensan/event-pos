@@ -61,7 +61,12 @@ describe("在庫残数・領収書・会計保留", () => {
     expect(canonicalIr).toContain("再発行");
     expect(canonicalIr).toContain('!text "宛名"');
     expect(canonicalIr).toContain('!text "但し"');
-    expect(canonicalIr).toContain("!feed 2");
+    expect(canonicalIr).toContain('!text "発行者 試験サークル"');
+    expect(canonicalIr.indexOf('!text "宛名"')).toBeLessThan(canonicalIr.indexOf("!feed 3"));
+    expect(canonicalIr.indexOf("!feed 3")).toBeLessThan(canonicalIr.indexOf('!rule "single"'));
+    expect(canonicalIr.indexOf('!text "但し"')).toBeLessThan(canonicalIr.lastIndexOf("!feed 2"));
+    expect(canonicalIr).toContain('!row {"left":"在庫商品","right":"1点 ¥110"}');
+    expect(canonicalIr).toContain('!row {"left":"合計","right":"¥110"}');
     expect(canonicalIr).toContain("!feed 6");
     expect(canonicalIr).not.toContain("山田");
     expect(canonicalIr).not.toContain("商品代");
