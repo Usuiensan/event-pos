@@ -1,7 +1,62 @@
 import { describe, expect, it } from "vitest";
 import { buildReceiptTemplate } from "./receipt-format.js";
 
+// DEFAULT_RECEIPT_TEMPLATE v4 と簡易設定のデフォルト生成結果を同期するための期待値。
+const DEFAULT_RECEIPT_TEMPLATE_V4 = `schemaVersion: 1
+body:
+  - reset: true
+  - align: center
+  - emphasis: { bold: true, underline: false, invert: false }
+  - text: "{{eventName}}"
+  - text: "{{circleName}}"
+  - emphasis: { bold: false, underline: false, invert: false }
+  - align: left
+  - if: isReprint
+    body:
+      - emphasis: { bold: true, underline: false, invert: true }
+      - text: "{{reprintLabel}} #{{reprintNo}}"
+      - text: "元受付番号 {{originalReceiptNumber}}"
+      - emphasis: { bold: false, underline: false, invert: false }
+  - row: { left: "受付番号", right: "{{publicReference}}" }
+  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }
+  - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }
+  - rule: single
+  - each: lines
+    body:
+      - text: "{{name}}"
+      - text: "JAN {{productCode}}"
+      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+  - rule: single
+  - if: hasDiscounts
+    body:
+      - row: { left: "値引", right: "{{discountTotalFormatted}}" }
+  - row: { left: "税", right: "{{taxTotalFormatted}}" }
+  - emphasis: { bold: true, underline: false, invert: false }
+  - row: { left: "合計", right: "{{totalFormatted}}" }
+  - emphasis: { bold: false, underline: false, invert: false }
+  - each: payments
+    body:
+      - row: { left: "{{methodName}}", right: "{{amountFormatted}}" }
+  - if: hasTendered
+    body:
+      - row: { left: "預り", right: "{{tenderedFormatted}}" }
+  - if: hasChange
+    body:
+      - row: { left: "釣銭", right: "{{changeFormatted}}" }
+  - text: "{{footer}}"
+  - text: "{{returnPolicy}}"
+  - finish: { feedLines: 8, cutMode: partial }
+`;
+
 describe("レシート簡易フォーマット", () => {
+  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v4 と一致する", () => {
+    expect(buildReceiptTemplate({
+      headerText: "{{eventName}}\n{{circleName}}",
+      footerText: "{{footer}}\n{{returnPolicy}}",
+      printJan: true,
+    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V4);
+  });
+
   it("ヘッダー・フッター画像と文字、JAN印字をテンプレートへ反映する", () => {
     const template = buildReceiptTemplate({
       headerText: "{{eventName}}\n{{circleName}}",
@@ -11,7 +66,8 @@ describe("レシート簡易フォーマット", () => {
       printJan: true,
     });
     expect(template).toContain('assetId: "header-logo"');
-    expect(template).toContain('text: "{{eventName}}\\n{{circleName}}"');
+    expect(template).toContain('text: "{{eventName}}"');
+    expect(template).toContain('text: "{{circleName}}"');
     expect(template).toContain('text: "JAN {{productCode}}"');
     expect(template).toContain('assetId: "footer-logo"');
     expect(template).toContain('text: "ありがとうございました"');
