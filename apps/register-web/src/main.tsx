@@ -23,7 +23,6 @@ import { AdminSettings } from "./admin-settings.js";
 import { createUuid } from "./uuid.js";
 import { stockTier } from "./stock.js";
 import { classifyScan } from "./scan-routing.js";
-import "fundamental-styles/dist/fundamental-styles.css";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = demoCatalog;
