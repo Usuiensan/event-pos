@@ -44,7 +44,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }
+  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 describe("レシートテンプレートGUI用パーサ", () => {
