@@ -52,3 +52,51 @@ describe("レシートテンプレートGUI用パーサ", () => {
   it("ラベルを書き換えたv4も往復できる", () => { const changed = V4.replace("受付番号", "確認番号"); expect(serializeReceiptTemplateNodes(parseReceiptTemplateNodes(changed)!)).toBe(changed); });
   it("想定外の本文は読まない", () => { expect(parseReceiptTemplateNodes("ただの文字列")).toBeNull(); expect(parseReceiptTemplateNodes("schemaVersion: 1\nbody:\n  - barcode: x\n")).toBeNull(); expect(parseReceiptTemplateNodes(V4.replace("schemaVersion: 1", "schemaVersion: 2"))).toBeNull(); });
 });
+
+const V8_LOOSE = `schemaVersion: 1
+body:
+  - reset: true
+  - align: center
+  - emphasis: { bold: true, underline: false, invert: false }
+  - text: "{{eventName}}"
+  - text: "{{circleName}}"
+  - emphasis: { bold: false, underline: false, invert: false }
+  - align: left
+  - if: isReprint
+    body:
+      - emphasis: { bold: true, underline: false, invert: true }
+      - text: "{{reprintLabel}} #{{reprintNo}}"
+      - text: "伝票番号 {{originalReceiptNumber}}"
+      - emphasis: { bold: false, underline: false, invert: false }
+  - text:"{{confirmedAtPrinted}}    {{publicReference}}"
+  - text:"レジ{{registerNo}}    担当{{staffPrintLabel}}" 
+  - rule: single
+  - each: lines
+    body:
+      - text: "{{name}}"
+      - text: "品番 {{productCode}}"
+      - row: { left: "＠{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+  - rule: single
+  - if: hasDiscounts
+    body:
+      - row: { left: "値引", right: "{{discountTotalFormatted}}" }
+  - row: { left: "税", right: "{{taxTotalFormatted}}" }
+  - emphasis: { bold: true, underline: false, invert: false }
+  - row: { left: "合計", right: "{{totalFormatted}}" }
+  - emphasis: { bold: false, underline: false, invert: false }
+  - each: payments
+    body:
+      - row: { left: "{{methodName}}", right: "{{amountFormatted}}" }
+  - if: hasTendered
+    body:
+      - row: { left: "預り", right: "{{tenderedFormatted}}" }
+  - if: hasChange
+    body:
+      - row: { left: "釣銭", right: "{{changeFormatted}}" }
+  - text: "{{footer}}"
+  - text: "{{returnPolicy}}"
+  - finish: { feedLines: 8, cutMode: partial }
+`;
+describe("手書きゆらぎのある本文", () => {
+  it("コロンの後の空白なし・行末空白でも読み、正しい形へ直せる", () => { const nodes = parseReceiptTemplateNodes(V8_LOOSE); expect(nodes).not.toBeNull(); expect(nodes).toHaveLength(24); const canonical = serializeReceiptTemplateNodes(nodes!); expect(canonical).toContain('text: "{{confirmedAtPrinted}}    {{publicReference}}"'); expect(canonical).toContain('text: "レジ{{registerNo}}    担当{{staffPrintLabel}}"'); expect(parseReceiptTemplateNodes(canonical)).toEqual(nodes); });
+});
