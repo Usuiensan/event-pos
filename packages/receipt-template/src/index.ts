@@ -339,7 +339,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }
+  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
@@ -359,7 +359,7 @@ const DEFAULT_RECEIPT_TEMPLATE_V4_LINES = `  - each: lines
       - text: "JAN {{productCode}}"
       - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
 `;
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }\n', '');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }\n', '');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5.replace('単¥{{unitPriceFormatted}}', '単{{unitPriceFormatted}}');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
