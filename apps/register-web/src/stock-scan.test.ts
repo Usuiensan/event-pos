@@ -12,6 +12,7 @@ describe("classifyScan", () => {
   it.each([
     ["PS12ABC", { kind: "hold", reference: "ABC" }],
     ["PS13ABC", { kind: "parked-draft", parkReference: "ABC" }],
+    ["PS14ABC", { kind: "transaction", reference: "ABC" }],
     ["4901234567890", { kind: "product", raw: "4901234567890" }],
     ["", { kind: "product", raw: "" }],
   ] as const)("%s", (raw, expected) => {
