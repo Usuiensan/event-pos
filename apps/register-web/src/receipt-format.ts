@@ -79,6 +79,7 @@ export function parseReceiptFormatSettings(sourceText: string): ParsedReceiptFor
   const finishIndex = items.length - 1;
   if (!itemType(items[finishIndex] ?? []).startsWith("finish:")) return null;
   let footerIndex = finishIndex - 1;
+  if (itemType(items[footerIndex] ?? []).startsWith("barcode:")) footerIndex -= 1;
   const footerLines: string[] = [];
   while (footerIndex >= 0 && itemType(items[footerIndex]!).startsWith("text:")) {
     const value = textValue(items[footerIndex]!);
@@ -146,6 +147,7 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   );
   if (settings.footerAsset) body.push(`  - image: { assetId: ${yamlText(settings.footerAsset.assetId)}, widthDots: ${settings.footerAsset.widthDots} }`);
   if (settings.footerText) body.push(...settings.footerText.replace(/\r\n?/g, "\n").split("\n").map((line) => `  - text: ${yamlText(line)}`));
+  body.push('  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }');
   body.push("  - finish: { feedLines: 8, cutMode: partial }");
   return `${body.join("\n")}\n`;
 }
