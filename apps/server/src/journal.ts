@@ -33,7 +33,7 @@ export function registerJournalRoutes(app: FastifyInstance, options: Options): v
       requireAuthActor(options.database, request, "operator", options.authRequired);
       const reference = (request.query.reference ?? "").trim().replace(/-/g, "");
       if (!reference) throw new CheckoutError(400, "REFERENCE_REQUIRED", "受付番号を入力してください");
-      const row = options.database.prepare("SELECT transaction_id FROM transactions WHERE event_id=? AND (public_reference=? OR REPLACE(public_reference_display,'-','')=?) LIMIT 1").get(request.params.eventId, reference, reference) as { transaction_id: string } | undefined;
+      const row = options.database.prepare("SELECT transaction_id FROM transactions WHERE event_id=? AND (public_reference=? OR REPLACE(public_reference_display,'-','')=? OR public_reference='R-' || ?) ORDER BY CASE WHEN public_reference=? THEN 0 ELSE 1 END LIMIT 1").get(request.params.eventId, reference, reference, reference, reference) as { transaction_id: string } | undefined;
       if (!row) throw new CheckoutError(404, "TRANSACTION_NOT_FOUND", "該当する取引が見つかりません");
       return { transactionId: row.transaction_id };
     } catch (error) { return fail(reply, error); }

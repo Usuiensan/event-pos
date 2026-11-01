@@ -12,7 +12,7 @@ export type ReceiptNode =
   | { kind: "feed"; lines: number }
   | { kind: "image"; assetId: string; widthDots: number }
   | { kind: "qr"; data: string; moduleSize: number; errorCorrection: "L" | "M" | "Q" | "H" }
-  | { kind: "barcode"; value: string; width: number; height: number; hri: "none" | "above" | "below" | "both" }
+  | { kind: "barcode"; value: string; format?: "code128" | "itf"; width: number; height: number; hri: "none" | "above" | "below" | "both" }
   | { kind: "cut"; mode: CutMode };
 
 export type ReceiptDocument = {
@@ -48,7 +48,7 @@ export function canonicalizeReceiptDocument(document: ReceiptDocument): string {
       case "feed": return command("feed", node.lines);
       case "image": return command("image", { assetId: node.assetId, widthDots: node.widthDots });
       case "qr": return command("qr", { data: normalizeText(node.data), errorCorrection: node.errorCorrection, moduleSize: node.moduleSize });
-      case "barcode": return command("barcode", { height: node.height, hri: node.hri, value: node.value, width: node.width });
+      case "barcode": return command("barcode", { format: node.format ?? "code128", height: node.height, hri: node.hri, value: node.value, width: node.width });
       case "cut": return command("cut", node.mode);
     }
   });
@@ -103,8 +103,10 @@ export function parseCanonicalReceiptIr(source: string): ReceiptDocument {
         break;
       case "barcode":
         if (isRecord(value)) {
-          exactKeys(value, ["height", "hri", "value", "width"], lineNo);
-          if (typeof value.value === "string" && /^[\x20-\x7e]+$/.test(value.value) && value.value.length <= 255 && Number.isSafeInteger(value.width) && Number(value.width) >= 2 && Number(value.width) <= 6 && Number.isSafeInteger(value.height) && Number(value.height) >= 1 && Number(value.height) <= 255 && ["none", "above", "below", "both"].includes(String(value.hri))) return { kind: "barcode", value: value.value, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" };
+          exactKeys(value, ["format", "height", "hri", "value", "width"], lineNo);
+          const baseValid = typeof value.value === "string" && value.value.length <= 255 && Number.isSafeInteger(value.width) && Number(value.width) >= 2 && Number(value.width) <= 6 && Number.isSafeInteger(value.height) && Number(value.height) >= 1 && Number(value.height) <= 255 && ["none", "above", "below", "both"].includes(String(value.hri));
+          if (baseValid && value.format === "code128" && /^[\x20-\x7e]+$/.test(value.value as string)) return { kind: "barcode", value: value.value as string, format: "code128", width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" };
+          if (baseValid && value.format === "itf" && /^[0-9]+$/.test(value.value as string) && (value.value as string).length % 2 === 0) return { kind: "barcode", value: value.value as string, format: "itf", width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" };
         }
         break;
       case "cut": if (value === "none" || value === "partial" || value === "partial3") return { kind: "cut", mode: value }; break;
