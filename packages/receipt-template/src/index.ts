@@ -165,9 +165,10 @@ function validateNodes(nodes: unknown[], path: string, localVariables: Set<strin
         if (!variables(data).length && new TextEncoder().encode(data).length > 7089) throw new ReceiptTemplateError("QR容量を超えています", `${nodePath}.qr.data`); break;
       }
       case "barcode": {
-        const barcode = record(node.barcode, `${nodePath}.barcode`); onlyKeys(barcode, ["value", "width", "height", "hri"], `${nodePath}.barcode`);
+        const barcode = record(node.barcode, `${nodePath}.barcode`); onlyKeys(barcode, ["value", "format", "width", "height", "hri"], `${nodePath}.barcode`);
         validateInterpolated(barcode.value, `${nodePath}.barcode.value`, localVariables); integer(barcode.width, 2, 6, `${nodePath}.barcode.width`); integer(barcode.height, 1, 255, `${nodePath}.barcode.height`);
         if (!["none", "above", "below", "both"].includes(String(barcode.hri))) throw new ReceiptTemplateError("none/above/below/bothが必要です", `${nodePath}.barcode.hri`);
+        if (barcode.format !== undefined && !["code128", "itf"].includes(String(barcode.format))) throw new ReceiptTemplateError("code128/itfが必要です", `${nodePath}.barcode.format`);
         break;
       }
       case "finish": {
@@ -241,10 +242,15 @@ function compileNodes(rawNodes: unknown[], snapshot: ReceiptSnapshot, global: Re
       }
       case "barcode": {
         const value = node.barcode as Record<string, unknown>; const barcode = interpolate(String(value.value), global, local);
-        if (!/^[\x20-\x7e]+$/.test(barcode) || barcode.length > 255) {
+        const format = (value.format as "code128" | "itf" | undefined) ?? "code128";
+        if (format === "itf") {
+          if (!/^[0-9]+$/.test(barcode) || barcode.length % 2 !== 0 || barcode.length > 255) {
+            throw new ReceiptTemplateError("ITFの値は数字のみ・偶数桁・255桁以内で指定してください", "barcode.value");
+          }
+        } else if (!/^[\x20-\x7e]+$/.test(barcode) || barcode.length > 255) {
           throw new ReceiptTemplateError("Code 128の値はASCII印字可能文字を255文字以内で指定してください", "barcode.value");
         }
-        output.push({ kind: "barcode", value: barcode, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" }); break;
+        output.push({ kind: "barcode", value: barcode, format, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" }); break;
       }
       case "finish": { const value = node.finish as Record<string, unknown>; output.push({ kind: "feed", lines: Number(value.feedLines) }, { kind: "cut", mode: value.cutMode as CutMode }); break; }
       case "each": for (const item of collection(snapshot, String(node.each))) compileNodes(node.body as unknown[], snapshot, global, item, output); break;
@@ -288,13 +294,13 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
     else if (node.kind === "feed") for (let index = 0; index < node.lines; index += 1) result.push("");
     else if (node.kind === "image") result.push(`[画像: ${node.assetId}]`);
     else if (node.kind === "qr") result.push(`[QR: ${node.data}]`);
-    else if (node.kind === "barcode") result.push(`[Code 128: ${node.value}]`);
+    else if (node.kind === "barcode") result.push(node.format === "itf" ? `[ITF: ${node.value}]` : `[Code 128: ${node.value}]`);
     else if (node.kind === "cut" && node.mode !== "none") result.push(`[部分カット: ${node.mode}]`);
   }
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 6;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 7;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -339,7 +345,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }
+  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
@@ -359,7 +365,8 @@ const DEFAULT_RECEIPT_TEMPLATE_V4_LINES = `  - each: lines
       - text: "JAN {{productCode}}"
       - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
 `;
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }\n', '');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }', '  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }\n', '');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5.replace('単¥{{unitPriceFormatted}}', '単{{unitPriceFormatted}}');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
