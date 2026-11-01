@@ -40,7 +40,7 @@ describe("pure ESC/POS renderer", () => {
 
   it("ITFバーコードを印字コマンドへ変換する", () => {
     const bytes = encodeBarcode("26110110000015", { type: "itf", width: 2, height: 96, hri: "below" });
-    expect(Array.from(bytes.slice(12, 16))).toEqual([0x1d, 0x6b, 65, 14]);
+    expect(Array.from(bytes.slice(12, 16))).toEqual([0x1d, 0x6b, 70, 14]);
     expect(Buffer.from(bytes.slice(16, 30)).toString("ascii")).toBe("26110110000015");
     expect(() => encodeBarcode("2611011000001", { type: "itf" })).toThrow("ITF");
     expect(() => encodeBarcode("2611011000001A", { type: "itf" })).toThrow("ITF");
