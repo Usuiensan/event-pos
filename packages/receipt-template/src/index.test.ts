@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
 
 const snapshot: ReceiptSnapshot = {
-  schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", registerNo: "1", staffPrintLabel: "001",
+  schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", publicReferenceRaw: "10000015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", businessDateYYMMDD: "260802", registerNo: "1", staffPrintLabel: "001",
   lines: [{ productCode: "00000001", name: "新刊", quantity: 1, unitPriceYen: 500, unitPriceFormatted: "500", grossYen: 500, grossFormatted: "¥500", discountAllocatedYen: 0, discountFormatted: "¥0", taxYen: 45, taxFormatted: "¥45", netYen: 500, netFormatted: "¥500", taxRateBps: 1000 }],
   discounts: [], taxSummaries: [{ taxRateBps: 1000, taxableNetYen: 500, taxableNetFormatted: "¥500", taxYen: 45, taxFormatted: "¥45" }], payments: [{ methodName: "現金", amountYen: 500, amountFormatted: "¥500", tenderedYen: 1000, tenderedFormatted: "¥1,000", changeYen: 500, changeFormatted: "¥500" }],
   subtotalYen: 500, subtotalFormatted: "¥500", discountTotalYen: 0, discountTotalFormatted: "¥0", taxTotalYen: 45, taxTotalFormatted: "¥45", totalYen: 500, totalFormatted: "¥500", tenderedYen: 1000, tenderedFormatted: "¥1,000", changeYen: 500, changeFormatted: "¥500",
@@ -25,7 +25,7 @@ describe("receipt template", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot));
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("JAN 00000001");
-    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[Code 128: {BPS141000-0015]");
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[Code 128: {BPS1426080210000015]");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).not.toContain("値引");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, { ...snapshot, discountTotalYen: 1, discountTotalFormatted: "¥1", hasDiscounts: true }).humanReadable).toContain("値引");
   });
