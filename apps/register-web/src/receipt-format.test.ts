@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReceiptTemplate } from "./receipt-format.js";
+import { buildReceiptTemplate, parseReceiptFormatSettings } from "./receipt-format.js";
 
 // DEFAULT_RECEIPT_TEMPLATE v4 と簡易設定のデフォルト生成結果を同期するための期待値。
 const DEFAULT_RECEIPT_TEMPLATE_V4 = `schemaVersion: 1
@@ -75,5 +75,23 @@ describe("レシート簡易フォーマット", () => {
 
   it("JAN印字を切るとJAN行を出さない", () => {
     expect(buildReceiptTemplate({ headerText: "", footerText: "", printJan: false })).not.toContain("{{productCode}}");
+  });
+
+  it("生成したテンプレートを簡易設定へ戻せる", () => {
+    expect(parseReceiptFormatSettings(buildReceiptTemplate({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", printJan: true }))).toEqual({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", headerAssetId: "", footerAssetId: "", printJan: true });
+  });
+
+  it("DEFAULT_RECEIPT_TEMPLATE v4 を簡易設定へ戻せる", () => {
+    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V4)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
+  });
+
+  it("画像付きテンプレートの画像IDを読み取れる", () => {
+    const template = buildReceiptTemplate({ headerText: "", footerText: "", headerAsset: { assetId: "header-logo", version: 1, sha256: "hash", mime: "application/x-event-pos-mono-raster", widthDots: 384, heightDots: 20, rasterBase64: "" }, footerAsset: { assetId: "footer-logo", version: 1, sha256: "hash", mime: "application/x-event-pos-mono-raster", widthDots: 200, heightDots: 20, rasterBase64: "" }, printJan: false });
+    expect(parseReceiptFormatSettings(template)).toMatchObject({ headerAssetId: "header-logo", footerAssetId: "footer-logo" });
+  });
+
+  it("resetがない、またはschemaVersionがない本文は読まない", () => {
+    expect(parseReceiptFormatSettings("schemaVersion: 1\nbody:\n  - align: left\n  - finish: {}\n")).toBeNull();
+    expect(parseReceiptFormatSettings("body:\n  - reset: true\n")).toBeNull();
   });
 });

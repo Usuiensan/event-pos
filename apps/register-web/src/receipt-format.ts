@@ -16,7 +16,84 @@ export type ReceiptFormatSettings = {
   printJan: boolean;
 };
 
+export type ParsedReceiptFormatSettings = {
+  headerText: string;
+  footerText: string;
+  headerAssetId: string;
+  footerAssetId: string;
+  printJan: boolean;
+};
+
 const yamlText = (value: string): string => JSON.stringify(value.replace(/\r\n?/g, "\n"));
+
+export function parseReceiptFormatSettings(sourceText: string): ParsedReceiptFormatSettings | null {
+  const lines = sourceText.split(/\r\n?|\n/);
+  if (lines[0] !== "schemaVersion: 1" || lines[1] !== "body:") return null;
+  const items: string[][] = [];
+  for (const line of lines.slice(2)) {
+    if (line.startsWith("  - ")) items.push([line]);
+    else if (items.length > 0) items[items.length - 1]!.push(line);
+  }
+  if (!items[0]?.[0]?.startsWith("  - reset: true")) return null;
+
+  const itemType = (item: string[]) => item[0]?.slice(4).trim() ?? "";
+  const imageAssetId = (item: string[]) => {
+    const match = item[0]!.match(/\{\s*assetId:\s*("(?:[^"\\]|\\.)*"|[^,}\s]+)/);
+    if (!match) return null;
+    if (match[1]!.startsWith('"')) {
+      try { return JSON.parse(match[1]!) as string; } catch { return null; }
+    }
+    return match[1]!;
+  };
+  const textValue = (item: string[]) => {
+    const value = item[0]!.match(/^  - text: (.*)$/)?.[1];
+    if (value === undefined) return null;
+    if (!value.startsWith('"')) return value;
+    try { return JSON.parse(value) as string; } catch { return null; }
+  };
+
+  let index = 1;
+  let headerAssetId = "";
+  if (items[index] && itemType(items[index]!).startsWith("image:")) {
+    const assetId = imageAssetId(items[index]!);
+    if (assetId === null) return null;
+    headerAssetId = assetId;
+    index += 1;
+  }
+  let headerText = "";
+  if (itemType(items[index] ?? []) === "align: left") index += 1;
+  else {
+    if (itemType(items[index] ?? []) !== "align: center" || !itemType(items[index + 1] ?? []).startsWith("emphasis: { bold: true")) return null;
+    index += 2;
+    const headerLines: string[] = [];
+    while (items[index] && itemType(items[index]!).startsWith("text:")) {
+      const value = textValue(items[index]!);
+      if (value === null) return null;
+      headerLines.push(value);
+      index += 1;
+    }
+    if (!itemType(items[index] ?? []).startsWith("emphasis: { bold: false") || itemType(items[index + 1] ?? []) !== "align: left") return null;
+    headerText = headerLines.join("\n");
+  }
+
+  const finishIndex = items.length - 1;
+  if (!itemType(items[finishIndex] ?? []).startsWith("finish:")) return null;
+  let footerIndex = finishIndex - 1;
+  const footerLines: string[] = [];
+  while (footerIndex >= 0 && itemType(items[footerIndex]!).startsWith("text:")) {
+    const value = textValue(items[footerIndex]!);
+    if (value === null) return null;
+    footerLines.unshift(value);
+    footerIndex -= 1;
+  }
+  let footerAssetId = "";
+  if (footerIndex >= 0 && itemType(items[footerIndex]!).startsWith("image:")) {
+    const assetId = imageAssetId(items[footerIndex]!);
+    if (assetId === null) return null;
+    footerAssetId = assetId;
+  }
+  return { headerText, footerText: footerLines.join("\n"), headerAssetId, footerAssetId, printJan: sourceText.includes('text: "JAN {{productCode}}"') };
+}
 
 export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   const body: string[] = ["schemaVersion: 1", "body:", "  - reset: true"];
