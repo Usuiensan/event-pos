@@ -49,9 +49,39 @@ function qrBytes(dataValue: string, moduleSize: number, errorCorrection: "L" | "
   ]);
 }
 
+function compressCode128(value: string): string {
+  // 4桁以上の数字列はコードセットCへ切り替えて桁を半分に圧縮する（横幅対策）。
+  let prefix = "";
+  let rest = value;
+  if (/^\{[ABC]/.test(value)) { prefix = value.slice(0, 2); rest = value.slice(2); }
+  let out = prefix || "{B";
+  let inC = prefix === "{C";
+  let i = 0;
+  while (i < rest.length) {
+    let j = i;
+    while (j < rest.length && rest.charAt(j) >= "0" && rest.charAt(j) <= "9") j++;
+    const run = j - i;
+    if (run >= 4) {
+      let start = i;
+      if (run % 2 === 1) {
+        if (inC) { out += "{B"; inC = false; }
+        out += rest.slice(start, start + 1); start += 1;
+      }
+      if (!inC) { out += "{C"; inC = true; }
+      out += rest.slice(start, j);
+      i = j;
+    } else {
+      if (inC) { out += "{B"; inC = false; }
+      out += rest.slice(i, i + 1);
+      i += 1;
+    }
+  }
+  return out;
+}
+
 export function encodeBarcode(value: string, options: { type?: "code128"; width?: number; height?: number; hri?: "none" | "above" | "below" | "both" } = {}): Uint8Array {
-  const data = Uint8Array.from(Buffer.from(value, "ascii"));
-  if (!value || Buffer.from(data).toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
+  const data = Uint8Array.from(Buffer.from(compressCode128(value), "ascii"));
+  if (!value || Buffer.from(value, "ascii").toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
   const width = options.width ?? 3; const height = options.height ?? 96; const hri = options.hri ?? "below";
   if (!Number.isSafeInteger(width) || width < 2 || width > 6 || !Number.isSafeInteger(height) || height < 1 || height > 255) throw new EscPosError("barcode引数が範囲外です");
   const hriValue = { none: 0, above: 1, below: 2, both: 3 }[hri];
