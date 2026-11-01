@@ -24,6 +24,7 @@ node の種類
   - feed: 3                                  空行。0〜8
   - image: { assetId: "画像ID", widthDots: 384 }  簡易設定で登録した画像だけ使える
   - qr: { data: "{{publicReference}}", moduleSize: 4, errorCorrection: M }   訂正レベルは L / M / Q / H
+  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }   幅は2〜6、高さは1〜255、hri は none / above / below / both
   - finish: { feedLines: 8, cutMode: partial }  最後に1個だけ必須。cutMode は none / partial / partial3
   - each: lines                              繰り返し。対象は lines / discounts / taxSummaries / payments
     body:
