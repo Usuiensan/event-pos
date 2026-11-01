@@ -451,12 +451,14 @@ export function allocatePublicReference(db: PosDatabase, eventId: string, busine
   }
 }
 
+export function businessDateYYMMDD(businessDate: string): string { return businessDate.slice(2, 4) + businessDate.slice(5, 7) + businessDate.slice(8, 10); }
+
 export function finalizeRequestHash(draftId: string, version: number): string { return createHash("sha256").update(JSON.stringify({ draftId, version })).digest("hex"); }
 
 function formatYen(value: number): string { return `¥${Math.trunc(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`; }
 function formatPlainAmount(value: number): string { return Math.trunc(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
-function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, confirmedAt: string): ReceiptSnapshot {
+function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, publicReferenceRaw: string, confirmedAt: string): ReceiptSnapshot {
   const catalogRecord = getCatalog(db, String(row.event_id));
   const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
   const commonText = catalog?.receiptSettings?.commonText;
@@ -467,7 +469,7 @@ function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculat
   const change = payments.filter((payment) => payment.changeYen !== undefined).reduce((sum, payment) => sum + (payment.changeYen ?? 0), 0);
   const jst = new Date(Date.parse(confirmedAt) + 9 * 60 * 60 * 1000).toISOString();
   return {
-    schemaVersion: 1, eventName: String(row.event_id), circleName: catalog?.customerWelcome?.circleName ?? String(row.event_id), transactionId, publicReference, transactionType: "sale", originalPublicReference: "", confirmedAt, confirmedAtPrinted: `${jst.slice(0, 10)} ${jst.slice(11, 16)}`, businessDate: String(row.business_date), registerNo, staffPrintLabel,
+    schemaVersion: 1, eventName: String(row.event_id), circleName: catalog?.customerWelcome?.circleName ?? String(row.event_id), transactionId, publicReference, publicReferenceRaw, transactionType: "sale", originalPublicReference: "", confirmedAt, confirmedAtPrinted: `${jst.slice(0, 10)} ${jst.slice(11, 16)}`, businessDate: String(row.business_date), businessDateYYMMDD: businessDateYYMMDD(String(row.business_date)), registerNo, staffPrintLabel,
     lines: calculation.lines.map((line) => ({ productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, unitPriceFormatted: formatPlainAmount(line.priceInclTax), grossYen: line.grossYen, grossFormatted: formatYen(line.grossYen), discountAllocatedYen: line.discountYen, discountFormatted: formatYen(line.discountYen), taxYen: line.taxYen, taxFormatted: formatYen(line.taxYen), netYen: line.netYen, netFormatted: formatYen(line.netYen), taxRateBps: line.taxRate * 100 })),
     discounts: calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen, amountFormatted: formatYen(discount.amountYen) })),
     taxSummaries: calculation.taxSummaries.map((summary) => ({ taxRateBps: summary.taxRateBps, taxableNetYen: summary.taxableNetYen, taxableNetFormatted: formatYen(summary.taxableNetYen), taxYen: summary.taxAmountYen, taxFormatted: formatYen(summary.taxAmountYen) })),
@@ -538,7 +540,7 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
       db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'drawer','receipt-1',?,'pending',?,0,4,?,?)").run(drawerOperationId, drawerSequence, drawerJobId, now, now, now);
     }
     const printJobId = uuidV7();
-    const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, now);
+    const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, reference.raw, now);
     const receipt = renderReceipt(db, snapshot);
     const operationId = uuidV7();
     db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,receipt_snapshot_json,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty)
