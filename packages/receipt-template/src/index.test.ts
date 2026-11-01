@@ -11,7 +11,7 @@ const snapshot: ReceiptSnapshot = {
 
 describe("receipt template", () => {
   it("TM-T70II実紙面に合わせてcut前を8行送り、旧v1を識別できる", () => {
-    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(6);
+    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(7);
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feedLines: 8");
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain('text: "JAN {{productCode}}"');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3).not.toContain('text: "JAN {{productCode}}"');
@@ -25,7 +25,7 @@ describe("receipt template", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot));
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("JAN 00000001");
-    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[Code 128: {BPS1426080210000015]");
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[ITF: 26080210000015]");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).not.toContain("値引");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, { ...snapshot, discountTotalYen: 1, discountTotalFormatted: "¥1", hasDiscounts: true }).humanReadable).toContain("値引");
   });
