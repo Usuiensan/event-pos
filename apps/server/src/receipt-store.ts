@@ -1,6 +1,6 @@
 import { canonicalizeReceiptDocument } from "@event-pos/receipt-ir";
 import { BUILTIN_FONT, DEFAULT_FINISHING_POLICY, ESCPOS_RENDERER_VERSION, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
-import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, sha256Hex, validateReceiptTemplate, type ReceiptAssetDescriptor, type ReceiptSnapshot } from "@event-pos/receipt-template";
+import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6, sha256Hex, validateReceiptTemplate, type ReceiptAssetDescriptor, type ReceiptSnapshot } from "@event-pos/receipt-template";
 import type { PosDatabase } from "./db.js";
 
 export type ReceiptTemplateRecord = {
@@ -70,7 +70,7 @@ export function ensureDefaultReceiptTemplate(db: PosDatabase): void {
   const now = new Date().toISOString(); const validation = validateReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE);
   const active = db.prepare("SELECT version,source_sha256 FROM receipt_templates WHERE template_key='sale-receipt' AND status='active'").get() as { version: number; source_sha256: string } | undefined;
   if (active?.source_sha256 === validation.sourceSha256) return;
-  if (active && ![LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5].some((template) => active.source_sha256 === sha256Hex(template))) return;
+  if (active && ![LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6].some((template) => active.source_sha256 === sha256Hex(template))) return;
   const maximum = Number((db.prepare("SELECT COALESCE(MAX(version),0) AS version FROM receipt_templates WHERE template_key='sale-receipt'").get() as { version: number }).version);
   const version = Math.max(DEFAULT_RECEIPT_TEMPLATE_VERSION, maximum + 1);
   db.exec("BEGIN IMMEDIATE");
