@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { buildReceiptTemplate, parseReceiptFormatSettings, sha256Fallback } from "./receipt-format.js";
 
-// DEFAULT_RECEIPT_TEMPLATE v5 と簡易設定のデフォルト生成結果を同期するための期待値。
-const DEFAULT_RECEIPT_TEMPLATE_V5 = `schemaVersion: 1
+// DEFAULT_RECEIPT_TEMPLATE v6 と簡易設定のデフォルト生成結果を同期するための期待値。
+const DEFAULT_RECEIPT_TEMPLATE_V6 = `schemaVersion: 1
 body:
   - reset: true
   - align: center
@@ -46,16 +46,17 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
+  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
 describe("レシート簡易フォーマット", () => {
-  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v5 と一致する", () => {
+  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v6 と一致する", () => {
     expect(buildReceiptTemplate({
       headerText: "{{eventName}}\n{{circleName}}",
       footerText: "{{footer}}\n{{returnPolicy}}",
       printJan: true,
-    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V5);
+    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V6);
   });
 
   it("ヘッダー・フッター画像と文字、JAN印字をテンプレートへ反映する", () => {
@@ -82,8 +83,8 @@ describe("レシート簡易フォーマット", () => {
     expect(parseReceiptFormatSettings(buildReceiptTemplate({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", printJan: true }))).toEqual({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", headerAssetId: "", footerAssetId: "", printJan: true });
   });
 
-  it("DEFAULT_RECEIPT_TEMPLATE v5 を簡易設定へ戻せる", () => {
-    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V5)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
+  it("DEFAULT_RECEIPT_TEMPLATE v6 を簡易設定へ戻せる", () => {
+    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V6)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
   });
 
   it("SHA-256フォールバックはブロック境界を含めNode実装と一致する", () => {
