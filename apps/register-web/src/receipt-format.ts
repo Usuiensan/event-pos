@@ -147,7 +147,7 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   );
   if (settings.footerAsset) body.push(`  - image: { assetId: ${yamlText(settings.footerAsset.assetId)}, widthDots: ${settings.footerAsset.widthDots} }`);
   if (settings.footerText) body.push(...settings.footerText.replace(/\r\n?/g, "\n").split("\n").map((line) => `  - text: ${yamlText(line)}`));
-  body.push('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }');
+  body.push('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }');
   body.push("  - finish: { feedLines: 8, cutMode: partial }");
   return `${body.join("\n")}\n`;
 }

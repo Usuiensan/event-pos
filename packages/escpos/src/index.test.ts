@@ -25,8 +25,17 @@ describe("pure ESC/POS renderer", () => {
 
   it("Code 128 barcodeのcharacterization bytesを固定する", () => {
     const bytes = encodeBarcode("{BPS111234", { width: 3, height: 96, hri: "below" });
-    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 10, 0x7b]);
-    expect(bytesSha256(bytes)).toBe("e202d7d200f9db4eab12fa4fb310bf9d1130670340c79e2a97baa87d3fa45e48");
+    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 12, 0x7b]);
+    expect(Buffer.from(bytes.slice(17)).toString("ascii")).toContain("PS{C111234");
+    expect(bytesSha256(bytes)).toBe("ebc2750712e9207d94bb7417404d1569dfe322e1169c4d0ef10ed2f88bc9e1fa");
+  });
+
+  it("数字列をコードセットCで圧縮する", () => {
+    const data = (value: string) => Buffer.from(encodeBarcode(value, { width: 2, height: 96, hri: "below" }).slice(15)).toString("ascii");
+    expect(data("{BPS1426110110000057")).toContain("{BPS{C1426110110000057");
+    expect(data("{BPS1212345")).toContain("{BPS1{C212345");
+    expect(data("{BAB12345CD")).toContain("{BAB1{C2345{BCD");
+    expect(data("{BPS112")).toContain("{BPS112");
   });
 
   it("384 dotsの内容幅と416 dotsの物理上限を別々に検証する", () => {
