@@ -91,6 +91,17 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
   app.post<{ Params: { templateKey: string; version: string }; Body: { snapshot?: ReceiptSnapshot } }>("/api/v1/receipt-templates/:templateKey/:version/preview", async (request, reply) => {
     try { requireAuthActor(options.database, request, "manager", options.authRequired ?? false); return previewReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.snapshot ?? sampleReceiptSnapshot()); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 422, "TEMPLATE_PREVIEW_FAILED", err instanceof Error ? err.message : "previewに失敗しました"); }
   });
+  app.post<{ Params: { templateKey: string; version: string } }>("/api/v1/receipt-templates/:templateKey/:version/test-print", async (request, reply) => {
+    try {
+      requireAuthActor(options.database, request, "manager", options.authRequired ?? false);
+      const templateKey = request.params.templateKey; const version = Number(request.params.version);
+      if (!getReceiptTemplate(options.database, templateKey, version)) return error(reply, 404, "TEMPLATE_NOT_FOUND", "templateが見つかりません");
+      validateReceiptTemplateVersion(options.database, templateKey, version);
+      const snapshot = sampleReceiptSnapshot(); const artifacts = renderReceipt(options.database, snapshot, { templateKey, version }); const jobId = uuidV7(); const now = new Date().toISOString();
+      const job = createPrintJob(options.database, { jobId, transactionId: `template-test:${jobId}`, printerId: "receipt-1", documentType: "receipt", kind: "test", payload: { templateKey, templateVersion: version, snapshot, canonical_ir: artifacts.canonicalIr, escposBase64: Buffer.from(artifacts.escposBytes).toString("base64") }, createdAt: now, source: "event-pos", rendererVersion: artifacts.rendererVersion, bytesSha256: artifacts.bytesSha256, canonicalIr: artifacts.canonicalIr, irSha256: artifacts.irSha256, expectedBytesLength: artifacts.escposBytes.length, templateKey: artifacts.templateKey, templateVersion: artifacts.templateVersion, templateSourceSha256: artifacts.templateSourceSha256, assets: artifacts.assets, fontId: artifacts.fontId, fontVersion: artifacts.fontVersion, fontSha256: artifacts.fontSha256, finishingPolicyId: artifacts.finishingPolicyId, finishingPolicyVersion: artifacts.finishingPolicyVersion });
+      options.queue?.trigger(); return reply.code(201).send(job);
+    } catch (err) { return error(reply, err instanceof AuthError ? err.status : 422, "TEMPLATE_TEST_PRINT_FAILED", err instanceof Error ? err.message : "テスト印刷に失敗しました"); }
+  });
   app.post<{ Params: { templateKey: string; version: string }; Body: { sourceSha256: string } }>("/api/v1/receipt-templates/:templateKey/:version/activate", async (request, reply) => {
     try { editor(request); return activateReceiptTemplate(options.database, request.params.templateKey, Number(request.params.version), request.body?.sourceSha256 ?? ""); } catch (err) { return error(reply, err instanceof AuthError ? err.status : 409, "TEMPLATE_ACTIVATION_REJECTED", err instanceof Error ? err.message : "有効化できません"); }
   });
