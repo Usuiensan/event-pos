@@ -38,6 +38,14 @@ describe("pure ESC/POS renderer", () => {
     expect(data("{BPS112")).toContain("{BPS112");
   });
 
+  it("ITFバーコードを印字コマンドへ変換する", () => {
+    const bytes = encodeBarcode("26110110000015", { type: "itf", width: 2, height: 96, hri: "below" });
+    expect(Array.from(bytes.slice(12, 16))).toEqual([0x1d, 0x6b, 65, 14]);
+    expect(Buffer.from(bytes.slice(16, 30)).toString("ascii")).toBe("26110110000015");
+    expect(() => encodeBarcode("2611011000001", { type: "itf" })).toThrow("ITF");
+    expect(() => encodeBarcode("2611011000001A", { type: "itf" })).toThrow("ITF");
+  });
+
   it("384 dotsの内容幅と416 dotsの物理上限を別々に検証する", () => {
     expect(() => receiptDocumentToEscPos({ ...document, nodes: [{ kind: "image", assetId: "wide", widthDots: 384 }] }, [{ ...asset, assetId: "wide", widthDots: 416 }])).toThrow("寸法");
   });
