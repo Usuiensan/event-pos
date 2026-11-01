@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseReceiptTemplateNodes, serializeReceiptTemplateNodes, type TemplateNode } from "./receipt-template-editor.js";
 
-const V4 = `schemaVersion: 1
+const V5 = `schemaVersion: 1
 body:
   - reset: true
   - align: center
@@ -24,7 +24,7 @@ body:
     body:
       - text: "{{name}}"
       - text: "JAN {{productCode}}"
-      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - if: hasDiscounts
     body:
@@ -47,10 +47,10 @@ body:
   - finish: { feedLines: 8, cutMode: partial }
 `;
 describe("レシートテンプレートGUI用パーサ", () => {
-  it("v4を往復できる", () => expect(serializeReceiptTemplateNodes(parseReceiptTemplateNodes(V4)!)).toBe(V4));
+  it("v5を往復できる", () => expect(serializeReceiptTemplateNodes(parseReceiptTemplateNodes(V5)!)).toBe(V5));
   it("全kindを往復できる", () => { const nodes: TemplateNode[] = [{ kind: "reset" }, { kind: "text", text: "x\n{{eventName}}" }, { kind: "row", left: "左", right: "右" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: true, invert: false }, { kind: "size", width: 2, height: 1 }, { kind: "rule", style: "double" }, { kind: "feed", lines: 3 }, { kind: "image", assetId: "a", widthDots: 384 }, { kind: "qr", data: "d", moduleSize: 4, errorCorrection: "Q" }, { kind: "finish", feedLines: 8, cutMode: "partial3" }, { kind: "each", collection: "lines", body: [{ kind: "if", condition: "quantityOne", body: [{ kind: "text", text: "one" }] }] }, { kind: "if", condition: "hasDiscounts", body: [{ kind: "text", text: "discount" }] }]; expect(parseReceiptTemplateNodes(serializeReceiptTemplateNodes(nodes))).toEqual(nodes); });
-  it("ラベルを書き換えたv4も往復できる", () => { const changed = V4.replace("受付番号", "確認番号"); expect(serializeReceiptTemplateNodes(parseReceiptTemplateNodes(changed)!)).toBe(changed); });
-  it("想定外の本文は読まない", () => { expect(parseReceiptTemplateNodes("ただの文字列")).toBeNull(); expect(parseReceiptTemplateNodes("schemaVersion: 1\nbody:\n  - barcode: x\n")).toBeNull(); expect(parseReceiptTemplateNodes(V4.replace("schemaVersion: 1", "schemaVersion: 2"))).toBeNull(); });
+  it("ラベルを書き換えたv5も往復できる", () => { const changed = V5.replace("受付番号", "確認番号"); expect(serializeReceiptTemplateNodes(parseReceiptTemplateNodes(changed)!)).toBe(changed); });
+  it("想定外の本文は読まない", () => { expect(parseReceiptTemplateNodes("ただの文字列")).toBeNull(); expect(parseReceiptTemplateNodes("schemaVersion: 1\nbody:\n  - barcode: x\n")).toBeNull(); expect(parseReceiptTemplateNodes(V5.replace("schemaVersion: 1", "schemaVersion: 2"))).toBeNull(); });
 });
 
 const V8_LOOSE = `schemaVersion: 1

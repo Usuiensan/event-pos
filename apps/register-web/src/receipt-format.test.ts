@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildReceiptTemplate, parseReceiptFormatSettings } from "./receipt-format.js";
+import { createHash } from "node:crypto";
+import { buildReceiptTemplate, parseReceiptFormatSettings, sha256Fallback } from "./receipt-format.js";
 
-// DEFAULT_RECEIPT_TEMPLATE v4 と簡易設定のデフォルト生成結果を同期するための期待値。
-const DEFAULT_RECEIPT_TEMPLATE_V4 = `schemaVersion: 1
+// DEFAULT_RECEIPT_TEMPLATE v5 と簡易設定のデフォルト生成結果を同期するための期待値。
+const DEFAULT_RECEIPT_TEMPLATE_V5 = `schemaVersion: 1
 body:
   - reset: true
   - align: center
@@ -25,7 +26,7 @@ body:
     body:
       - text: "{{name}}"
       - text: "JAN {{productCode}}"
-      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - if: hasDiscounts
     body:
@@ -49,12 +50,12 @@ body:
 `;
 
 describe("レシート簡易フォーマット", () => {
-  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v4 と一致する", () => {
+  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v5 と一致する", () => {
     expect(buildReceiptTemplate({
       headerText: "{{eventName}}\n{{circleName}}",
       footerText: "{{footer}}\n{{returnPolicy}}",
       printJan: true,
-    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V4);
+    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V5);
   });
 
   it("ヘッダー・フッター画像と文字、JAN印字をテンプレートへ反映する", () => {
@@ -81,8 +82,15 @@ describe("レシート簡易フォーマット", () => {
     expect(parseReceiptFormatSettings(buildReceiptTemplate({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", printJan: true }))).toEqual({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", headerAssetId: "", footerAssetId: "", printJan: true });
   });
 
-  it("DEFAULT_RECEIPT_TEMPLATE v4 を簡易設定へ戻せる", () => {
-    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V4)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
+  it("DEFAULT_RECEIPT_TEMPLATE v5 を簡易設定へ戻せる", () => {
+    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V5)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
+  });
+
+  it("SHA-256フォールバックはブロック境界を含めNode実装と一致する", () => {
+    for (const length of [0, 3, 55, 56, 64, 119, 128]) {
+      const bytes = Uint8Array.from({ length }, (_, index) => index & 0xff);
+      expect(sha256Fallback(bytes)).toBe(createHash("sha256").update(bytes).digest("hex"));
+    }
   });
 
   it("画像付きテンプレートの画像IDを読み取れる", () => {

@@ -132,6 +132,7 @@ export const checkoutApi = {
   createReceiptTemplate: (templateKey: string, sourceText: string, assets: ReceiptAssetDescriptor[] = []) => request<{ templateKey: string; version: number; sourceSha256: string }>("/api/v1/receipt-templates", { method: "POST", body: body({ templateKey, sourceText, assets }) }),
   validateReceiptTemplate: (templateKey: string, version: number) => request<{ sourceSha256: string }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/validate`, { method: "POST", body: body({}) }),
   previewReceiptTemplate: (templateKey: string, version: number) => request<{ humanReadable: string; warnings: string[] }>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/preview`, { method: "POST", body: body({}) }),
+  testPrintReceiptTemplate: (templateKey: string, version: number) => request<unknown>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/test-print`, { method: "POST", body: body({}) }),
   activateReceiptTemplate: (templateKey: string, version: number, sourceSha256: string) => request<unknown>(`/api/v1/receipt-templates/${encodeURIComponent(templateKey)}/${version}/activate`, { method: "POST", body: body({ sourceSha256 }) }),
   saveCatalog: (eventId: string, catalog: unknown) => request<void>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`, { method: "PUT", body: body(catalog) }),
   reloadCatalog: (eventId: string) => request<{ catalog: unknown }>(`/api/v1/events/${encodeURIComponent(eventId)}/catalog/reload`, { method: "POST", body: body({}) }),
