@@ -86,7 +86,7 @@ export function encodeBarcode(value: string, options: { type?: "code128" | "itf"
   if (options.type === "itf") {
     if (!/^[0-9]+$/.test(value) || value.length % 2 !== 0 || value.length > 255) throw new EscPosError("ITFデータが不正です");
     const data = Uint8Array.from(Buffer.from(value, "ascii"));
-    return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 65, data.length, ...data, LF, ESC, 0x61, 0]);
+    return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 70, data.length, ...data, LF, ESC, 0x61, 0]);
   }
   const data = Uint8Array.from(Buffer.from(compressCode128(value), "ascii"));
   if (!value || Buffer.from(value, "ascii").toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
