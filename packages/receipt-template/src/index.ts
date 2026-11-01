@@ -25,11 +25,13 @@ export type ReceiptSnapshot = {
   circleName: string;
   transactionId: string;
   publicReference: string;
+  publicReferenceRaw: string;
   transactionType: "sale" | "void" | "return";
   originalPublicReference: string;
   confirmedAt: string;
   confirmedAtPrinted: string;
   businessDate: string;
+  businessDateYYMMDD: string;
   registerNo: string;
   staffPrintLabel: string;
   lines: ReceiptSnapshotLine[];
@@ -69,7 +71,7 @@ export class ReceiptTemplateError extends Error {
 }
 
 const GLOBAL_VARIABLES = new Set([
-  "eventName", "circleName", "transactionId", "publicReference", "transactionType", "originalPublicReference", "confirmedAt", "confirmedAtPrinted", "businessDate", "registerNo", "staffPrintLabel",
+  "eventName", "circleName", "transactionId", "publicReference", "publicReferenceRaw", "transactionType", "originalPublicReference", "confirmedAt", "confirmedAtPrinted", "businessDate", "businessDateYYMMDD", "registerNo", "staffPrintLabel",
   "subtotalFormatted", "discountTotalFormatted", "taxTotalFormatted", "totalFormatted", "tenderedFormatted", "changeFormatted", "isReprint", "reprintLabel", "reprintNo",
   "originalReceiptNumber", "footer", "returnPolicy", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange",
 ]);
@@ -240,8 +242,7 @@ function compileNodes(rawNodes: unknown[], snapshot: ReceiptSnapshot, global: Re
       case "barcode": {
         const value = node.barcode as Record<string, unknown>; const barcode = interpolate(String(value.value), global, local);
         if (!/^[\x20-\x7e]+$/.test(barcode) || barcode.length > 255) {
-          if (snapshot.transactionType !== "return") throw new ReceiptTemplateError("Code 128の値はASCII印字可能文字を255文字以内で指定してください", "barcode.value");
-          break;
+          throw new ReceiptTemplateError("Code 128の値はASCII印字可能文字を255文字以内で指定してください", "barcode.value");
         }
         output.push({ kind: "barcode", value: barcode, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" }); break;
       }
@@ -338,7 +339,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }
+  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
@@ -358,7 +359,7 @@ const DEFAULT_RECEIPT_TEMPLATE_V4_LINES = `  - each: lines
       - text: "JAN {{productCode}}"
       - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
 `;
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{BPS14{{publicReference}}", width: 3, height: 96, hri: below }\n', '');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 3, height: 96, hri: below }\n', '');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5.replace('単¥{{unitPriceFormatted}}', '単{{unitPriceFormatted}}');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
