@@ -79,12 +79,17 @@ function compressCode128(value: string): string {
   return out;
 }
 
-export function encodeBarcode(value: string, options: { type?: "code128"; width?: number; height?: number; hri?: "none" | "above" | "below" | "both" } = {}): Uint8Array {
-  const data = Uint8Array.from(Buffer.from(compressCode128(value), "ascii"));
-  if (!value || Buffer.from(value, "ascii").toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
+export function encodeBarcode(value: string, options: { type?: "code128" | "itf"; width?: number; height?: number; hri?: "none" | "above" | "below" | "both" } = {}): Uint8Array {
   const width = options.width ?? 3; const height = options.height ?? 96; const hri = options.hri ?? "below";
   if (!Number.isSafeInteger(width) || width < 2 || width > 6 || !Number.isSafeInteger(height) || height < 1 || height > 255) throw new EscPosError("barcode引数が範囲外です");
   const hriValue = { none: 0, above: 1, below: 2, both: 3 }[hri];
+  if (options.type === "itf") {
+    if (!/^[0-9]+$/.test(value) || value.length % 2 !== 0 || value.length > 255) throw new EscPosError("ITFデータが不正です");
+    const data = Uint8Array.from(Buffer.from(value, "ascii"));
+    return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 65, data.length, ...data, LF, ESC, 0x61, 0]);
+  }
+  const data = Uint8Array.from(Buffer.from(compressCode128(value), "ascii"));
+  if (!value || Buffer.from(value, "ascii").toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
   return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 73, data.length, ...data, LF, ESC, 0x61, 0]);
 }
 
@@ -112,7 +117,7 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
       case "feed": output.push(...new Array<number>(node.lines).fill(LF)); break;
       case "image": { const asset = assetsById.get(node.assetId); if (!asset) throw new EscPosError(`画像assetがありません: ${node.assetId}`); append(output, rasterBytes(asset, node.widthDots)); break; }
       case "qr": output.push(ESC, 0x61, 1); append(output, qrBytes(node.data, node.moduleSize, node.errorCorrection)); output.push(ESC, 0x61, 0); break;
-      case "barcode": append(output, encodeBarcode(node.value, { width: node.width, height: node.height, hri: node.hri })); break;
+      case "barcode": append(output, encodeBarcode(node.value, { type: node.format ?? "code128", width: node.width, height: node.height, hri: node.hri })); break;
       case "cut": if (node.mode === "partial") output.push(ESC, 0x69); else if (node.mode === "partial3") output.push(ESC, 0x6d); break;
     }
   }
