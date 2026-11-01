@@ -45,7 +45,7 @@ const inline = (value: string): Record<string, string> | null => {
 };
 
 export function parseReceiptTemplateNodes(sourceText: string): TemplateNode[] | null {
-  const lines = sourceText.split("\n");
+  const lines = sourceText.split("\n").map((line) => line.trimEnd());
   if (lines[lines.length - 1] === "") lines.pop();
   if (lines.length < 2 || lines[0] !== "schemaVersion: 1" || lines[1] !== "body:") return null;
   const parseList = (start: number, indent: number): { nodes: TemplateNode[]; index: number } | null => {
@@ -53,7 +53,7 @@ export function parseReceiptTemplateNodes(sourceText: string): TemplateNode[] | 
     while (index < lines.length) {
       const line = lines[index]!; if (line.trim() === "") return null;
       const prefix = " ".repeat(indent) + "- "; if (!line.startsWith(prefix)) break;
-      const head = line.slice(prefix.length); let node: TemplateNode | null = null;
+      const head = line.slice(prefix.length).replace(/^([a-z]+):(?=\S)/, "$1: "); let node: TemplateNode | null = null;
       if (head === "reset: true") node = { kind: "reset" };
       else if (head.startsWith("text: ")) { const value = quoted(head.slice(6)); if (value !== null) node = { kind: "text", text: value }; }
       else if (head.startsWith("row: ")) { const v = inline(head.slice(5)); if (v?.left !== undefined && v.right !== undefined) node = { kind: "row", left: v.left, right: v.right }; }
