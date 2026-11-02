@@ -49,7 +49,7 @@ describe("receipt template and reprint routes", () => {
     const active = db.prepare("SELECT version,source_text FROM receipt_templates WHERE template_key='sale-receipt' AND status='active'").get() as { version: number; source_text: string };
     expect(active.version).toBe(7);
     expect(active.source_text).toContain("feedLines: 8");
-    expect(active.source_text).toContain('text: "JAN {{productCode}}"');
+    expect(active.source_text).toContain('text: "品番 {{productCode}}"');
     expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='receipt_template_default_upgrade'").get()).toEqual({ count: 1 });
   });
 
@@ -61,8 +61,24 @@ describe("receipt template and reprint routes", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
   });
 
-  it("責任者の既定drawer profileを80msで監査付き保存する", async () => {
+  it("PrinterHost未設定時はdrawer jobを成功扱いせず拒否する", async () => {
     const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("PRINTER_HOST_NOT_CONFIGURED");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
+  });
+
+  it("PrinterHost切断時はdrawer jobを保存せず再試行可能なエラーを返す", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true, printerHost: { accept: async () => { throw new Error("unreachable"); }, getStatus: async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: false }, online: { support: "unknown", reason: "offline" }, coverOpen: { support: "unknown", reason: "offline" }, drawerOpen: { support: "unknown", reason: "offline" }, paper: { support: "unknown", reason: "offline" }, error: { support: "unknown", reason: "offline" }, raw: null }) } }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } });
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe("PRINTER_HOST_UNAVAILABLE");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='drawer'").get()).toEqual({ count: 0 });
+  });
+
+  it("接続済みPrinterHostへ責任者の既定drawer profileを80msで監査付き送信する", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true, printerHost: { accept: async (job) => ({ jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!, bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted", duplicate: false }), getStatus: async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "status not available" }, coverOpen: { support: "unknown", reason: "status not available" }, drawerOpen: { support: "unknown", reason: "status not available" }, paper: { support: "unknown", reason: "status not available" }, error: { support: "unknown", reason: "status not available" }, raw: null }) } }); apps.push(app);
     const response = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" } });
     expect(response.statusCode).toBe(201);
     expect(response.json().payload).toMatchObject({ pin: 2, onMs: 80, offMs: 400, reason: "manager_manual" });

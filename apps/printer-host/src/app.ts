@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import { timingSafeEqual } from "node:crypto";
 import type { PrinterDispatchFailure, PrinterDispatchResult, PrintJob, PrintJobState, PrintJobStateUpdate } from "@event-pos/contracts";
 import { bytesSha256 } from "@event-pos/escpos";
 import { renderEscPos, TransportSendError, type PrinterTransport } from "./transport.js";
@@ -6,7 +7,7 @@ import { AsyncMutex } from "./mutex.js";
 
 export type StateSink = { update(jobId: string, update: PrintJobStateUpdate): Promise<void> };
 export type PrinterHostLogEvent = Record<string, unknown> & { level: "info" | "warn" | "error"; event: string; message: string };
-export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink; log?: (event: PrinterHostLogEvent) => void; statusPollIntervalMs?: number };
+export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: StateSink; log?: (event: PrinterHostLogEvent) => void; statusPollIntervalMs?: number; authToken?: string };
 type JobRecord = { job: PrintJob; result?: PrinterDispatchResult; failure?: PrinterDispatchFailure };
 
 function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
@@ -20,6 +21,11 @@ function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
 
 export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   const app = Fastify({ logger: false }); const jobs = new Map<string, JobRecord>(); const printerMutex = new AsyncMutex();
+  if (options.authToken) app.addHook("onRequest", async (request, reply) => {
+    const provided = request.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+    const expectedBytes = Buffer.from(options.authToken!); const providedBytes = Buffer.from(provided ?? "");
+    if (providedBytes.length !== expectedBytes.length || !timingSafeEqual(providedBytes, expectedBytes)) return reply.code(401).send({ error: "unauthorized" });
+  });
   const log = options.log ?? (() => undefined);
   const statusPollIntervalMs = options.statusPollIntervalMs ?? 5_000;
   let latestStatus: { observation: import("@event-pos/contracts").PrinterStatusObservation; checkedAt: number } | undefined;
@@ -70,12 +76,17 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
       const status = await currentStatus();
       const reachable = status.reachable.support === "supported" && status.reachable.value;
       const explicitlyOffline = status.online.support === "supported" && !status.online.value;
+      const coverOpen = status.coverOpen.support === "supported" && status.coverOpen.value;
       const paperEmpty = status.paper.support === "supported" && status.paper.value === "empty";
       // RAW spooler may prove physical reachability without providing online,
       // cover or paper sensors. Keep those capabilities unknown, but permit one
       // dispatch attempt while no measured capability explicitly blocks it.
-      const ready = reachable && !explicitlyOffline && !paperEmpty;
-      if (!ready) return reject(reply, job, { code: status.paper.support === "supported" && status.paper.value === "empty" ? "PAPER_OUT" : "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+      const ready = reachable && !explicitlyOffline && !coverOpen && !paperEmpty;
+      if (!ready) {
+        const code = coverOpen ? "PRINTER_COVER_OPEN" : paperEmpty ? "PAPER_OUT" : "STATUS_UNKNOWN";
+        const message = coverOpen ? "プリンターカバーが開いているため送信できません" : paperEmpty ? "用紙切れのため送信できません" : "プリンター状態を送信可能と確認できません";
+        return reject(reply, job, { code, message, acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+      }
       job = await setState(job, "sending");
       log({ level: "info", event: "dispatch_started", message: "PrinterTransportへ送信を開始します", jobId: job.jobId, documentType: job.documentType, bytesSha256: hash, payloadLength: bytes.length });
       try {

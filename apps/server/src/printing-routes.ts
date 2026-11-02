@@ -70,6 +70,9 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     if (!options.drawerEnabled) return error(reply, 409, "DRAWER_NOT_ACCEPTED", "ドロアー実機受入が完了するまで駆動できません");
     const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
     if (!actorId || role !== "manager") return error(reply, role ? 403 : 401, "DRAWER_MANAGER_REQUIRED", "責任者権限が必要です");
+    if (!options.queue || !options.printerStatus) return error(reply, 409, "PRINTER_HOST_NOT_CONFIGURED", "プリンターとドロアーを操作するPrinterHostが設定されていません");
+    const printer = await options.printerStatus().catch(() => null);
+    if (!printer || printer.reachable.support !== "supported" || printer.reachable.value !== true) return error(reply, 503, "PRINTER_HOST_UNAVAILABLE", "PrinterHostへ接続できません。接続を確認してから再試行してください");
     const profile = request.body?.profile ?? "approved";
     const pulse = drawerPulseProfiles[profile];
     if (!pulse) return error(reply, 400, "DRAWER_PROFILE_INVALID", "未許可のドロアーパルスプロファイルです");

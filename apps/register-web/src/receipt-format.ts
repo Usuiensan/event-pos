@@ -124,7 +124,7 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
     "    body:",
     '      - text: "{{name}}"',
   );
-  if (settings.printJan) body.push('      - text: "JAN {{productCode}}"');
+  if (settings.printJan) body.push('      - text: "品番 {{productCode}}"');
   body.push(
     '      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }',
     "  - rule: single",

@@ -63,11 +63,11 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .panel-switch:active { transform: none; box-shadow: none; background: #1e40af; }
 .pos-screen.register-shell { box-sizing: border-box; width: 100vw; height: 100vh; height: 100svh; max-width: none; min-height: 0; margin: 0; padding: 18px; overflow: hidden; grid-template-rows: 72px minmax(0, 1fr) auto; }
 .pos-screen.register-shell header { height: 72px; overflow: hidden; } .pos-screen.register-shell h2 { font-size: 24px; } .pos-screen.register-shell button, .pos-screen.register-shell select, .pos-screen.register-shell input { font-family: inherit; }
-.register-header { display: grid; grid-template-columns: 20rem minmax(0, 1fr) 15rem; align-items: center; gap: 1rem; padding: .55rem .8rem; box-sizing: border-box; border: 1px solid #94a3b8; background: #f8fafc; }
-.header-actions { display: flex; align-items: stretch; gap: .55rem; } .header-actions button { flex: 1; padding: .7rem .6rem; white-space: nowrap; }
+.register-header { display: grid; grid-template-columns: 20rem minmax(0, 1fr) 19rem; align-items: center; gap: 1rem; padding: .55rem .8rem; box-sizing: border-box; border: 1px solid #94a3b8; background: #f8fafc; }
+.header-actions { display: flex; align-items: center; gap: .55rem; } .header-actions button { flex: 1; height: 48px; min-height: 48px; box-sizing: border-box; padding: .35rem .6rem; white-space: nowrap; }
 .operation-guide { font-size: 16px; font-weight: 400; line-height: 1.45; }
-.responsible-actions { display: flex; justify-content: end; gap: .55rem; } .signed-in-user { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; font-size: 16px; font-weight: 400; } .sign-out-button { min-width: 9rem; padding: .45rem .7rem; border: 1px solid #64748b; background: #e2e8f0; color: #1e293b; cursor: pointer; } .drawer-button { min-width: 8rem; min-height: 3rem; padding: .35rem .7rem; border: 2px solid #b45309; background: #fef3c7; color: #78350f; font-weight: 700; } .sign-out-button span { display: block; width: 100%; text-align: center; } .sign-out-button span:first-child { font-weight: 700; }
-.pos-screen.register-shell .product-grid { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 108px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; } .pos-screen.register-shell .product-grid button { min-width: 0; font-size: 18px; touch-action: pan-y; } .pos-screen.register-shell .product-grid span { font-size: 22px; } .pos-screen.register-shell .detail-panel { min-height: 0; height: 100%; } .pos-screen.register-shell .cart { min-height: 130px; }
+.responsible-actions { display: flex; align-items: center; justify-content: end; gap: .55rem; } .signed-in-user { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; font-size: 16px; font-weight: 400; } .sign-out-button { min-width: 9rem; padding: .45rem .7rem; border: 1px solid #64748b; background: #e2e8f0; color: #1e293b; cursor: pointer; } .drawer-button { min-width: 9rem; height: 48px; min-height: 48px; box-sizing: border-box; padding: .35rem .5rem; white-space: nowrap; border: 2px solid #b45309; background: #fef3c7; color: #78350f; font-weight: 700; } .sign-out-button span { display: block; width: 100%; text-align: center; } .sign-out-button span:first-child { font-weight: 700; }
+.pos-screen.register-shell .product-grid { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 128px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; } .pos-screen.register-shell .product-grid button { min-width: 0; font-size: 18px; touch-action: pan-y; } .pos-screen.register-shell .product-grid span { font-size: 22px; } .pos-screen.register-shell .detail-panel { min-height: 0; height: 100%; } .pos-screen.register-shell .cart { min-height: 130px; }
 .pos-screen.register-shell .detail-view { height: 100%; }
 .product-thumbnail { width: 100%; min-height: 0; height: 56px; object-fit: contain; border-radius: .35rem; }
 .line-highlight { position: relative; }
@@ -352,6 +352,13 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 
 .lifecycle-header .status-online { margin-left: auto; color: #7ee2a8; }
 .lifecycle-header .status-offline { margin-left: auto; color: #ff9b9b; }
+.training-mode .lifecycle-header { background: #134e4a; }
+.training-mode-badge { padding: .3rem .65rem; border: 1px solid #a7f3d0; border-radius: 999px; background: #d1fae5; color: #064e3b; font-size: .85rem; font-weight: 900; }
+.training-sign-in-hint { color: #047857; font-weight: 900; }
+.training-mode .training-open-action { border: 2px solid #047857; border-radius: .6rem; background: #059669; color: #fff; box-shadow: 0 .25rem 0 #065f46; font-weight: 900; }
+.training-mode .training-open-action:hover:not(:disabled) { background: #047857; }
+.training-mode .training-open-action:focus-visible { outline: 4px solid #facc15; outline-offset: 3px; }
+.training-mode .training-open-action:disabled { border-color: #6b7280; background: #9ca3af; box-shadow: none; color: #fff; }
 .lifecycle-top-link { padding: .45rem .75rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: white; color: #17212b; font-weight: 700; text-decoration: none; white-space: nowrap; }
 
 .lifecycle-card,
@@ -419,7 +426,7 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .mini-cart-item-detail { padding-left: 1.8rem; }
 .product-picker > .product-grid button { grid-template-rows: auto minmax(0, 1fr) auto; align-content: stretch; }
 .product-card-badge { justify-self: start; padding: .12rem .4rem; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: .72rem !important; font-weight: 800; line-height: 1.3; }
-.product-card-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-card-name { display: -webkit-box; min-width: 0; overflow: hidden; overflow-wrap: anywhere; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 18px; line-height: 1.15; }
 .product-card-price { color: #0f3f75 !important; font-size: 1.2rem !important; font-weight: 900; text-align: right; }
 .quick .product-card-badge { background: #fef3c7; color: #92400e; }
 .staff-bottom { grid-template-columns: minmax(0, 1fr) minmax(500px, 52%); }

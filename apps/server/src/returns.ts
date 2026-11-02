@@ -7,7 +7,21 @@ import { renderReceipt } from "./receipt-store.js";
 type ExternalResult = "completed" | "failed" | "unknown";
 type ReturnInput = { originalTransactionId: string; cashSessionId: string; actorId: string; terminalId: string; reason: string; idempotencyKey: string; externalResults?: Record<string, ExternalResult> };
 export function searchReturnableTransactions(db: PosDatabase, eventId: string, query: string) {
-  const pattern = `%${query.trim()}%`;
+  const trimmed = query.trim();
+  const barcode = /^(\d{6})(\d{8})$/.exec(trimmed);
+  if (barcode) {
+    const compactDate = barcode[1]!; const publicReference = barcode[2]!;
+    const businessDate = `20${compactDate.slice(0, 2)}-${compactDate.slice(2, 4)}-${compactDate.slice(4, 6)}`;
+    const parsedDate = new Date(`${businessDate}T00:00:00.000Z`);
+    if (!Number.isNaN(parsedDate.valueOf()) && parsedDate.toISOString().slice(0, 10) === businessDate) {
+      return db.prepare(`SELECT t.transaction_id AS transactionId,t.public_reference_display AS publicReferenceDisplay,t.register_id AS registerId,t.staff_id AS staffId,t.total_yen AS totalYen,t.payment_kind AS paymentKind,t.created_at AS createdAt,
+        CASE WHEN r.transaction_id IS NULL THEN 1 ELSE 0 END AS returnable,r.transaction_id AS returnTransactionId
+        FROM transactions t JOIN cash_sessions cs ON cs.session_id=t.session_id LEFT JOIN transactions r ON r.original_transaction_id=t.transaction_id AND r.type='return'
+        WHERE t.event_id=? AND t.type='sale' AND cs.business_date=? AND t.public_reference=?
+        ORDER BY t.created_at DESC LIMIT 20`).all(eventId, businessDate, publicReference).map((row) => ({ ...row as Record<string, unknown>, returnable: Boolean((row as { returnable: number }).returnable) }));
+    }
+  }
+  const pattern = `%${trimmed}%`;
   return db.prepare(`SELECT t.transaction_id AS transactionId,t.public_reference_display AS publicReferenceDisplay,t.register_id AS registerId,t.staff_id AS staffId,t.total_yen AS totalYen,t.payment_kind AS paymentKind,t.created_at AS createdAt,
     CASE WHEN r.transaction_id IS NULL THEN 1 ELSE 0 END AS returnable,r.transaction_id AS returnTransactionId
     FROM transactions t LEFT JOIN transactions r ON r.original_transaction_id=t.transaction_id AND r.type='return'

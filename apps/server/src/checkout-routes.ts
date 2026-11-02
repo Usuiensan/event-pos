@@ -50,6 +50,7 @@ function sendError(reply: FastifyReply, error: unknown, database?: PosDatabase, 
     }
     return reply.code(error.status).send({ error: { code: error.code, message: error.message, details, requestId: reply.request.id } });
   }
+  reply.log.error({ err: error, requestId: reply.request.id, draftId }, "CHECKOUT_INTERNAL_ERROR");
   return reply.code(500).send({ error: { code: "CHECKOUT_INTERNAL_ERROR", message: "会計処理中に問題が発生しました。会計は確定していないため、画面を閉じずに責任者へ連絡してください。", details: {}, requestId: reply.request.id } });
 }
 

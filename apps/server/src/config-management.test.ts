@@ -57,6 +57,17 @@ async function managementFixture() {
 }
 
 describe("管理画面設定のGit確定", () => {
+  it("商品設定と営業状態を同じ応答スナップショットで返す", async () => {
+    const { app, headers } = await managementFixture();
+    const before = await app.inject({ method: "GET", url: "/api/v1/events/demo-event-large/management-config", headers });
+    expect(before.statusCode).toBe(200);
+    expect(before.json().businessSession).toBeNull();
+    const opened = await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers, payload: { eventId: "demo-event-large", businessDate: "2026-10-25", terminalId: "management-console" } });
+    expect(opened.statusCode).toBe(201);
+    const after = await app.inject({ method: "GET", url: "/api/v1/events/demo-event-large/management-config", headers });
+    expect(after.json().businessSession).toMatchObject({ businessSessionId: opened.json().businessSessionId, state: "open" });
+  });
+
   it("対象イベント設定の手編集と画面編集を同じコミットへまとめ、設定外は残す", async () => {
     const { repository, configDirectory, otherConfigDirectory, app, headers, catalog } = await managementFixture();
     const gs1Path = join(configDirectory, "gs1-company-prefixes-jp.yaml");
