@@ -10,11 +10,11 @@ const snapshot: ReceiptSnapshot = {
 };
 
 describe("receipt template", () => {
-  it("TM-T70II実紙面に合わせてcut前を8行送り、旧v1を識別できる", () => {
-    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(7);
-    expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feedLines: 8");
-    expect(DEFAULT_RECEIPT_TEMPLATE).toContain('text: "JAN {{productCode}}"');
-    expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3).not.toContain('text: "JAN {{productCode}}"');
+  it("TM-T70II実紙面に合わせた返品バーコード余白と旧版を識別できる", () => {
+    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(8);
+    expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feed: 4");
+    expect(DEFAULT_RECEIPT_TEMPLATE).toContain('text: "品番 {{productCode}}"');
+    expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3).not.toContain('text: "品番 {{productCode}}"');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4).toContain('left: "単{{unitPriceFormatted}} × {{quantity}}"');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5).not.toContain("barcode:");
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2).toContain('  - row: { left: "値引", right: "{{discountTotalFormatted}}" }');
@@ -24,7 +24,7 @@ describe("receipt template", () => {
   it("同じsnapshotから同じASTと人間向けpreviewを生成する", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot));
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("新刊");
-    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("JAN 00000001");
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("品番 00000001");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[ITF: 26080210000015]");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).not.toContain("値引");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, { ...snapshot, discountTotalYen: 1, discountTotalFormatted: "¥1", hasDiscounts: true }).humanReadable).toContain("値引");

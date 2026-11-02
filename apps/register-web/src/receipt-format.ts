@@ -79,7 +79,8 @@ export function parseReceiptFormatSettings(sourceText: string): ParsedReceiptFor
   const finishIndex = items.length - 1;
   if (!itemType(items[finishIndex] ?? []).startsWith("finish:")) return null;
   let footerIndex = finishIndex - 1;
-  if (itemType(items[footerIndex] ?? []).startsWith("barcode:")) footerIndex -= 1;
+  while (footerIndex >= 0 && ["align: center", "feed: 2", "feed: 4", "align: left"].includes(itemType(items[footerIndex]!))) footerIndex -= 1;
+  if (footerIndex >= 0 && itemType(items[footerIndex] ?? []).startsWith("barcode:")) footerIndex -= 1;
   const footerLines: string[] = [];
   while (footerIndex >= 0 && itemType(items[footerIndex]!).startsWith("text:")) {
     const value = textValue(items[footerIndex]!);
@@ -93,7 +94,7 @@ export function parseReceiptFormatSettings(sourceText: string): ParsedReceiptFor
     if (assetId === null) return null;
     footerAssetId = assetId;
   }
-  return { headerText, footerText: footerLines.join("\n"), headerAssetId, footerAssetId, printJan: sourceText.includes('text: "JAN {{productCode}}"') };
+  return { headerText, footerText: footerLines.join("\n"), headerAssetId, footerAssetId, printJan: sourceText.includes('text: "品番 {{productCode}}"') || sourceText.includes('text: "JAN {{productCode}}"') };
 }
 
 export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
@@ -114,11 +115,10 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
     "    body:",
     "      - emphasis: { bold: true, underline: false, invert: true }",
     "      - text: \"{{reprintLabel}} #{{reprintNo}}\"",
-    "      - text: \"元受付番号 {{originalReceiptNumber}}\"",
+    "      - text: \"元 {{originalReceiptNumber}}\"",
     "      - emphasis: { bold: false, underline: false, invert: false }",
-    '  - row: { left: "受付番号", right: "{{publicReference}}" }',
-    '  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }',
-    '  - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }',
+    '  - text: "{{confirmedAtPrinted}}　({{publicReference}})"',
+    '  - text: "レジ{{registerNo}}　担当{{staffPrintLabel}}"',
     "  - rule: single",
     "  - each: lines",
     "    body:",
@@ -126,7 +126,7 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   );
   if (settings.printJan) body.push('      - text: "品番 {{productCode}}"');
   body.push(
-    '      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }',
+    '      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }',
     "  - rule: single",
     "  - if: hasDiscounts",
     "    body:",
@@ -147,8 +147,14 @@ export function buildReceiptTemplate(settings: ReceiptFormatSettings): string {
   );
   if (settings.footerAsset) body.push(`  - image: { assetId: ${yamlText(settings.footerAsset.assetId)}, widthDots: ${settings.footerAsset.widthDots} }`);
   if (settings.footerText) body.push(...settings.footerText.replace(/\r\n?/g, "\n").split("\n").map((line) => `  - text: ${yamlText(line)}`));
-  body.push('  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }');
-  body.push("  - finish: { feedLines: 8, cutMode: partial }");
+  body.push(
+    "  - align: center",
+    "  - feed: 2",
+    '  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 128, hri: none }',
+    "  - feed: 4",
+    "  - align: left",
+    "  - finish: { feedLines: 2, cutMode: partial }",
+  );
   return `${body.join("\n")}\n`;
 }
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { buildReceiptTemplate, parseReceiptFormatSettings, sha256Fallback } from "./receipt-format.js";
 
-// DEFAULT_RECEIPT_TEMPLATE v6 と簡易設定のデフォルト生成結果を同期するための期待値。
-const DEFAULT_RECEIPT_TEMPLATE_V6 = `schemaVersion: 1
+// DEFAULT_RECEIPT_TEMPLATE v8 と簡易設定のデフォルト生成結果を同期するための期待値。
+const DEFAULT_RECEIPT_TEMPLATE_V8 = `schemaVersion: 1
 body:
   - reset: true
   - align: center
@@ -16,17 +16,16 @@ body:
     body:
       - emphasis: { bold: true, underline: false, invert: true }
       - text: "{{reprintLabel}} #{{reprintNo}}"
-      - text: "元受付番号 {{originalReceiptNumber}}"
+      - text: "元 {{originalReceiptNumber}}"
       - emphasis: { bold: false, underline: false, invert: false }
-  - row: { left: "受付番号", right: "{{publicReference}}" }
-  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }
-  - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }
+  - text: "{{confirmedAtPrinted}}　({{publicReference}})"
+  - text: "レジ{{registerNo}}　担当{{staffPrintLabel}}"
   - rule: single
   - each: lines
     body:
       - text: "{{name}}"
-      - text: "JAN {{productCode}}"
-      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+      - text: "品番 {{productCode}}"
+      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - if: hasDiscounts
     body:
@@ -46,20 +45,24 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
-  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }
-  - finish: { feedLines: 8, cutMode: partial }
+  - align: center
+  - feed: 2
+  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 128, hri: none }
+  - feed: 4
+  - align: left
+  - finish: { feedLines: 2, cutMode: partial }
 `;
 
 describe("レシート簡易フォーマット", () => {
-  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v6 と一致する", () => {
+  it("デフォルト設定は DEFAULT_RECEIPT_TEMPLATE v8 と一致する", () => {
     expect(buildReceiptTemplate({
       headerText: "{{eventName}}\n{{circleName}}",
       footerText: "{{footer}}\n{{returnPolicy}}",
       printJan: true,
-    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V6);
+    })).toBe(DEFAULT_RECEIPT_TEMPLATE_V8);
   });
 
-  it("ヘッダー・フッター画像と文字、JAN印字をテンプレートへ反映する", () => {
+  it("ヘッダー・フッター画像と文字、品番印字をテンプレートへ反映する", () => {
     const template = buildReceiptTemplate({
       headerText: "{{eventName}}\n{{circleName}}",
       footerText: "ありがとうございました",
@@ -70,12 +73,12 @@ describe("レシート簡易フォーマット", () => {
     expect(template).toContain('assetId: "header-logo"');
     expect(template).toContain('text: "{{eventName}}"');
     expect(template).toContain('text: "{{circleName}}"');
-    expect(template).toContain('text: "JAN {{productCode}}"');
+    expect(template).toContain('text: "品番 {{productCode}}"');
     expect(template).toContain('assetId: "footer-logo"');
     expect(template).toContain('text: "ありがとうございました"');
   });
 
-  it("JAN印字を切るとJAN行を出さない", () => {
+  it("品番印字を切ると品番行を出さない", () => {
     expect(buildReceiptTemplate({ headerText: "", footerText: "", printJan: false })).not.toContain("{{productCode}}");
   });
 
@@ -83,8 +86,8 @@ describe("レシート簡易フォーマット", () => {
     expect(parseReceiptFormatSettings(buildReceiptTemplate({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", printJan: true }))).toEqual({ headerText: "ヘッダー1\nヘッダー2", footerText: "フッター1\nフッター2", headerAssetId: "", footerAssetId: "", printJan: true });
   });
 
-  it("DEFAULT_RECEIPT_TEMPLATE v6 を簡易設定へ戻せる", () => {
-    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V6)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
+  it("DEFAULT_RECEIPT_TEMPLATE v8 を簡易設定へ戻せる", () => {
+    expect(parseReceiptFormatSettings(DEFAULT_RECEIPT_TEMPLATE_V8)).toMatchObject({ headerText: "{{eventName}}\n{{circleName}}", footerText: "{{footer}}\n{{returnPolicy}}", printJan: true });
   });
 
   it("SHA-256フォールバックはブロック境界を含めNode実装と一致する", () => {

@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, parseBarcode, taxCategoryLabel, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
+import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, parseBarcode, validatePublicReference, taxCategoryLabel, type EventCatalog, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
 import { createSpeechPlayer, playOperationSound, previewSystemErrorSound, speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakProductPrice, speakReceiptReady, speakSubtotal, stopOperationSound, type SpeechPlayer } from "./speech.js";
 import { demoCatalog } from "./demo-catalog.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
@@ -595,7 +595,17 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const classification = classifyScan(raw);
     if (classification.kind === "parked-draft") { if (!classification.parkReference) return showOperationError("保留受付番号が空です。"); resumeParkedDraft(classification.parkReference); return; }
     if (classification.kind === "hold") { if (!classification.reference) return showOperationError("取り置き受付番号が空です。"); setHoldSearchReference(classification.reference); setShowHoldOperations(true); return; }
-    if (classification.kind === "transaction") { if (!classification.reference) return showOperationError("取引受付番号が空です。"); setJournalReference(classification.reference); setJournalDate(classification.businessDate); setShowJournal(true); return; }
+    if (classification.kind === "transaction") {
+      if (!classification.reference) return showOperationError("取引受付番号が空です。");
+      if (classification.businessDate && /^\d{14}$/.test(raw.trim()) && validatePublicReference(classification.reference)) {
+        const year = Number(classification.businessDate.slice(0, 4)); const month = Number(classification.businessDate.slice(5, 7)); const day = Number(classification.businessDate.slice(8, 10));
+        const parsedDate = new Date(Date.UTC(year, month - 1, day));
+        if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
+          setReturnReference(raw.trim()); setShowReturnOperations(true); setScanNotice("返品バーコードを読み取りました。元売上を検索します。"); return;
+        }
+      }
+      setJournalReference(classification.reference); setJournalDate(classification.businessDate); setShowJournal(true); return;
+    }
     const parsed = parseBarcode(raw);
     if (parsed.kind === "payment-slip" && parsed.paymentSlip) {
       setScanNotice("払込票を確認しました。リマインダーレシートを発行します（収納処理は行いません）。");

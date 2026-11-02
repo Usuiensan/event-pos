@@ -18,7 +18,7 @@ TM-T70IIを接続したMac上で、リポジトリ直下の`.env`に`PRINTER_HOS
 openssl rand -hex 32
 ```
 
-出力を`.env`の`PRINTER_HOST_TOKEN`へ設定してから起動します。
+出力を`.env`の`PRINTER_HOST_TOKEN`へ設定し、`PRINTER_HOST_BIND=0.0.0.0`としてから起動します。ローカルMacだけで使う場合は`127.0.0.1`のままにできます。
 
 ```sh
 pnpm --filter @event-pos/printer-host start:macos-usb

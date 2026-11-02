@@ -38,11 +38,11 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
   const backend = rawBackend ?? "fake";
   if (backend === "bridge" && !env.PRINTER_BRIDGE_URL) throw new Error("bridgeにはPRINTER_BRIDGE_URLが必要です");
   if (!(["fake", "linux-raw", "macos-usb", "windows-spooler", "bridge"] as const).includes(backend as PrinterBackend)) throw new Error(`未対応のPRINTER_BACKENDです: ${backend}`);
-  if (backend === "macos-usb" && (!env.PRINTER_USB_VENDOR_ID || !env.PRINTER_USB_PRODUCT_ID)) throw new Error("macos-usbにはPRINTER_USB_VENDOR_IDとPRINTER_USB_PRODUCT_IDが必要です");
   const selectedBackend = backend as PrinterBackend;
   const common = {
     backend: selectedBackend,
-    host: env.HOST ?? "127.0.0.1",
+    host: env.PRINTER_HOST_BIND ?? env.HOST ?? "127.0.0.1",
+    ...(env.PRINTER_HOST_TOKEN ? { printerHostToken: env.PRINTER_HOST_TOKEN } : {}),
     port: positiveInteger(env.PORT, 4318, "PORT", 65535),
     statusTimeoutMs: positiveInteger(env.PRINTER_STATUS_TIMEOUT_MS, 1_000, "PRINTER_STATUS_TIMEOUT_MS", 60_000),
     ...(env.PRINTER_DRAWER_OPEN_HIGH === "1" || env.PRINTER_DRAWER_OPEN_HIGH === "true" ? { drawerOpenHigh: true } : env.PRINTER_DRAWER_OPEN_HIGH === "0" || env.PRINTER_DRAWER_OPEN_HIGH === "false" ? { drawerOpenHigh: false } : {}),
@@ -58,7 +58,14 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
     if (statusBackend === "opos" && !env.PRINTER_OPOS_LOGICAL_NAME) throw new Error("PRINTER_STATUS_BACKEND=oposにはPRINTER_OPOS_LOGICAL_NAMEが必要です");
     return { ...common, printerName: env.PRINTER_NAME, windowsStatusBackend: statusBackend, ...(env.PRINTER_OPOS_LOGICAL_NAME ? { oposLogicalName: env.PRINTER_OPOS_LOGICAL_NAME } : {}), ...(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS ? { oposClaimTimeoutMs: positiveInteger(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS, 3_000, "PRINTER_OPOS_CLAIM_TIMEOUT_MS", 60_000) } : {}), ...(env.WINDOWS_RAW_PRINT_SCRIPT ? { windowsRawPrintScript: env.WINDOWS_RAW_PRINT_SCRIPT } : {}) };
   }
-  if (selectedBackend === "macos-usb") return { ...common, printerUsbVendorId: Number(env.PRINTER_USB_VENDOR_ID), printerUsbProductId: Number(env.PRINTER_USB_PRODUCT_ID), ...(env.PRINTER_USB_SERIAL_NUMBER ? { printerUsbSerialNumber: env.PRINTER_USB_SERIAL_NUMBER } : {}), ...(env.PRINTER_HOST_TOKEN ? { printerHostToken: env.PRINTER_HOST_TOKEN } : {}) };
+  if (selectedBackend === "macos-usb") {
+    const host = env.PRINTER_HOST_BIND ?? env.HOST ?? "127.0.0.1";
+    if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1" && !env.PRINTER_HOST_TOKEN) throw new Error("ネットワーク公開するmacOS USB PrinterHostにはPRINTER_HOST_TOKENが必要です");
+    const vendorId = Number(env.PRINTER_USB_VENDOR_ID ?? "0x04b8");
+    const productId = Number(env.PRINTER_USB_PRODUCT_ID ?? "0x0202");
+    if (![vendorId, productId].every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff)) throw new Error("USB vendor/product IDは0〜65535の整数で指定してください");
+    return { ...common, printerUsbVendorId: vendorId, printerUsbProductId: productId, ...(env.PRINTER_USB_SERIAL_NUMBER ? { printerUsbSerialNumber: env.PRINTER_USB_SERIAL_NUMBER } : {}) };
+  }
   if (selectedBackend === "bridge") return { ...common, printerBridgeUrl: env.PRINTER_BRIDGE_URL!, ...(env.PRINTER_BRIDGE_TOKEN ? { printerBridgeToken: env.PRINTER_BRIDGE_TOKEN } : {}) };
   return common;
 }
