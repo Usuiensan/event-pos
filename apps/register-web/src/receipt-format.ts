@@ -79,8 +79,7 @@ export function parseReceiptFormatSettings(sourceText: string): ParsedReceiptFor
   const finishIndex = items.length - 1;
   if (!itemType(items[finishIndex] ?? []).startsWith("finish:")) return null;
   let footerIndex = finishIndex - 1;
-  while (footerIndex >= 0 && ["align: center", "feed: 2", "feed: 4", "align: left"].includes(itemType(items[footerIndex]!))) footerIndex -= 1;
-  if (footerIndex >= 0 && itemType(items[footerIndex] ?? []).startsWith("barcode:")) footerIndex -= 1;
+  while (footerIndex >= 0 && (["align: center", "feed: 2", "feed: 4", "align: left"].includes(itemType(items[footerIndex]!)) || itemType(items[footerIndex]!).startsWith("barcode:"))) footerIndex -= 1;
   const footerLines: string[] = [];
   while (footerIndex >= 0 && itemType(items[footerIndex]!).startsWith("text:")) {
     const value = textValue(items[footerIndex]!);

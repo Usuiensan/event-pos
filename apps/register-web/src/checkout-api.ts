@@ -115,7 +115,7 @@ const versionHeaders = (version: number): HeadersInit => ({ "if-match": String(v
 const body = (value: unknown): string => JSON.stringify(value);
 
 export const checkoutApi = {
-  getManagementConfig: (eventId: string) => request<{ catalog: unknown; businessOpen: boolean }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`),
+  getManagementConfig: (eventId: string) => request<{ catalog: unknown; businessOpen: boolean; businessSession: BusinessSessionDto | null }>(`/api/v1/events/${encodeURIComponent(eventId)}/management-config`),
   getGs1CompanyPrefixes: (eventId: string) => request<{ registry: Gs1CompanyPrefixRegistry }>(`/api/v1/events/${encodeURIComponent(eventId)}/gs1-company-prefixes`),
   getIsdnProduct: (code: string) => request<{ info: IsdnProductInfo }>(`/api/v1/isdn/${encodeURIComponent(code)}`),
   getIsbnProduct: (code: string) => request<{ info: import("@event-pos/contracts").IsbnProductInfo }>(`/api/v1/isbn/${encodeURIComponent(code)}`),
