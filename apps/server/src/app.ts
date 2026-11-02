@@ -19,6 +19,8 @@ import { synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
 import { registerConfigManagementRoutes } from "./config-management.js";
+import { registerServerFeatureRoutes } from "./server-features.js";
+import { registerJournalRoutes } from "./journal.js";
 
 export type { PrinterHost } from "./print-queue.js";
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
@@ -58,7 +60,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(503).send({ status: "not_ready", database: "error" });
     }
   });
-  app.get("/api/v1/info", async () => ({ name: "event-pos", service: "server", schemaVersion: 1, drawerEnabled: options.drawerEnabled ?? false }));
+  app.get("/api/v1/info", async () => ({ name: "ぽすりん", service: "server", schemaVersion: 1, drawerEnabled: options.drawerEnabled ?? false }));
   app.post<{ Body: { errorId?: string; content?: string } }>("/api/v1/error-reports", async (request, reply) => {
     const errorId = request.body?.errorId;
     const content = request.body?.content;
@@ -78,7 +80,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const dueLabel = slip.dueDate.kind === "date" ? `${slip.dueDate.isoDate.slice(0, 4)}年${Number(slip.dueDate.isoDate.slice(5, 7))}月${Number(slip.dueDate.isoDate.slice(8, 10))}日` : "設定なし";
     const lines = ["払込票リマインダー", "これは領収書ではありません。", "", `支払期限：${dueLabel}`, `企業番号：${slip.gs1CompanyPrefix7}`, `請求金額：${slip.amount.toLocaleString("ja-JP")}円`];
     if (slip.dueDate.kind === "not-specified") lines.push("紙面に記載された期限を確認してください。", "カレンダー登録は行えません。");
-    const document = { schemaVersion: 1 as const, contentWidthDots: 384 as const, physicalWidthDots: 416 as const, nodes: [{ kind: "reset" as const }, { kind: "align" as const, value: "center" as const }, { kind: "emphasis" as const, bold: true, underline: false, invert: false }, { kind: "text" as const, value: "払込票リマインダー" }, { kind: "emphasis" as const, bold: false, underline: false, invert: false }, { kind: "align" as const, value: "left" as const }, { kind: "rule" as const, style: "single" as const }, ...lines.slice(1).map((value) => ({ kind: "text" as const, value })), { kind: "feed" as const, lines: 3 }, { kind: "cut" as const, mode: "partial" as const }] };
+    const document = { schemaVersion: 1 as const, contentWidthDots: 384 as const, physicalWidthDots: 416 as const, nodes: [{ kind: "reset" as const }, { kind: "align" as const, value: "center" as const }, { kind: "emphasis" as const, bold: true, underline: false, invert: false }, { kind: "text" as const, value: "払込票リマインダー" }, { kind: "emphasis" as const, bold: false, underline: false, invert: false }, { kind: "align" as const, value: "left" as const }, { kind: "rule" as const, style: "single" as const }, ...lines.slice(1).map((value) => ({ kind: "text" as const, value })), { kind: "feed" as const, lines: 5 }, { kind: "cut" as const, mode: "partial" as const }] };
     const bytes = receiptDocumentToEscPos(document); const now = new Date().toISOString(); const jobId = `payment-slip-reminder:${randomUUID()}`;
     const job = createPrintJob(options.database, { jobId, transactionId: `payment-slip-reminder:${randomUUID()}`, printerId: request.body?.terminalId ?? "receipt-1", documentType: "payment-slip-reminder", payload: { lines, escposBase64: Buffer.from(bytes).toString("base64"), paymentSlip: { issuerCode: slip.issuerCode, dueDate: slip.dueDate, amount: slip.amount, stampFlag: slip.stampFlag } }, createdAt: now, source: "event-pos", rendererVersion: "payment-slip-reminder-v1", bytesSha256: bytesSha256(bytes), expectedBytesLength: bytes.length });
     printQueue?.trigger();
@@ -248,6 +250,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
+  registerServerFeatureRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}) });
+  registerJournalRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
   registerPrintingRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });

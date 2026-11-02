@@ -35,7 +35,9 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 9),
       cash_session_id TEXT,
       version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
-      state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','completed','canceled')),
+      state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
+      park_reference TEXT,
+      parked_at TEXT,
       completed_transaction_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -254,6 +256,30 @@ export function applyCheckoutSchema(db: PosDatabase): void {
     );
   `);
 
+  const saleDraftTable = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sale_drafts'").get() as { sql?: string } | undefined;
+  if (saleDraftTable?.sql && !saleDraftTable.sql.includes("'parked'")) {
+    db.exec(`
+      PRAGMA foreign_keys=OFF;
+      BEGIN;
+      DROP INDEX IF EXISTS ux_sale_drafts_active_register;
+      CREATE TABLE sale_drafts_migrated (
+        draft_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, register_id TEXT NOT NULL, staff_id TEXT NOT NULL,
+        terminal_id TEXT NOT NULL, business_date TEXT NOT NULL, session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 9),
+        cash_session_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+        state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
+        completed_transaction_id TEXT, park_reference TEXT, parked_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        FOREIGN KEY(cash_session_id) REFERENCES cash_sessions(session_id)
+      );
+      INSERT INTO sale_drafts_migrated(draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,created_at,updated_at)
+        SELECT draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,created_at,updated_at FROM sale_drafts;
+      DROP TABLE sale_drafts;
+      ALTER TABLE sale_drafts_migrated RENAME TO sale_drafts;
+      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
+      COMMIT;
+      PRAGMA foreign_keys=ON;
+    `);
+  }
+
   addColumn(db, "transactions", "event_id TEXT");
   addColumn(db, "transactions", "business_day_id TEXT");
   addColumn(db, "transactions", "public_reference TEXT");
@@ -276,6 +302,15 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   addColumn(db, "sale_draft_lines", "tax_rate_bps INTEGER");
   addColumn(db, "sale_draft_lines", "tax_category TEXT");
   addColumn(db, "sale_draft_lines", "product_options_json TEXT NOT NULL DEFAULT '{}'");
+  addColumn(db, "sale_drafts", "park_reference TEXT");
+  addColumn(db, "sale_drafts", "parked_at TEXT");
+  db.exec(`CREATE TABLE IF NOT EXISTS official_receipts (
+    receipt_id TEXT PRIMARY KEY, transaction_id TEXT NOT NULL, payee_name TEXT, memo TEXT,
+    amount_yen INTEGER NOT NULL, issued_by TEXT NOT NULL, terminal_id TEXT NOT NULL,
+    print_job_id TEXT NOT NULL, created_at TEXT NOT NULL,
+    FOREIGN KEY(transaction_id) REFERENCES transactions(transaction_id),
+    FOREIGN KEY(print_job_id) REFERENCES print_jobs(job_id)
+  );`);
   db.exec(`UPDATE sale_draft_lines
     SET unit_price_incl_tax = COALESCE(unit_price_incl_tax, (SELECT price_incl_tax FROM event_products WHERE product_id = sale_draft_lines.product_id)),
         tax_rate_bps = COALESCE(tax_rate_bps, (SELECT tax_rate_bps FROM event_products WHERE product_id = sale_draft_lines.product_id)),
@@ -286,5 +321,6 @@ export function applyCheckoutSchema(db: PosDatabase): void {
   db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_print_jobs_original_receipt ON print_jobs(transaction_id) WHERE document_type = 'receipt';");
   db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (4, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
   db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (5, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
-  db.prepare("INSERT INTO app_metadata (key, value) VALUES ('schema_version', '5') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+  db.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (6, ?) ON CONFLICT(version) DO NOTHING").run(new Date().toISOString());
+  db.prepare("INSERT INTO app_metadata (key, value) VALUES ('schema_version', '6') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
 }

@@ -19,8 +19,8 @@ describe("canonical receipt IR", () => {
   });
 
   it("Code 128 nodeをcanonical IRへ含める", () => {
-    const source = '!barcode {"height":96,"hri":"below","value":"{BPS111234","width":3}\n';
+    const source = '!barcode {"format":"code128","height":96,"hri":"below","value":"{BPS111234","width":3}\n';
     expect(canonicalizeReceiptDocument(parseCanonicalReceiptIr(source))).toBe(source);
-    expect(() => parseCanonicalReceiptIr('!barcode {"height":96,"hri":"below","value":"日本語","width":3}\n')).toThrow("barcodeの引数が不正");
+    expect(() => parseCanonicalReceiptIr('!barcode {"format":"code128","height":96,"hri":"below","value":"日本語","width":3}\n')).toThrow("barcodeの引数が不正");
   });
 });

@@ -17,7 +17,7 @@ import { assertRegisterOpen } from "./business-store.js";
 import { uuidV7 } from "./ids.js";
 import { recordProvisionalProductScan } from "./provisional-products.js";
 
-export type DraftState = "editing" | "payment" | "finalizing" | "completed" | "canceled";
+export type DraftState = "editing" | "payment" | "finalizing" | "parked" | "completed" | "canceled";
 export type PaymentKind = "cash" | "credit" | "accounts_receivable" | "no_charge";
 export type ProductOptions = Record<string, unknown>;
 export type DraftLineDto = SaleCalculationLineInput & { productId: string; source: "manual" | "scan" | "bundle" | "hold"; bundleInstanceId?: string; productOptions?: ProductOptions };
@@ -191,6 +191,7 @@ export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleD
 
 function assertMutable(db: PosDatabase, row: Record<string, unknown>, expectedVersion: number): void {
   if (Number(row.version) !== expectedVersion) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています", { latestVersion: Number(row.version), draftId: String(row.draft_id) });
+  if (row.state === "parked") throw new CheckoutError(409, "DRAFT_PARKED", "保留中の販売ドラフトは変更できません", { state: row.state });
   if (row.state !== "editing" && row.state !== "payment") throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは変更できません", { state: row.state });
   const register = assertRegisterOpen(db, String(row.event_id), String(row.register_id));
   if (register.cashSessionId !== row.cash_session_id) throw new CheckoutError(409, "BUSINESS_CLOSED", "この会計を開始した営業は終了しています");
@@ -404,7 +405,9 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
 
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
-    const row = draftRow(db, draftId); assertMutable(db, row, version);
+    const row = draftRow(db, draftId);
+    if (row.state !== "parked") assertMutable(db, row, version);
+    else if (Number(row.version) !== version) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
     bump(db, draftId, version);
     db.prepare("UPDATE sale_drafts SET state='canceled' WHERE draft_id=?").run(draftId);
     return updateProjection(db, draftId);
@@ -448,13 +451,17 @@ export function allocatePublicReference(db: PosDatabase, eventId: string, busine
   }
 }
 
+export function businessDateYYMMDD(businessDate: string): string { return businessDate.slice(2, 4) + businessDate.slice(5, 7) + businessDate.slice(8, 10); }
+
 export function finalizeRequestHash(draftId: string, version: number): string { return createHash("sha256").update(JSON.stringify({ draftId, version })).digest("hex"); }
 
 function formatYen(value: number): string { return `¥${Math.trunc(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`; }
+function formatPlainAmount(value: number): string { return Math.trunc(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
-function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, confirmedAt: string): ReceiptSnapshot {
+function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculation: SaleCalculation, payments: ReturnType<typeof validatedPayments>, transactionId: string, publicReference: string, publicReferenceRaw: string, confirmedAt: string): ReceiptSnapshot {
   const catalogRecord = getCatalog(db, String(row.event_id));
   const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
+  const commonText = catalog?.receiptSettings?.commonText;
   const staffId = String(row.staff_id); const configuredStaff = catalog?.staffMembers?.find((member) => member.staffId === staffId || member.responsibleNumber === staffId || member.displayName === staffId);
   const staffPrintLabel = configuredStaff?.receiptDisplay === "name" ? configuredStaff.displayName : configuredStaff?.responsibleNumber ?? staffId.replace(/^staff-/, "").slice(0, 12);
   const registerNo = String(row.register_id).replace(/^register-/, "").slice(0, 12);
@@ -462,12 +469,12 @@ function receiptSnapshot(db: PosDatabase, row: Record<string, unknown>, calculat
   const change = payments.filter((payment) => payment.changeYen !== undefined).reduce((sum, payment) => sum + (payment.changeYen ?? 0), 0);
   const jst = new Date(Date.parse(confirmedAt) + 9 * 60 * 60 * 1000).toISOString();
   return {
-    schemaVersion: 1, eventName: String(row.event_id), circleName: catalog?.customerWelcome?.circleName ?? String(row.event_id), transactionId, publicReference, transactionType: "sale", originalPublicReference: "", confirmedAt, confirmedAtPrinted: `${jst.slice(0, 10)} ${jst.slice(11, 16)}`, businessDate: String(row.business_date), registerNo, staffPrintLabel,
-    lines: calculation.lines.map((line) => ({ productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, unitPriceFormatted: formatYen(line.priceInclTax), grossYen: line.grossYen, grossFormatted: formatYen(line.grossYen), discountAllocatedYen: line.discountYen, discountFormatted: formatYen(line.discountYen), taxYen: line.taxYen, taxFormatted: formatYen(line.taxYen), netYen: line.netYen, netFormatted: formatYen(line.netYen), taxRateBps: line.taxRate * 100 })),
+    schemaVersion: 1, eventName: String(row.event_id), circleName: catalog?.customerWelcome?.circleName ?? String(row.event_id), transactionId, publicReference, publicReferenceRaw, transactionType: "sale", originalPublicReference: "", confirmedAt, confirmedAtPrinted: `${jst.slice(0, 10)} ${jst.slice(11, 16)}`, businessDate: String(row.business_date), businessDateYYMMDD: businessDateYYMMDD(String(row.business_date)), registerNo, staffPrintLabel,
+    lines: calculation.lines.map((line) => ({ productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, unitPriceFormatted: formatPlainAmount(line.priceInclTax), grossYen: line.grossYen, grossFormatted: formatYen(line.grossYen), discountAllocatedYen: line.discountYen, discountFormatted: formatYen(line.discountYen), taxYen: line.taxYen, taxFormatted: formatYen(line.taxYen), netYen: line.netYen, netFormatted: formatYen(line.netYen), taxRateBps: line.taxRate * 100 })),
     discounts: calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen, amountFormatted: formatYen(discount.amountYen) })),
     taxSummaries: calculation.taxSummaries.map((summary) => ({ taxRateBps: summary.taxRateBps, taxableNetYen: summary.taxableNetYen, taxableNetFormatted: formatYen(summary.taxableNetYen), taxYen: summary.taxAmountYen, taxFormatted: formatYen(summary.taxAmountYen) })),
     payments: payments.map((payment) => ({ methodName: ({ cash: "現金", credit: "クレジット", accounts_receivable: "売掛", no_charge: "無配" } as const)[payment.kind], amountYen: payment.amountYen, amountFormatted: formatYen(payment.amountYen), tenderedYen: payment.tenderedYen ?? null, tenderedFormatted: payment.tenderedYen === undefined ? "" : formatYen(payment.tenderedYen), changeYen: payment.changeYen ?? null, changeFormatted: payment.changeYen === undefined ? "" : formatYen(payment.changeYen) })),
-    subtotalYen: calculation.subtotalYen, subtotalFormatted: formatYen(calculation.subtotalYen), discountTotalYen: calculation.discountTotalYen, discountTotalFormatted: formatYen(calculation.discountTotalYen), taxTotalYen: calculation.taxTotalYen, taxTotalFormatted: formatYen(calculation.taxTotalYen), totalYen: calculation.totalYen, totalFormatted: formatYen(calculation.totalYen), tenderedYen: cashTendered || null, tenderedFormatted: cashTendered ? formatYen(cashTendered) : "", changeYen: change || null, changeFormatted: change ? formatYen(change) : "", isReprint: false, reprintLabel: "", reprintNo: 0, originalReceiptNumber: "", footer: "ありがとうございました", returnPolicy: "返品は責任者へお申し出ください", hasOriginalTransaction: false, hasDiscounts: calculation.discountTotalYen > 0, hasTendered: cashTendered > 0, hasChange: change > 0,
+    subtotalYen: calculation.subtotalYen, subtotalFormatted: formatYen(calculation.subtotalYen), discountTotalYen: calculation.discountTotalYen, discountTotalFormatted: formatYen(calculation.discountTotalYen), taxTotalYen: calculation.taxTotalYen, taxTotalFormatted: formatYen(calculation.taxTotalYen), totalYen: calculation.totalYen, totalFormatted: formatYen(calculation.totalYen), tenderedYen: cashTendered || null, tenderedFormatted: cashTendered ? formatYen(cashTendered) : "", changeYen: change || null, changeFormatted: change ? formatYen(change) : "", isReprint: false, reprintLabel: "", reprintNo: 0, originalReceiptNumber: "", footer: commonText?.footer ?? "ありがとうございました", returnPolicy: commonText?.returnPolicy ?? "返品は責任者へお申し出ください", hasOriginalTransaction: false, hasDiscounts: calculation.discountTotalYen > 0, hasTendered: cashTendered > 0, hasChange: change > 0,
   };
 }
 
@@ -533,7 +540,7 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
       db.prepare("INSERT INTO printer_operations (operation_id,sequence,kind,printer_id,payload_ref,state,available_at,attempt_count,max_attempts,created_at,updated_at) VALUES (?,?,'drawer','receipt-1',?,'pending',?,0,4,?,?)").run(drawerOperationId, drawerSequence, drawerJobId, now, now, now);
     }
     const printJobId = uuidV7();
-    const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, now);
+    const snapshot = receiptSnapshot(db, row, calculation, payments, transactionId, reference.display, reference.raw, now);
     const receipt = renderReceipt(db, snapshot);
     const operationId = uuidV7();
     db.prepare(`INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,template_key,template_version,template_source_sha256,asset_manifest_json,font_id,font_version,font_sha256,finishing_policy_id,finishing_policy_version,receipt_snapshot_json,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty)

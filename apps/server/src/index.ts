@@ -8,6 +8,7 @@ import { buildCatalog } from "@event-pos/catalog-config";
 import { exportEventCatalog } from "@event-pos/contracts";
 import { saveCatalog } from "./db.js";
 import { openBusinessSession, prepareCashSession, synchronizeCatalogStaff } from "./business-store.js";
+import { activateReceiptTemplate, createReceiptTemplateDraft, validateReceiptTemplateVersion, type ReceiptTemplateRecord } from "./receipt-store.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -34,6 +35,21 @@ if (trainingMode) {
   if (!trainingCatalog) throw new Error("トレーニングモードにはPOS_EVENT_CONFIG_DIRまたはPOS_TRAINING_SOURCE_URLが必要です");
   saveCatalog(database, trainingCatalog.eventId, exportEventCatalog(trainingCatalog), "training_seed");
   synchronizeCatalogStaff(database, trainingCatalog);
+  if (trainingSourceUrl) {
+    try {
+      const response = await fetch(`${trainingSourceUrl.replace(/\/$/, "")}/api/v1/receipt-templates`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const { templates } = await response.json() as { templates: ReceiptTemplateRecord[] };
+      const active = templates.filter((template) => template.templateKey === "sale-receipt" && template.status === "active").sort((a, b) => b.version - a.version)[0];
+      if (active) {
+        const draft = createReceiptTemplateDraft(database, { templateKey: "sale-receipt", sourceText: active.sourceText, assets: active.assets });
+        const validated = validateReceiptTemplateVersion(database, "sale-receipt", draft.version);
+        activateReceiptTemplate(database, "sale-receipt", draft.version, validated.validatedSourceSha256 ?? validated.sourceSha256);
+      }
+    } catch (error) {
+      console.warn(`トレーニング用レシートテンプレートの同期に失敗しました（デフォルトで継続）: ${error instanceof Error ? error.message : error}`);
+    }
+  }
   const manager = database.prepare("SELECT staff_id FROM event_staff_assignments WHERE event_id=? AND active=1 AND role IN ('manager','admin') ORDER BY responsible_number LIMIT 1").get(trainingCatalog.eventId) as { staff_id?: string } | undefined;
   if (!manager?.staff_id) throw new Error("トレーニングモードにはmanager/adminスタッフが必要です");
   const business = openBusinessSession(database, { eventId: trainingCatalog.eventId, businessDate: trainingCatalog.event?.businessDate ?? new Date().toISOString().slice(0, 10), actorId: manager.staff_id, terminalId: "training-bootstrap" });

@@ -145,8 +145,9 @@ export type CashSessionSummary = {
 };
 
 export type CashSettlementSummary = {
-  cashSessionId: string; salesCount: number; salesYen: number;
+  cashSessionId: string; salesCount: number; salesYen: number; noChargeCount: number; noChargeYen: number;
   products: Array<{ productCode: string; name: string; quantity: number; salesYen: number }>;
+  departments: Array<{ departmentId: string; name: string; quantity: number; salesYen: number }>;
   staff: Array<{ staffId: string; salesCount: number; salesYen: number }>;
   payments: Array<{ methodName: string; salesCount: number; salesYen: number }>;
   timeBands: Array<{ timeBand: string; salesCount: number; salesYen: number }>;
@@ -154,13 +155,32 @@ export type CashSettlementSummary = {
 
 export function getCashSettlementSummary(db: PosDatabase, sessionId: string): CashSettlementSummary {
   const overall = db.prepare("SELECT COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=?").get(sessionId) as { sales_count: number; sales_yen: number };
+  const noCharge = db.prepare("SELECT COUNT(DISTINCT ad.transaction_id) AS no_charge_count,COALESCE(SUM(ad.amount_yen),0) AS no_charge_yen FROM applied_discounts ad JOIN transactions t ON t.transaction_id=ad.transaction_id WHERE t.session_id=? AND ad.kind='no_charge'").get(sessionId) as { no_charge_count: number; no_charge_yen: number };
   const products = db.prepare(`SELECT l.product_code AS product_code,l.product_name AS name,SUM(l.quantity) AS quantity,SUM(l.net_yen) AS sales_yen
     FROM transaction_lines l JOIN transactions t ON t.transaction_id=l.transaction_id WHERE t.session_id=? GROUP BY l.product_code,l.product_name ORDER BY l.product_code`).all(sessionId) as Array<{ product_code: string; name: string; quantity: number; sales_yen: number }>;
+  const session = db.prepare("SELECT event_id FROM cash_sessions WHERE session_id=?").get(sessionId) as { event_id: string } | undefined;
+  const departmentByCode = new Map<string, { departmentId: string; name: string }>();
+  try {
+    const catalogJson = session ? (db.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(session.event_id) as { catalog_json?: string } | undefined)?.catalog_json : undefined;
+    const catalog = JSON.parse(catalogJson ?? "{}") as { products?: Array<{ productCode?: string; departmentId?: string }>; departments?: Array<{ departmentId?: string; name?: string }> };
+    const departmentNames = new Map((catalog.departments ?? []).filter((department) => department.departmentId).map((department) => [String(department.departmentId), String(department.name || department.departmentId)]));
+    for (const product of catalog.products ?? []) if (product.productCode) {
+      const departmentId = String(product.departmentId ?? "");
+      departmentByCode.set(product.productCode, { departmentId, name: departmentId ? departmentNames.get(departmentId) ?? departmentId : "未分類" });
+    }
+  } catch { /* カタログが不正でも全商品を未分類として集計する */ }
+  const departmentTotals = new Map<string, { departmentId: string; name: string; quantity: number; salesYen: number }>();
+  for (const product of products) {
+    const department = departmentByCode.get(product.product_code) ?? { departmentId: "", name: "未分類" };
+    const current = departmentTotals.get(department.departmentId) ?? { ...department, quantity: 0, salesYen: 0 };
+    current.quantity += Number(product.quantity); current.salesYen += Number(product.sales_yen); departmentTotals.set(department.departmentId, current);
+  }
+  const departments = [...departmentTotals.values()].sort((a, b) => (a.departmentId === "" ? 1 : b.departmentId === "" ? -1 : a.departmentId < b.departmentId ? -1 : a.departmentId > b.departmentId ? 1 : 0));
   const staff = db.prepare("SELECT COALESCE(staff_id,'未設定') AS staff_id,COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=? GROUP BY staff_id ORDER BY staff_id").all(sessionId) as Array<{ staff_id: string; sales_count: number; sales_yen: number }>;
   const payments = db.prepare(`SELECT p.method_name_snapshot AS method_name,COUNT(DISTINCT p.transaction_id) AS sales_count,COALESCE(SUM(p.amount_yen),0) AS sales_yen
     FROM payments p JOIN transactions t ON t.transaction_id=p.transaction_id WHERE t.session_id=? GROUP BY p.method_name_snapshot ORDER BY p.method_name_snapshot`).all(sessionId) as Array<{ method_name: string; sales_count: number; sales_yen: number }>;
   const timeBands = db.prepare("SELECT strftime('%H:00',created_at,'+9 hours') AS time_band,COUNT(*) AS sales_count,COALESCE(SUM(total_yen),0) AS sales_yen FROM transactions WHERE session_id=? GROUP BY time_band ORDER BY time_band").all(sessionId) as Array<{ time_band: string; sales_count: number; sales_yen: number }>;
-  return { cashSessionId: sessionId, salesCount: Number(overall.sales_count), salesYen: Number(overall.sales_yen), products: products.map((row) => ({ productCode: row.product_code, name: row.name, quantity: Number(row.quantity), salesYen: Number(row.sales_yen) })), staff: staff.map((row) => ({ staffId: row.staff_id, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), payments: payments.map((row) => ({ methodName: row.method_name, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), timeBands: timeBands.map((row) => ({ timeBand: row.time_band, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })) };
+  return { cashSessionId: sessionId, salesCount: Number(overall.sales_count), salesYen: Number(overall.sales_yen), noChargeCount: Number(noCharge.no_charge_count), noChargeYen: Number(noCharge.no_charge_yen), products: products.map((row) => ({ productCode: row.product_code, name: row.name, quantity: Number(row.quantity), salesYen: Number(row.sales_yen) })), departments, staff: staff.map((row) => ({ staffId: row.staff_id, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), payments: payments.map((row) => ({ methodName: row.method_name, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })), timeBands: timeBands.map((row) => ({ timeBand: row.time_band, salesCount: Number(row.sales_count), salesYen: Number(row.sales_yen) })) };
 }
 
 export function getCashSessionSummary(db: PosDatabase, sessionId: string): CashSessionSummary | undefined {
@@ -218,7 +238,7 @@ export function saveCashCheck(db: PosDatabase, check: CashCheck, requestKey?: st
   if (check.kind !== "opening" && session.opening_yen === null) throw new Error("opening check is required");
   if (check.kind === "closing") {
     const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d
-      WHERE d.event_id=? AND d.register_id=? AND d.state IN ('editing','payment','finalizing')
+      WHERE d.event_id=? AND d.register_id=? AND d.state IN ('editing','payment','finalizing','parked')
         AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
           OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(session.event_id, session.cashbox_id);
     if (activeDraft) throw new Error("ACTIVE_DRAFTS_EXIST: 未確定の会計を完了または登録中止してください");
@@ -251,11 +271,15 @@ function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; b
     ...(check.kind === "closing" ? [{ kind: "row" as const, left: "翌日残し", right: yen(check.carryoverYen ?? 0) }] : []), { kind: "feed", lines: 8 }, { kind: "cut", mode: "partial" },
   ] };
   if (summary) document.nodes.splice(-2, 0,
-    ...section("売上集計", [{ left: "取引件数", right: `${summary.salesCount}件` }, { left: "売上合計", right: yen(summary.salesYen) }]),
+    ...section("売上集計", [{ left: "取引件数", right: `${summary.salesCount}件` }, { left: "売上合計", right: yen(summary.salesYen) }, ...(summary.noChargeCount > 0 ? [{ left: "無配", right: `${summary.noChargeCount}件 ${yen(summary.noChargeYen)}` }] : [])]),
     ...section("商品別", summary.products.map((row) => ({ left: `${row.name.slice(0, 14)} ×${row.quantity}`, right: yen(row.salesYen) }))),
+    ...section("部門別", summary.departments.map((row) => ({ left: `${row.name.slice(0, 14)} ×${row.quantity}`, right: yen(row.salesYen) }))),
     ...section("担当者別", summary.staff.map((row) => ({ left: `${row.staffId} ${row.salesCount}件`, right: yen(row.salesYen) }))),
     ...section("決済手段別", summary.payments.map((row) => ({ left: `${row.methodName.slice(0, 14)} ${row.salesCount}件`, right: yen(row.salesYen) }))),
     ...section("時間帯別（JST）", summary.timeBands.map((row) => ({ left: `${row.timeBand} ${row.salesCount}件`, right: yen(row.salesYen) }))),
+  );
+  if (check.kind === "closing" || check.kind === "interim") document.nodes.splice(-2, 0,
+    { kind: "text", value: "記入欄" }, { kind: "rule", style: "single" }, { kind: "feed", lines: 2 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 2 },
   );
   const canonicalIr = canonicalizeReceiptDocument(document); const bytes = receiptDocumentToEscPos(document); const jobId = randomUUID(); const operationId = randomUUID();
   db.prepare("INSERT INTO print_jobs (job_id,operation_id,transaction_id,printer_id,document_type,kind,payload_json,created_at,state,updated_at,source,renderer_version,bytes_sha256,finishing_policy_id,finishing_policy_version,canonical_ir,ir_sha256,escpos_bytes,expected_bytes_length,delivery_certainty) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'not_sent')")

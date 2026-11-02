@@ -96,7 +96,7 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   const business = getBusinessSession(db, businessSessionId);
   if (!business) throw new CheckoutError(404, "BUSINESS_SESSION_NOT_FOUND", "営業セッションが見つかりません");
   if (business.state === "closed") return business;
-  const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing')
+  const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing','parked')
     AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
       OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(business.eventId);
   if (activeDraft) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "未確定の会計が残っています");
@@ -133,7 +133,7 @@ export function cancelBusinessOpening(db: PosDatabase, businessSessionId: string
   if (!business) throw new CheckoutError(404, "BUSINESS_SESSION_NOT_FOUND", "営業セッションが見つかりません");
   if (business.state !== "open") throw new CheckoutError(409, "BUSINESS_NOT_OPEN", "営業開始中の営業セッションではありません");
   if (!input.reason.trim()) throw new CheckoutError(400, "CANCEL_OPENING_REASON_REQUIRED", "開局取消理由が必要です");
-  const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing')
+  const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing','parked')
     AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
       OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(business.eventId);
   if (activeDraft) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "未確定の会計が残っています");

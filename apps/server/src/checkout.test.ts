@@ -12,8 +12,8 @@ afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
 const catalog = {
   eventId: "checkout-event",
   products: [
-    { productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" },
-    { productCode: "00000002", name: "8%商品", priceInclTax: 108, taxRate: 8, taxCategory: "inclusive_8", saleState: "on_sale" },
+    { productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", departmentId: "001" },
+    { productCode: "00000002", name: "8%商品", priceInclTax: 108, taxRate: 8, taxCategory: "inclusive_8", saleState: "on_sale", departmentId: "002" },
     { productCode: "00000003", name: "20歳商品", priceInclTax: 220, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", ageCheck: "20" },
     { productCode: "00000004", name: "停止商品", priceInclTax: 100, taxRate: 10, taxCategory: "inclusive_10", saleState: "off_sale" },
   ],
@@ -22,6 +22,7 @@ const catalog = {
     { id: "bad-set", label: "停止商品セット", components: [{ productCode: "00000001", quantity: 1 }, { productCode: "00000004", quantity: 1 }] },
   ],
   autoDiscountRules: [{ id: "pair", label: "2個で20円引き", requiredProducts: [{ productCode: "00000001", quantity: 2 }], discountYen: 20, priority: 10 }],
+  departments: [{ departmentId: "001", code: "001", name: "第一部門", settlementOwnerId: "001", enabled: true }, { departmentId: "002", code: "002", name: "第二部門", settlementOwnerId: "002", enabled: true }],
   staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
@@ -31,8 +32,8 @@ function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Par
   return { app, db: database };
 }
 
-async function installCatalog(app: FastifyInstance): Promise<void> {
-  const response = await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog });
+async function installCatalog(app: FastifyInstance, catalogOverride = catalog): Promise<void> {
+  const response = await app.inject({ method: "PUT", url: `/api/v1/events/${catalogOverride.eventId}/catalog`, payload: catalogOverride });
   expect(response.statusCode).toBe(200);
 }
 
@@ -133,6 +134,26 @@ describe("durable checkout API", () => {
     expect(transaction.json()).toMatchObject({ lines: [{ productCode: "00000001", name: "10%商品", priceInclTax: 110, taxRateBps: 1000, taxCategory: "inclusive_10", grossYen: 110, netYen: 110 }] });
   });
 
+  it("販売レシートの共通文言をカタログからスナップショットへ取り込む", async () => {
+    const cases: Array<{ commonText?: { footer: string; returnPolicy: string }; expected: { footer: string; returnPolicy: string } }> = [
+      { commonText: { footer: "イベントありがとうございました", returnPolicy: "返品は受付へ" }, expected: { footer: "イベントありがとうございました", returnPolicy: "返品は受付へ" } },
+      { expected: { footer: "ありがとうございました", returnPolicy: "返品は責任者へお申し出ください" } },
+      { commonText: { footer: "", returnPolicy: "" }, expected: { footer: "", returnPolicy: "" } },
+    ];
+    for (const [index, testCase] of cases.entries()) {
+      const { app, db } = makeApp();
+      const catalogOverride = testCase.commonText === undefined ? catalog : { ...catalog, receiptSettings: { templates: {}, commonText: testCase.commonText } };
+      await installCatalog(app, catalogOverride);
+      let draft = await startDraft(app, `register-common-text-${index}`);
+      draft = await addLine(app, draft);
+      draft = await addPayment(app, draft, "credit", 110);
+      const response = await finalize(app, draft, `common-text-${index}`);
+      expect(response.statusCode).toBe(201);
+      const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(response.json().transactionId) as { receipt_snapshot_json: string }).receipt_snapshot_json));
+      expect(snapshot).toMatchObject(testCase.expected);
+    }
+  });
+
   it("drawer未受入時は現金会計でもpulse jobを作らない", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
@@ -172,6 +193,29 @@ describe("durable checkout API", () => {
       expect.objectContaining({ kind: "no_charge", amount_yen: 0 }),
     ]);
     expect(db.prepare("SELECT type FROM inventory_movements WHERE type='distribution'").get()).toMatchObject({ type: "distribution" });
+  });
+
+  it("精算サマリに無配の件数と値引額を集計する", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "no_charge", 0);
+    expect((await finalize(app, draft, "settlement-no-charge")).statusCode).toBe(201);
+    const sessionId = (await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=checkout-event&businessDate=2026-08-02&cashboxId=register-1" })).json().session.sessionId as string;
+    const summary = await app.inject({ method: "GET", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/settlement-summary` });
+    expect(summary.statusCode).toBe(200);
+    expect(summary.json()).toMatchObject({ salesCount: 1, salesYen: 0, noChargeCount: 1, noChargeYen: 110 });
+  });
+
+  it("精算サマリに部門別の数量と金額を集計する", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app); draft = await addLine(app, draft, "00000001"); draft = await addLine(app, draft, "00000002"); draft = await addPayment(app, draft, "credit", 218);
+    expect((await finalize(app, draft, "settlement-departments")).statusCode).toBe(201);
+    const sessionId = (await app.inject({ method: "GET", url: "/api/v1/cash-sessions/current?eventId=checkout-event&businessDate=2026-08-02&cashboxId=register-1" })).json().session.sessionId as string;
+    const summary = await app.inject({ method: "GET", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/settlement-summary` });
+    expect(summary.statusCode).toBe(200);
+    expect(summary.json().departments).toEqual([
+      { departmentId: "001", name: "第一部門", quantity: 1, salesYen: 110 },
+      { departmentId: "002", name: "第二部門", quantity: 1, salesYen: 108 },
+    ]);
   });
 
   it("recalculates automatic/manual discounts and taxes from the product master", async () => {

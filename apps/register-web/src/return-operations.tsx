@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createUuid } from "./uuid.js";
 import { checkoutApi, type ReturnableTransactionDto } from "./checkout-api.js";
 
-export function ReturnOperations({ eventId, businessDate, cashboxId, actorId, terminalId, onClose }: { eventId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void }) {
+export function ReturnOperations({ eventId, businessDate, cashboxId, actorId, terminalId, onClose, initialQuery = "" }: { eventId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void; initialQuery?: string }) {
   const [mode,setMode]=useState<"original"|"manual">("original"); const [query,setQuery]=useState(""); const [items,setItems]=useState<ReturnableTransactionDto[]>([]); const [selected,setSelected]=useState<ReturnableTransactionDto|null>(null); const [description,setDescription]=useState(""); const [amount,setAmount]=useState(""); const [productCode,setProductCode]=useState(""); const [quantity,setQuantity]=useState("1"); const [paymentKind,setPaymentKind]=useState<"cash"|"credit"|"accounts_receivable">("cash"); const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [completed,setCompleted]=useState<{publicReferenceDisplay:string;printJobId:string}|null>(null);
+  useEffect(() => { if (initialQuery) setQuery(initialQuery); }, [initialQuery]);
   const currentSession=async()=>{const current=await checkoutApi.getCurrentCashSession(eventId,businessDate,cashboxId,actorId); if(!current.session||current.session.state!=="open"||current.session.openingYen===null) throw new Error("返金前にこのレジを開局してください"); return current.session;};
   const search=async()=>{if(!query.trim())return setError("受付番号または取引IDを入力してください");setBusy(true);try{const result=await checkoutApi.searchReturnableTransactions(eventId,query.trim(),actorId);setItems(result.transactions);setError(result.transactions.length?"":"該当する元売上がありません");}catch(cause){setError(cause instanceof Error?cause.message:"検索に失敗しました");}finally{setBusy(false);}};
   const fullReturn=async()=>{if(!selected)return;setBusy(true);setError("");try{const session=await currentSession();const key=createUuid();const result=await checkoutApi.createFullReturn(selected.transactionId,{cashSessionId:session.sessionId,terminalId,reason:"返金レシートへ手書き"},actorId,key);setCompleted(result);setSelected(null);}catch(cause){setError(cause instanceof Error?cause.message:"返品処理に失敗しました");}finally{setBusy(false);}};

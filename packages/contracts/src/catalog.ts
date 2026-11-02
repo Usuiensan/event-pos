@@ -22,6 +22,7 @@ export type ProductDefinition = {
   thumbnailUrl?: string;
   gs1?: Gs1ProductCodeInfo;
   isdn?: IsdnProductInfo;
+  inventory?: { openingQuantity: number | null };
 };
 
 export const taxCategories = ["inclusive_10", "inclusive_8", "exclusive_10", "exclusive_8", "exempt", "non_taxable"] as const;
@@ -57,7 +58,7 @@ export type StaffMember = { staffId?: string; responsibleNumber: string; display
 export type CustomerWelcome = { message?: string; circleName?: string; space?: string; imageUrl?: string };
 export type EventDetails = { name: string; businessDate: string; seller: { circleName: string; space: string; receiptIssuerName: string }; locale: { language: string; currency: string; timezone: string } };
 export type Department = { departmentId: string; code: string; name: string; settlementOwnerId: string; enabled: boolean };
-export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string } };
+export type ReceiptSettings = { templates: Record<string, { templateKey: string; activeVersion: number; templatePath?: string }>; commonText?: { footer?: string; returnPolicy?: string; reprintLabel?: string } };
 
 export type QuickEntry = {
   id: string;
@@ -116,7 +117,8 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     for (const key of ["departmentId", "manufacturer", "brand", "seller", "producer", "specification", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
     if (p.gs1 !== undefined && (!p.gs1 || typeof p.gs1 !== "object" || (p.gs1.codeType !== "upc-a" && p.gs1.codeType !== "ean-13"))) fail(`products[${index}].gs1が不正です`);
     if (p.isdn !== undefined && (!p.isdn || typeof p.isdn !== "object" || typeof p.isdn.code !== "string" || typeof p.isdn.productName !== "string" || typeof p.isdn.sourceUrl !== "string" || typeof p.isdn.fetchedAt !== "string")) fail(`products[${index}].isdnが不正です`);
-    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), ...(p.manufacturer ? { manufacturer: p.manufacturer } : {}), ...(p.brand ? { brand: p.brand } : {}), ...(p.seller ? { seller: p.seller } : {}), ...(p.producer ? { producer: p.producer } : {}), ...(p.specification ? { specification: p.specification } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}), ...(p.gs1 ? { gs1: p.gs1 } : {}), ...(p.isdn ? { isdn: p.isdn } : {}) };
+    if (p.inventory !== undefined && (!p.inventory || typeof p.inventory !== "object" || !Object.prototype.hasOwnProperty.call(p.inventory, "openingQuantity") || (p.inventory.openingQuantity !== null && (!Number.isSafeInteger(p.inventory.openingQuantity) || p.inventory.openingQuantity < 0)))) fail(`products[${index}].inventory.openingQuantityが不正です`);
+    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), ...(p.manufacturer ? { manufacturer: p.manufacturer } : {}), ...(p.brand ? { brand: p.brand } : {}), ...(p.seller ? { seller: p.seller } : {}), ...(p.producer ? { producer: p.producer } : {}), ...(p.specification ? { specification: p.specification } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}), ...(p.gs1 ? { gs1: p.gs1 } : {}), ...(p.isdn ? { isdn: p.isdn } : {}), ...(p.inventory !== undefined ? { inventory: { openingQuantity: p.inventory.openingQuantity! } } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);

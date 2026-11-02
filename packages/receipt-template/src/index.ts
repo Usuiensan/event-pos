@@ -25,11 +25,13 @@ export type ReceiptSnapshot = {
   circleName: string;
   transactionId: string;
   publicReference: string;
+  publicReferenceRaw: string;
   transactionType: "sale" | "void" | "return";
   originalPublicReference: string;
   confirmedAt: string;
   confirmedAtPrinted: string;
   businessDate: string;
+  businessDateYYMMDD: string;
   registerNo: string;
   staffPrintLabel: string;
   lines: ReceiptSnapshotLine[];
@@ -69,7 +71,7 @@ export class ReceiptTemplateError extends Error {
 }
 
 const GLOBAL_VARIABLES = new Set([
-  "eventName", "circleName", "transactionId", "publicReference", "transactionType", "originalPublicReference", "confirmedAt", "confirmedAtPrinted", "businessDate", "registerNo", "staffPrintLabel",
+  "eventName", "circleName", "transactionId", "publicReference", "publicReferenceRaw", "transactionType", "originalPublicReference", "confirmedAt", "confirmedAtPrinted", "businessDate", "businessDateYYMMDD", "registerNo", "staffPrintLabel",
   "subtotalFormatted", "discountTotalFormatted", "taxTotalFormatted", "totalFormatted", "tenderedFormatted", "changeFormatted", "isReprint", "reprintLabel", "reprintNo",
   "originalReceiptNumber", "footer", "returnPolicy", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange",
 ]);
@@ -80,7 +82,7 @@ const COLLECTION_VARIABLES: Record<string, Set<string>> = {
   payments: new Set(["methodName", "amountFormatted", "tenderedFormatted", "changeFormatted"]),
 };
 const CONDITIONS = new Set(["isReprint", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange", "quantityOne", "quantityMoreThanOne"]);
-const NODE_NAMES = new Set(["reset", "text", "row", "align", "emphasis", "size", "rule", "feed", "image", "qr", "finish", "each", "if"]);
+const NODE_NAMES = new Set(["reset", "text", "row", "align", "emphasis", "size", "rule", "feed", "image", "qr", "barcode", "finish", "each", "if"]);
 const VARIABLE_RE = /\{\{\s*([A-Za-z][A-Za-z0-9]*)\s*\}\}/g;
 
 function record(value: unknown, path: string): Record<string, unknown> {
@@ -162,6 +164,13 @@ function validateNodes(nodes: unknown[], path: string, localVariables: Set<strin
         if (!["L", "M", "Q", "H"].includes(String(qr.errorCorrection))) throw new ReceiptTemplateError("L/M/Q/Hが必要です", `${nodePath}.qr.errorCorrection`);
         if (!variables(data).length && new TextEncoder().encode(data).length > 7089) throw new ReceiptTemplateError("QR容量を超えています", `${nodePath}.qr.data`); break;
       }
+      case "barcode": {
+        const barcode = record(node.barcode, `${nodePath}.barcode`); onlyKeys(barcode, ["value", "format", "width", "height", "hri"], `${nodePath}.barcode`);
+        validateInterpolated(barcode.value, `${nodePath}.barcode.value`, localVariables); integer(barcode.width, 2, 6, `${nodePath}.barcode.width`); integer(barcode.height, 1, 255, `${nodePath}.barcode.height`);
+        if (!["none", "above", "below", "both"].includes(String(barcode.hri))) throw new ReceiptTemplateError("none/above/below/bothが必要です", `${nodePath}.barcode.hri`);
+        if (barcode.format !== undefined && !["code128", "itf"].includes(String(barcode.format))) throw new ReceiptTemplateError("code128/itfが必要です", `${nodePath}.barcode.format`);
+        break;
+      }
       case "finish": {
         const finish = record(node.finish, `${nodePath}.finish`); onlyKeys(finish, ["feedLines", "cutMode"], `${nodePath}.finish`);
         integer(finish.feedLines, 0, 8, `${nodePath}.finish.feedLines`); if (!["none", "partial", "partial3"].includes(String(finish.cutMode))) throw new ReceiptTemplateError("none/partial/partial3が必要です", `${nodePath}.finish.cutMode`);
@@ -231,6 +240,18 @@ function compileNodes(rawNodes: unknown[], snapshot: ReceiptSnapshot, global: Re
         if (new TextEncoder().encode(data).length > 7089) throw new ReceiptTemplateError("実データがQR容量を超えています", "qr.data");
         output.push({ kind: "qr", data, moduleSize: Number(value.moduleSize), errorCorrection: value.errorCorrection as "L" | "M" | "Q" | "H" }); break;
       }
+      case "barcode": {
+        const value = node.barcode as Record<string, unknown>; const barcode = interpolate(String(value.value), global, local);
+        const format = (value.format as "code128" | "itf" | undefined) ?? "code128";
+        if (format === "itf") {
+          if (!/^[0-9]+$/.test(barcode) || barcode.length % 2 !== 0 || barcode.length > 255) {
+            throw new ReceiptTemplateError("ITFの値は数字のみ・偶数桁・255桁以内で指定してください", "barcode.value");
+          }
+        } else if (!/^[\x20-\x7e]+$/.test(barcode) || barcode.length > 255) {
+          throw new ReceiptTemplateError("Code 128の値はASCII印字可能文字を255文字以内で指定してください", "barcode.value");
+        }
+        output.push({ kind: "barcode", value: barcode, format, width: Number(value.width), height: Number(value.height), hri: value.hri as "none" | "above" | "below" | "both" }); break;
+      }
       case "finish": { const value = node.finish as Record<string, unknown>; output.push({ kind: "feed", lines: Number(value.feedLines) }, { kind: "cut", mode: value.cutMode as CutMode }); break; }
       case "each": for (const item of collection(snapshot, String(node.each))) compileNodes(node.body as unknown[], snapshot, global, item, output); break;
       case "if": {
@@ -273,13 +294,13 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
     else if (node.kind === "feed") for (let index = 0; index < node.lines; index += 1) result.push("");
     else if (node.kind === "image") result.push(`[画像: ${node.assetId}]`);
     else if (node.kind === "qr") result.push(`[QR: ${node.data}]`);
-    else if (node.kind === "barcode") result.push(`[Code 128: ${node.value}]`);
+    else if (node.kind === "barcode") result.push(node.format === "itf" ? `[ITF: ${node.value}]` : `[Code 128: ${node.value}]`);
     else if (node.kind === "cut" && node.mode !== "none") result.push(`[部分カット: ${node.mode}]`);
   }
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 4;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 7;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -304,7 +325,7 @@ body:
     body:
       - text: "{{name}}"
       - text: "JAN {{productCode}}"
-      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
+      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
   - if: hasDiscounts
     body:
@@ -324,6 +345,7 @@ body:
       - row: { left: "釣銭", right: "{{changeFormatted}}" }
   - text: "{{footer}}"
   - text: "{{returnPolicy}}"
+  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }
   - finish: { feedLines: 8, cutMode: partial }
 `;
 
@@ -343,6 +365,9 @@ const DEFAULT_RECEIPT_TEMPLATE_V4_LINES = `  - each: lines
       - text: "JAN {{productCode}}"
       - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
 `;
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = DEFAULT_RECEIPT_TEMPLATE.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6 = DEFAULT_RECEIPT_TEMPLATE.replace('  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }', '  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6.replace('  - barcode: { value: "{BPS14{{businessDateYYMMDD}}{{publicReferenceRaw}}", width: 2, height: 96, hri: below }\n', '');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5.replace('単¥{{unitPriceFormatted}}', '単{{unitPriceFormatted}}');
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4.replace(DEFAULT_RECEIPT_TEMPLATE_V4_LINES, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES);
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3.replace('  - if: hasDiscounts\n    body:\n      - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n', '  - row: { left: "値引", right: "{{discountTotalFormatted}}" }\n');
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2.replace("feedLines: 8", "feedLines: 3");

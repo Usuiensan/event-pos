@@ -12,6 +12,7 @@ export type BackupArtifactFailureInjector = (stage: BackupArtifactFailureStage, 
 type SnapshotData = {
   transactions: Array<Record<string, unknown>>;
   transactionLines: Array<Record<string, unknown>>;
+  appliedDiscounts: Array<Record<string, unknown>>;
   payments: Array<Record<string, unknown>>;
   taxes: Array<Record<string, unknown>>;
   inventoryMovements: Array<Record<string, unknown>>;
@@ -69,9 +70,18 @@ function querySnapshot(db: PosDatabase, artifact: BackupArtifactRecord): Snapsho
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,t.transaction_id`).all(...scope) as Array<Record<string, unknown>>;
   const transactionLines = db.prepare(`SELECT tl.* FROM transaction_lines tl JOIN transactions t ON t.transaction_id=tl.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,tl.line_no,tl.transaction_line_id`).all(...scope) as Array<Record<string, unknown>>;
+  const appliedDiscounts = db.prepare(`SELECT ad.* FROM applied_discounts ad JOIN transactions t ON t.transaction_id=ad.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
+    WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,ad.application_no,ad.applied_discount_id`).all(...scope) as Array<Record<string, unknown>>;
   const catalogJson = (db.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(artifact.eventId) as { catalog_json?: string } | undefined)?.catalog_json;
   const departmentByCode = new Map<string, string>();
-  try { for (const product of (JSON.parse(catalogJson ?? "{}").products ?? []) as Array<{ productCode?: string; tabId?: string }>) if (product.productCode) departmentByCode.set(product.productCode, product.tabId || "未分類"); } catch { /* 元データが不正でも成果物生成を継続 */ }
+  try {
+    const catalog = JSON.parse(catalogJson ?? "{}") as { products?: Array<{ productCode?: string; departmentId?: string }>; departments?: Array<{ departmentId?: string; name?: string }> };
+    const departmentNames = new Map((catalog.departments ?? []).filter((department) => department.departmentId).map((department) => [String(department.departmentId), String(department.name || department.departmentId)]));
+    for (const product of catalog.products ?? []) if (product.productCode) {
+      const departmentId = String(product.departmentId ?? "");
+      departmentByCode.set(product.productCode, departmentId ? departmentNames.get(departmentId) ?? departmentId : "未分類");
+    }
+  } catch { /* 元データが不正でも成果物生成を継続 */ }
   for (const line of transactionLines) line.department = departmentByCode.get(String(line.product_code)) ?? "未分類";
   const payments = db.prepare(`SELECT p.* FROM payments p JOIN transactions t ON t.transaction_id=p.transaction_id JOIN cash_sessions cs ON cs.session_id=t.session_id
     WHERE t.event_id=? AND cs.business_date=? AND t.created_at<=? ORDER BY t.created_at,p.sequence,p.payment_id`).all(...scope) as Array<Record<string, unknown>>;
@@ -86,18 +96,18 @@ function querySnapshot(db: PosDatabase, artifact: BackupArtifactRecord): Snapsho
     WHERE ((t.event_id=? AND t.created_at<=?) OR pj.transaction_id LIKE ?)
     ORDER BY po.sequence`).all(artifact.eventId, cutoff, `cash-check:${artifact.cashSessionId}:%`) as Array<Record<string, unknown>>;
   const auditLog = db.prepare("SELECT * FROM audit_log WHERE event_id=? AND created_at<=? ORDER BY created_at,id").all(artifact.eventId, cutoff) as Array<Record<string, unknown>>;
-  return { transactions, transactionLines, payments, taxes, inventoryMovements, cashMovements, cashChecks, printOperations, auditLog };
+  return { transactions, transactionLines, appliedDiscounts, payments, taxes, inventoryMovements, cashMovements, cashChecks, printOperations, auditLog };
 }
 
 function scopedVerification(data: SnapshotData): Omit<SnapshotVerification, "integrityCheck"> {
   const rowCounts = {
-    transactions: data.transactions.length, transaction_lines: data.transactionLines.length, payments: data.payments.length, tax_summaries: data.taxes.length,
+    transactions: data.transactions.length, transaction_lines: data.transactionLines.length, applied_discounts: data.appliedDiscounts.length, payments: data.payments.length, tax_summaries: data.taxes.length,
     inventory_movements: data.inventoryMovements.length, cash_movements: data.cashMovements.length, cash_checks: data.cashChecks.length, printer_operations: data.printOperations.length, audit_log: data.auditLog.length,
   };
   const sum = (rows: Array<Record<string, unknown>>, key: string) => rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
   const totals = {
     sales_yen: sum(data.transactions, "total_yen"), payments_yen: sum(data.payments, "amount_yen"), tax_yen: sum(data.taxes, "tax_amount_yen"),
-    inventory_quantity_delta: sum(data.inventoryMovements, "quantity_delta"), cash_ledger_yen: data.cashMovements.reduce((total, row) => total + (["sale", "pay_in"].includes(String(row.type)) ? 1 : -1) * Number(row.amount_yen), 0),
+    inventory_quantity_delta: sum(data.inventoryMovements, "quantity_delta"), cash_ledger_yen: data.cashMovements.reduce((total, row) => total + (["sale", "pay_in"].includes(String(row.type)) ? 1 : -1) * Number(row.amount_yen), 0), no_charge_yen: sum(data.appliedDiscounts.filter((row) => String(row.kind) === "no_charge"), "amount_yen"), no_charge_count: new Set(data.appliedDiscounts.filter((row) => String(row.kind) === "no_charge").map((row) => String(row.transaction_id))).size,
   };
   const logicalSha256 = createHash("sha256").update(JSON.stringify({ ...Object.fromEntries(Object.entries(data).map(([key, rows]) => [key, normalizedRows(rows)])), rowCounts, totals })).digest("hex");
   return { rowCounts, totals, logicalSha256 };
@@ -144,7 +154,7 @@ function addDataSheet(workbook: ExcelJS.Workbook, name: string, columns: Column[
 
 async function writeWorkbook(path: string, artifact: BackupArtifactRecord, verification: Omit<SnapshotVerification, "integrityCheck">, data: SnapshotData): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "event-pos"; workbook.created = new Date(artifact.requestedAt); workbook.modified = new Date(artifact.requestedAt);
+  workbook.creator = "ぽすりん"; workbook.created = new Date(artifact.requestedAt); workbook.modified = new Date(artifact.requestedAt);
   addDataSheet(workbook, "概要", [
     { header: "項目", key: "key", width: 28, kind: "text" }, { header: "値", key: "value", width: 72, kind: "text" },
   ], [

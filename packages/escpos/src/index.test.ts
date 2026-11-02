@@ -25,8 +25,26 @@ describe("pure ESC/POS renderer", () => {
 
   it("Code 128 barcodeのcharacterization bytesを固定する", () => {
     const bytes = encodeBarcode("{BPS111234", { width: 3, height: 96, hri: "below" });
-    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 10, 0x7b]);
-    expect(bytesSha256(bytes)).toBe("e202d7d200f9db4eab12fa4fb310bf9d1130670340c79e2a97baa87d3fa45e48");
+    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 9, 0x7b]);
+    // コードセットC区間は数字ペアがバイナリ値 (11, 12, 34) になる
+    expect(Array.from(bytes.slice(16, 25))).toEqual([0x7b, 66, 80, 83, 0x7b, 67, 11, 12, 34]);
+    expect(bytesSha256(bytes)).toBe("ccb63f55eef1d15a2a29be4c2154133ce5f5bfd659041ad1c77e88fb52459c81");
+  });
+
+  it("数字列をコードセットCで圧縮する", () => {
+    const data = (value: string) => Array.from(encodeBarcode(value, { width: 2, height: 96, hri: "below" }).slice(16, -4));
+    expect(data("{BPS1426110110000057")).toEqual([0x7b, 66, 80, 83, 0x7b, 67, 14, 26, 11, 1, 10, 0, 0, 57]);
+    expect(data("{BPS1212345")).toEqual([0x7b, 66, 80, 83, 49, 0x7b, 67, 21, 23, 45]);
+    expect(data("{BAB12345CD")).toEqual([0x7b, 66, 65, 66, 49, 0x7b, 67, 23, 45, 0x7b, 66, 67, 68]);
+    expect(data("{BPS112")).toEqual([0x7b, 66, 80, 83, 49, 49, 50]);
+  });
+
+  it("ITFバーコードを印字コマンドへ変換する", () => {
+    const bytes = encodeBarcode("26110110000015", { type: "itf", width: 2, height: 96, hri: "below" });
+    expect(Array.from(bytes.slice(12, 16))).toEqual([0x1d, 0x6b, 70, 14]);
+    expect(Buffer.from(bytes.slice(16, 30)).toString("ascii")).toBe("26110110000015");
+    expect(() => encodeBarcode("2611011000001", { type: "itf" })).toThrow("ITF");
+    expect(() => encodeBarcode("2611011000001A", { type: "itf" })).toThrow("ITF");
   });
 
   it("384 dotsの内容幅と416 dotsの物理上限を別々に検証する", () => {
