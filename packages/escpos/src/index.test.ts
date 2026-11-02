@@ -25,17 +25,18 @@ describe("pure ESC/POS renderer", () => {
 
   it("Code 128 barcodeのcharacterization bytesを固定する", () => {
     const bytes = encodeBarcode("{BPS111234", { width: 3, height: 96, hri: "below" });
-    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 12, 0x7b]);
-    expect(Buffer.from(bytes.slice(17)).toString("ascii")).toContain("PS{C111234");
-    expect(bytesSha256(bytes)).toBe("ebc2750712e9207d94bb7417404d1569dfe322e1169c4d0ef10ed2f88bc9e1fa");
+    expect(Array.from(bytes.slice(12, 17))).toEqual([0x1d, 0x6b, 73, 9, 0x7b]);
+    // コードセットC区間は数字ペアがバイナリ値 (11, 12, 34) になる
+    expect(Array.from(bytes.slice(16, 25))).toEqual([0x7b, 66, 80, 83, 0x7b, 67, 11, 12, 34]);
+    expect(bytesSha256(bytes)).toBe("ccb63f55eef1d15a2a29be4c2154133ce5f5bfd659041ad1c77e88fb52459c81");
   });
 
   it("数字列をコードセットCで圧縮する", () => {
-    const data = (value: string) => Buffer.from(encodeBarcode(value, { width: 2, height: 96, hri: "below" }).slice(15)).toString("ascii");
-    expect(data("{BPS1426110110000057")).toContain("{BPS{C1426110110000057");
-    expect(data("{BPS1212345")).toContain("{BPS1{C212345");
-    expect(data("{BAB12345CD")).toContain("{BAB1{C2345{BCD");
-    expect(data("{BPS112")).toContain("{BPS112");
+    const data = (value: string) => Array.from(encodeBarcode(value, { width: 2, height: 96, hri: "below" }).slice(16, -4));
+    expect(data("{BPS1426110110000057")).toEqual([0x7b, 66, 80, 83, 0x7b, 67, 14, 26, 11, 1, 10, 0, 0, 57]);
+    expect(data("{BPS1212345")).toEqual([0x7b, 66, 80, 83, 49, 0x7b, 67, 21, 23, 45]);
+    expect(data("{BAB12345CD")).toEqual([0x7b, 66, 65, 66, 49, 0x7b, 67, 23, 45, 0x7b, 66, 67, 68]);
+    expect(data("{BPS112")).toEqual([0x7b, 66, 80, 83, 49, 49, 50]);
   });
 
   it("ITFバーコードを印字コマンドへ変換する", () => {
