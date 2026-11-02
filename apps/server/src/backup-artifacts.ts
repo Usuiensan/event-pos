@@ -154,7 +154,7 @@ function addDataSheet(workbook: ExcelJS.Workbook, name: string, columns: Column[
 
 async function writeWorkbook(path: string, artifact: BackupArtifactRecord, verification: Omit<SnapshotVerification, "integrityCheck">, data: SnapshotData): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "event-pos"; workbook.created = new Date(artifact.requestedAt); workbook.modified = new Date(artifact.requestedAt);
+  workbook.creator = "ぽすりん"; workbook.created = new Date(artifact.requestedAt); workbook.modified = new Date(artifact.requestedAt);
   addDataSheet(workbook, "概要", [
     { header: "項目", key: "key", width: 28, kind: "text" }, { header: "値", key: "value", width: 72, kind: "text" },
   ], [
