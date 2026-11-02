@@ -198,7 +198,7 @@ describe("server foundation", () => {
     apps.push(app);
     expect((await app.inject("/health/live")).json()).toEqual({ status: "ok" });
     expect((await app.inject("/health/ready")).json()).toEqual({ status: "ok", database: "ok" });
-    expect((await app.inject("/api/v1/info")).json()).toMatchObject({ name: "event-pos", schemaVersion: 1 });
+    expect((await app.inject("/api/v1/info")).json()).toMatchObject({ name: "ぽすりん", schemaVersion: 1 });
   });
 
   it("代理収納票は収納せず、個人欄を印刷payloadへ残さないリマインダーjobだけを作る", async () => {
