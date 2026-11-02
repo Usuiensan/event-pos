@@ -64,7 +64,7 @@ export class WindowsRawTransport implements PrinterTransport {
     const path = join(dir, "job.bin");
     try {
       await writeFile(path, bytes);
-      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript ?? bundledRawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "event-pos print job"], { windowsHide: true, maxBuffer: 1024 * 1024 });
+      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript ?? bundledRawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "ぽすりん print job"], { windowsHide: true, maxBuffer: 1024 * 1024 });
       const receipt = JSON.parse(String(result.stdout)) as { acceptedBytes?: unknown; spoolerJobId?: unknown; api?: unknown; documentName?: unknown };
       if (!Number.isSafeInteger(receipt.acceptedBytes) || Number(receipt.acceptedBytes) < 0 || Number(receipt.acceptedBytes) > bytes.length) throw new Error("RAW spooler returned invalid acceptedBytes");
       return { acceptedBytes: Number(receipt.acceptedBytes), transportEvidence: { adapter: "windows-raw-spooler", printerName: this.options.printerName, acceptedBytes: Number(receipt.acceptedBytes), ...(Number.isSafeInteger(receipt.spoolerJobId) ? { spoolerJobId: Number(receipt.spoolerJobId) } : {}), ...(typeof receipt.api === "string" ? { api: receipt.api } : {}) } };
