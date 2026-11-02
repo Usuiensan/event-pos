@@ -1,6 +1,6 @@
 {
-  "name": "event-pos 即売会レジ",
-  "short_name": "event-pos",
+  "name": "ぽすりん 即売会レジ",
+  "short_name": "ぽすりん",
   "description": "同人誌即売会向けPOSレジ",
   "start_url": "/",
   "scope": "/",
