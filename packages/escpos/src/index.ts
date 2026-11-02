@@ -49,12 +49,15 @@ function qrBytes(dataValue: string, moduleSize: number, errorCorrection: "L" | "
   ]);
 }
 
-function compressCode128(value: string): string {
+function code128DataBytes(value: string): number[] {
   // 4桁以上の数字列はコードセットCへ切り替えて桁を半分に圧縮する（横幅対策）。
+  // コードセットCのデータは、数字ペアを 0〜99 のバイナリ値1バイトで送る（GS k 仕様）。
   let prefix = "";
   let rest = value;
   if (/^\{[ABC]/.test(value)) { prefix = value.slice(0, 2); rest = value.slice(2); }
-  let out = prefix || "{B";
+  const bytes: number[] = [];
+  const pushText = (text: string) => { for (const char of text) bytes.push(char.charCodeAt(0)); };
+  pushText(prefix || "{B");
   let inC = prefix === "{C";
   let i = 0;
   while (i < rest.length) {
@@ -64,19 +67,19 @@ function compressCode128(value: string): string {
     if (run >= 4) {
       let start = i;
       if (run % 2 === 1) {
-        if (inC) { out += "{B"; inC = false; }
-        out += rest.slice(start, start + 1); start += 1;
+        if (inC) { pushText("{B"); inC = false; }
+        pushText(rest.slice(start, start + 1)); start += 1;
       }
-      if (!inC) { out += "{C"; inC = true; }
-      out += rest.slice(start, j);
+      if (!inC) { pushText("{C"); inC = true; }
+      for (let k = start; k < j; k += 2) bytes.push(Number(rest.slice(k, k + 2)));
       i = j;
     } else {
-      if (inC) { out += "{B"; inC = false; }
-      out += rest.slice(i, i + 1);
+      if (inC) { pushText("{B"); inC = false; }
+      pushText(rest.slice(i, i + 1));
       i += 1;
     }
   }
-  return out;
+  return bytes;
 }
 
 export function encodeBarcode(value: string, options: { type?: "code128" | "itf"; width?: number; height?: number; hri?: "none" | "above" | "below" | "both" } = {}): Uint8Array {
@@ -88,7 +91,7 @@ export function encodeBarcode(value: string, options: { type?: "code128" | "itf"
     const data = Uint8Array.from(Buffer.from(value, "ascii"));
     return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 70, data.length, ...data, LF, ESC, 0x61, 0]);
   }
-  const data = Uint8Array.from(Buffer.from(compressCode128(value), "ascii"));
+  const data = Uint8Array.from(code128DataBytes(value));
   if (!value || Buffer.from(value, "ascii").toString("ascii") !== value || data.length > 255) throw new EscPosError("Code 128データが不正です");
   return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 73, data.length, ...data, LF, ESC, 0x61, 0]);
 }
