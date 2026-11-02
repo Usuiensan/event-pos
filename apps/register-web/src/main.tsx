@@ -22,7 +22,7 @@ import { HoldOperations } from "./hold-operations.js";
 import { AdminSettings } from "./admin-settings.js";
 import { createUuid } from "./uuid.js";
 import { stockTier } from "./stock.js";
-import { classifyScan } from "./scan-routing.js";
+import { classifyScan, nextInputBuffer } from "./scan-routing.js";
 import "./styles.css";
 
 const initialCatalog: EventCatalog = demoCatalog;
@@ -493,8 +493,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       const target = event.target;
       const isFormInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
       if (showSignIn || selectedLine !== null || isFormInput) return;
-      if (checkoutLocked && !/^[0-9]$/.test(event.key) && event.key !== "Enter" && event.key !== "Escape" && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt" && event.key !== "Meta") { event.preventDefault(); return; }
-       if (/^[0-9]$/.test(event.key)) { event.preventDefault(); updateInputBuffer((value) => value + event.key); return; }
+      if (checkoutLocked && !/^[0-9]$/.test(event.key) && !/^[a-zA-Z]$/.test(event.key) && event.key !== "Enter" && event.key !== "Escape" && event.key !== "Shift" && event.key !== "Control" && event.key !== "Alt" && event.key !== "Meta") { event.preventDefault(); return; }
+       if (/^[0-9]$/.test(event.key) || /^[a-zA-Z]$/.test(event.key)) { const next = nextInputBuffer(inputBufferRef.current, event.key); if (next !== inputBufferRef.current) { event.preventDefault(); updateInputBuffer(next); } return; }
        if (event.key === "*" || event.key === "Multiply") { event.preventDefault(); if (inputBufferRef.current === "4") applyLastAddedQuantityShortcut(); updateInputBuffer(""); return; }
        if (event.key === "Escape") { updateInputBuffer(""); return; }
        if (event.key === "Enter" && inputBufferRef.current) {
