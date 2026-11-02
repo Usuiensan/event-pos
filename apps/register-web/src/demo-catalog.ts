@@ -21,7 +21,7 @@ const products: ProductDefinition[] = groups.flatMap((group) => group.items.map(
 
 export const demoCatalog: EventCatalog = {
   eventId: "demo-event-large",
-  customerWelcome: { message: "いらっしゃいませ\n新刊・既刊を頒布しています", circleName: "event-pos テストサークル", space: "東A-01a" },
+  customerWelcome: { message: "いらっしゃいませ\n新刊・既刊を頒布しています", circleName: "ぽすりん テストサークル", space: "東A-01a" },
   products,
   quickEntries: [{ id: "book-pair", label: "新刊 小説A+B", components: [{ productCode: "T0000121", quantity: 1 }, { productCode: "T0000122", quantity: 1 }], tabId: "books" }, { id: "adult-new", label: "R18新刊 小説A", productCode: "T0000141", quantity: 1, tabId: "adult" }],
   staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者", role: "admin", permissions: ["catalog_import", "refund", "reprint"] }, { responsibleNumber: "002", displayName: "売り子A", role: "operator", permissions: [] }],
