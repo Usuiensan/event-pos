@@ -96,7 +96,46 @@ describe("管理画面設定のGit確定", () => {
     expect(unchanged.json().gitCommitId).toBeNull();
     expect(git(repository, ["rev-parse", "HEAD"])).toBe(head);
   });
+});
 
+describe("認証オフ時の管理画面設定", () => {
+  async function noAuthFixture() {
+    const directory = mkdtempSync(join(tmpdir(), "event-pos-config-noauth-"));
+    directories.push(directory);
+    const configDirectory = join(directory, "demo");
+    cpSync(resolve(import.meta.dirname, "../../../event-config/demo"), configDirectory, { recursive: true });
+    const database = openDatabase();
+    const app = buildApp({ database, requireAuth: false, eventConfigDirectory: configDirectory });
+    apps.push(app);
+    const reloaded = await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} });
+    expect(reloaded.statusCode).toBe(200);
+    return { app, database, catalog: reloaded.json().catalog as { eventId: string; products: Array<{ name: string }> } };
+  }
+
+  it("認証オフでも管理設定を保存できる", async () => {
+    const { app, catalog } = await noAuthFixture();
+    catalog.products[0]!.name = "認証オフで更新した商品";
+    const saved = await app.inject({ method: "PUT", url: "/api/v1/events/demo-event-large/management-config", payload: { catalog } });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().catalog.products[0].name).toBe("認証オフで更新した商品");
+  });
+
+  it("認証オフでも未登録商品一覧を取得できる", async () => {
+    const { app } = await noAuthFixture();
+    const response = await app.inject({ method: "GET", url: "/api/v1/events/demo-event-large/unregistered-products" });
+    expect(response.statusCode).toBe(200);
+    expect(Array.isArray(response.json().products)).toBe(true);
+  });
+
+  it("認証オフでもURLとカタログのeventIdが違えば保存できない", async () => {
+    const { app, catalog } = await noAuthFixture();
+    const failed = await app.inject({ method: "PUT", url: "/api/v1/events/other-event/management-config", payload: { catalog } });
+    expect(failed.statusCode).toBe(400);
+    expect(failed.json().error.message).toContain("eventIdが一致しません");
+  });
+});
+
+describe("管理画面設定のGit確定", () => {
   it("Gitコミット失敗時はSQLiteと監査ログを更新しない", async () => {
     const { repository, configDirectory, database, app, headers, catalog } = await managementFixture();
     const before = getCatalog(database, "demo-event-large")!;

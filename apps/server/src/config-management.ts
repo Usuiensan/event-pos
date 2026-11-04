@@ -56,7 +56,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/unregistered-products", async (request, reply) => {
     try {
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
-      if (actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
+      if (options.authRequired && actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
       return { products: listUnregisteredProducts(options.database, request.params.eventId) };
     } catch (error) { return failure(reply, error); }
   });
@@ -89,7 +89,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
   app.get<{ Params: { eventId: string; code: string } }>("/api/v1/events/:eventId/product-lookup/:code", async (request, reply) => {
     try {
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
-      if (actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
+      if (options.authRequired && actor.eventId !== request.params.eventId) throw new Error("eventIdが一致しません");
       return await lookupProductCandidates(options.database, request.params.eventId, options.configDirectory, request.params.code);
     } catch (error) { return failure(reply, error); }
   });
@@ -98,7 +98,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
     try {
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
       const allowedFields = new Set(["name", "seller", "manufacturer", "brand", "producer", "specification"]);
-      if (actor.eventId !== request.params.eventId || !request.body?.productCode || !request.body.fieldName || !allowedFields.has(request.body.fieldName) || !request.body.candidate || typeof request.body.candidate !== "object") throw new Error("候補採用情報が不正です");
+      if ((options.authRequired && actor.eventId !== request.params.eventId) || !request.body?.productCode || !request.body.fieldName || !allowedFields.has(request.body.fieldName) || !request.body.candidate || typeof request.body.candidate !== "object") throw new Error("候補採用情報が不正です");
       recordProductLookupAdoption(options.database, request.params.eventId, request.body.productCode, request.body.fieldName, request.body.candidate as never, actor.staffId);
       return { recorded: true };
     } catch (error) { return failure(reply, error); }
@@ -108,7 +108,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
     try {
       const actor = requireAuthActor(options.database, request, "manager", options.authRequired);
       const token = String(request.body?.token ?? "").trim();
-      if (actor.eventId !== request.params.eventId || !request.body?.productCode || !token || !["negative", "positive"].includes(request.body.feedback ?? "")) throw new Error("商品名要素の評価情報が不正です");
+      if ((options.authRequired && actor.eventId !== request.params.eventId) || !request.body?.productCode || !token || !["negative", "positive"].includes(request.body.feedback ?? "")) throw new Error("商品名要素の評価情報が不正です");
       const feedback = request.body.feedback;
       if (feedback !== "negative" && feedback !== "positive") throw new Error("評価種別が不正です");
       recordProductLookupFeedback(options.database, request.params.eventId, request.body.productCode, token, feedback, actor.staffId);
@@ -122,7 +122,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       if (!options.configDirectory) throw new Error("POS_EVENT_CONFIG_DIRが設定されていません");
       if (getOpenBusinessSession(options.database, request.params.eventId)) throw new Error("営業中は設定を保存できません");
       const catalog = importEventCatalog(JSON.stringify(request.body?.catalog));
-      if (catalog.eventId !== request.params.eventId || actor.eventId !== catalog.eventId) throw new Error("eventIdが一致しません");
+      if (catalog.eventId !== request.params.eventId || (options.authRequired && actor.eventId !== catalog.eventId)) throw new Error("eventIdが一致しません");
       await writeCatalog(options.configDirectory, catalog);
       const verified = await buildCatalog(options.configDirectory);
       const commitId = options.configRepository ? await commitConfig(options.configRepository, options.configDirectory, actor.responsibleNumber) : undefined;
