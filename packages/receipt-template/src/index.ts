@@ -279,7 +279,8 @@ export function displayColumns(value: string): number {
   for (const char of value.normalize("NFC")) {
     const cp = char.codePointAt(0)!;
     if (char === "\n") continue;
-    if ((cp >= 0xff61 && cp <= 0xff9f) || cp <= 0x7f) width += 1;
+    // ¥ (U+00A5) は CP932 では半角1桁 (0x5C) で印字されるため1列として数える。
+    if ((cp >= 0xff61 && cp <= 0xff9f) || cp <= 0x7f || cp === 0xa5) width += 1;
     else width += 2;
   }
   return width;

@@ -51,6 +51,16 @@ describe("pure ESC/POS renderer", () => {
     expect(() => receiptDocumentToEscPos({ ...document, nodes: [{ kind: "image", assetId: "wide", widthDots: 384 }] }, [{ ...asset, assetId: "wide", widthDots: 416 }])).toThrow("寸法");
   });
 
+  it("¥を含むrowは32列ちょうどに右揃えされる", () => {
+    const bytes = receiptDocumentToEscPos({ ...document, nodes: [
+      { kind: "reset" }, { kind: "row", left: "TOTAL", right: "¥500" }, { kind: "cut", mode: "partial" },
+    ] });
+    const line = Buffer.from(bytes).toString("latin1").split("\n").find((value) => value.includes("TOTAL"))!;
+    // TOTAL (5列) + 空白 (23列) + \500 (4列) = 32列。¥を2列と数えると31列になる。
+    expect(line.endsWith("TOTAL" + " ".repeat(23) + "\\500")).toBe(true);
+    expect(line.length - line.indexOf("TOTAL")).toBe(32);
+  });
+
   it("180度回転では行順・状態・cutの位置を反転する", () => {
     const rotated = receiptDocumentToEscPos({ ...document, nodes: [
       { kind: "reset" }, { kind: "align", value: "center" }, { kind: "text", value: "TITLE" },
