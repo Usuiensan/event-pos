@@ -50,4 +50,44 @@ describe("pure ESC/POS renderer", () => {
   it("384 dotsの内容幅と416 dotsの物理上限を別々に検証する", () => {
     expect(() => receiptDocumentToEscPos({ ...document, nodes: [{ kind: "image", assetId: "wide", widthDots: 384 }] }, [{ ...asset, assetId: "wide", widthDots: 416 }])).toThrow("寸法");
   });
+
+  it("180度回転では行順・状態・cutの位置を反転する", () => {
+    const rotated = receiptDocumentToEscPos({ ...document, nodes: [
+      { kind: "reset" }, { kind: "align", value: "center" }, { kind: "text", value: "TITLE" },
+      { kind: "align", value: "left" }, { kind: "text", value: "LINE1\nLINE2" }, { kind: "feed", lines: 1 }, { kind: "cut", mode: "partial" },
+    ] }, [], { rotate180: true });
+    const bytes = Array.from(rotated);
+    expect(bytes.slice(0, 13)).toEqual([0x1b, 0x40, 0x1b, 0x33, 24, 0x1b, 0x52, 8, 0x1c, 0x43, 1, 0x1c, 0x26]);
+    expect(bytes.slice(13, 16)).toEqual([0x1b, 0x7b, 1]);
+    const text = Buffer.from(rotated).toString("binary");
+    expect(text.indexOf("LINE2")).toBeLessThan(text.indexOf("LINE1"));
+    expect(bytes.filter((value, index) => value === 0x1b && bytes[index + 1] === 0x61)).toHaveLength(4);
+    expect(bytes.slice(-2)).toEqual([0x1b, 0x69]);
+  });
+
+  it("180度回転ではラスターのバイト順とビット順を反転する", () => {
+    const source = Uint8Array.from([0b10000001, 0b00000110]);
+    const rotated = receiptDocumentToEscPos({ ...document, nodes: [{ kind: "reset" }, { kind: "image", assetId: "logo", widthDots: 8 }] }, [
+      { ...asset, rasterBase64: Buffer.from(source).toString("base64"), sha256: bytesSha256(source) },
+    ], { rotate180: true });
+    const header = Array.from(rotated).findIndex((value, index) => value === 0x1d && rotated[index + 1] === 0x76 && rotated[index + 2] === 0x30);
+    expect(Array.from(rotated.slice(header + 8, header + 10))).toEqual([0b01100000, 0b10000001]);
+  });
+
+  it("180度回転でもbarcodeとQRのコマンド内容を保つ", () => {
+    const nodes = [{ kind: "reset" as const }, { kind: "barcode" as const, value: "ABC", width: 3, height: 96, hri: "below" as const }, { kind: "qr" as const, data: "QR", moduleSize: 4, errorCorrection: "M" as const }, { kind: "cut" as const, mode: "partial" as const }];
+    const normal = receiptDocumentToEscPos({ ...document, nodes });
+    const rotated = receiptDocumentToEscPos({ ...document, nodes }, [], { rotate180: true });
+    expect(Buffer.from(rotated).includes(Buffer.from(encodeBarcode("ABC", { width: 3, height: 96, hri: "below" })))).toBe(true);
+    expect(Array.from(rotated).filter((value, index) => value === 0x1d && rotated[index + 1] === 0x6b)).toHaveLength(Array.from(normal).filter((value, index) => value === 0x1d && normal[index + 1] === 0x6b).length);
+  });
+
+  it("改行を含むtextは無回転時のバイトを保ち、回転時は行単位で逆転する", () => {
+    const nodes = [{ kind: "reset" as const }, { kind: "text" as const, value: "A\nB" }, { kind: "cut" as const, mode: "partial" as const }];
+    const normal = receiptDocumentToEscPos({ ...document, nodes });
+    const split = receiptDocumentToEscPos({ ...document, nodes: [{ kind: "reset" }, { kind: "text", value: "A" }, { kind: "text", value: "B" }, { kind: "cut", mode: "partial" }] });
+    expect(normal).toEqual(split);
+    const rotated = Buffer.from(receiptDocumentToEscPos({ ...document, nodes }, [], { rotate180: true })).toString("binary");
+    expect(rotated.indexOf("B")).toBeLessThan(rotated.indexOf("A"));
+  });
 });

@@ -10,6 +10,7 @@ import { CheckoutError, allocatePublicReference, getSaleDraft } from "./checkout
 import { assertRegisterOpen } from "./business-store.js";
 import { requireAuthActor } from "./auth.js";
 import { formatJstDateTime } from "./time-format.js";
+import { receiptRenderOptions } from "./receipt-render-config.js";
 
 type Options = { database: PosDatabase; authRequired: boolean; printQueue?: { trigger(): void } };
 const yen = (value: number) => `¥${value.toLocaleString("ja-JP")}`;
@@ -20,7 +21,7 @@ const error = (reply: any, e: unknown) => {
 };
 
 function enqueueDocument(db: PosDatabase, input: { transactionId: string; printerId: string; documentType: string; kind?: "original" | "reprint"; document: ReceiptDocument; payload: Record<string, unknown>; createdAt: string }): string {
-  const canonicalIr = canonicalizeReceiptDocument(input.document); const bytes = receiptDocumentToEscPos(input.document); const jobId = `print:${input.documentType}:${randomUUID()}`;
+  const canonicalIr = canonicalizeReceiptDocument(input.document); const bytes = receiptDocumentToEscPos(input.document, [], receiptRenderOptions()); const jobId = `print:${input.documentType}:${randomUUID()}`;
   createPrintJob(db, { jobId, transactionId: input.transactionId, printerId: input.printerId, documentType: input.documentType, kind: input.kind ?? "original", payload: { ...input.payload, document: input.document, canonicalIr, escposBase64: Buffer.from(bytes).toString("base64") }, createdAt: input.createdAt, source: "event-pos", rendererVersion: `${input.documentType}-v1`, bytesSha256: bytesSha256(bytes), canonicalIr, irSha256: bytesSha256(new TextEncoder().encode(canonicalIr)), expectedBytesLength: bytes.length });
   return jobId;
 }

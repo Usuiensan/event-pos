@@ -1,5 +1,5 @@
 import type { PrintJob, PrinterStatusObservation } from "@event-pos/contracts";
-import { bytesSha256, canonicalIrToEscPos } from "@event-pos/escpos";
+import { bytesSha256, canonicalIrToEscPos, ESCPOS_RENDERER_VERSION_ROTATE180 } from "@event-pos/escpos";
 
 export type PrinterStatus = "ready" | "paper_out" | "offline" | "unknown";
 export type SendReceipt = { acceptedBytes: number; transportEvidence: Record<string, string | number | boolean> };
@@ -40,7 +40,7 @@ export function renderEscPos(job: PrintJob): Uint8Array {
   }
   if (job.documentType === "receipt") {
     if (!job.canonicalIr || !job.bytesSha256 || !job.irSha256 || !job.expectedBytesLength || !job.rendererVersion || !job.templateKey || !job.templateVersion || !job.templateSourceSha256 || !job.fontId || !job.fontVersion || !job.fontSha256 || !job.finishingPolicyId || !job.finishingPolicyVersion) throw new Error("receipt version metadata is required");
-    const bytes = canonicalIrToEscPos(job.canonicalIr, job.assets ?? []);
+    const bytes = canonicalIrToEscPos(job.canonicalIr, job.assets ?? [], { rotate180: job.rendererVersion === ESCPOS_RENDERER_VERSION_ROTATE180 });
     if (bytesSha256(bytes) !== job.bytesSha256 || bytes.length !== job.expectedBytesLength) throw new Error("receipt bytes hash mismatch");
     return bytes;
   }
