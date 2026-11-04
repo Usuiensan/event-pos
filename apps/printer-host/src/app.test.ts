@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { PrintJob } from "@event-pos/contracts";
-import { BUILTIN_FONT, bytesSha256, DEFAULT_FINISHING_POLICY, ESCPOS_RENDERER_VERSION, receiptDocumentToEscPos } from "@event-pos/escpos";
+import { BUILTIN_FONT, bytesSha256, DEFAULT_FINISHING_POLICY, ESCPOS_RENDERER_VERSION, ESCPOS_RENDERER_VERSION_ROTATE180, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { buildPrinterHost } from "./app.js";
-import { FakeTransport, TransportSendError } from "./transport.js";
+import { FakeTransport, TransportSendError, renderEscPos } from "./transport.js";
 
 const apps: ReturnType<typeof buildPrinterHost>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
@@ -41,6 +41,13 @@ const job: PrintJob = {
 };
 
 describe("printer host", () => {
+  it("rendererVersionで回転描画を選び、旧jobは無回転のままにする", () => {
+    const rotatedBytes = receiptDocumentToEscPos(document, [], { rotate180: true });
+    const rotatedJob = { ...job, rendererVersion: ESCPOS_RENDERER_VERSION_ROTATE180, bytesSha256: bytesSha256(rotatedBytes), expectedBytesLength: rotatedBytes.length };
+    expect(renderEscPos(rotatedJob)).toEqual(rotatedBytes);
+    expect(renderEscPos(job)).toEqual(receiptBytes);
+  });
+
   it("reachable実測済みなら未対応sensorをunknownのままRAW送信できる", async () => {
     const transport = new FakeTransport();
     transport.getStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported", value: true }, online: { support: "unknown", reason: "RAWでは未取得" }, coverOpen: { support: "unknown", reason: "RAWでは未取得" }, drawerOpen: { support: "unknown", reason: "RAWでは未取得" }, paper: { support: "unknown", reason: "RAWでは未取得" }, error: { support: "unknown", reason: "RAWでは未取得" }, raw: null });

@@ -21,6 +21,7 @@ import { buildCatalog } from "@event-pos/catalog-config";
 import { registerConfigManagementRoutes } from "./config-management.js";
 import { registerServerFeatureRoutes } from "./server-features.js";
 import { registerJournalRoutes } from "./journal.js";
+import { receiptRenderOptions } from "./receipt-render-config.js";
 
 export type { PrinterHost } from "./print-queue.js";
 export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
@@ -81,7 +82,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const lines = ["払込票リマインダー", "これは領収書ではありません。", "", `支払期限：${dueLabel}`, `企業番号：${slip.gs1CompanyPrefix7}`, `請求金額：${slip.amount.toLocaleString("ja-JP")}円`];
     if (slip.dueDate.kind === "not-specified") lines.push("紙面に記載された期限を確認してください。", "カレンダー登録は行えません。");
     const document = { schemaVersion: 1 as const, contentWidthDots: 384 as const, physicalWidthDots: 416 as const, nodes: [{ kind: "reset" as const }, { kind: "align" as const, value: "center" as const }, { kind: "emphasis" as const, bold: true, underline: false, invert: false }, { kind: "text" as const, value: "払込票リマインダー" }, { kind: "emphasis" as const, bold: false, underline: false, invert: false }, { kind: "align" as const, value: "left" as const }, { kind: "rule" as const, style: "single" as const }, ...lines.slice(1).map((value) => ({ kind: "text" as const, value })), { kind: "feed" as const, lines: 5 }, { kind: "cut" as const, mode: "partial" as const }] };
-    const bytes = receiptDocumentToEscPos(document); const now = new Date().toISOString(); const jobId = `payment-slip-reminder:${randomUUID()}`;
+    const bytes = receiptDocumentToEscPos(document, [], receiptRenderOptions()); const now = new Date().toISOString(); const jobId = `payment-slip-reminder:${randomUUID()}`;
     const job = createPrintJob(options.database, { jobId, transactionId: `payment-slip-reminder:${randomUUID()}`, printerId: request.body?.terminalId ?? "receipt-1", documentType: "payment-slip-reminder", payload: { lines, escposBase64: Buffer.from(bytes).toString("base64"), paymentSlip: { issuerCode: slip.issuerCode, dueDate: slip.dueDate, amount: slip.amount, stampFlag: slip.stampFlag } }, createdAt: now, source: "event-pos", rendererVersion: "payment-slip-reminder-v1", bytesSha256: bytesSha256(bytes), expectedBytesLength: bytes.length });
     printQueue?.trigger();
     return reply.code(201).send({ job, reminder: { dueDate: slip.dueDate, amount: slip.amount, issuerCode: slip.issuerCode, gs1CompanyPrefix7: slip.gs1CompanyPrefix7 } });

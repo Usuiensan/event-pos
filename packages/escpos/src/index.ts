@@ -4,10 +4,12 @@ import { parseCanonicalReceiptIr, validateDocument, type ReceiptDocument } from 
 
 const ESC = 0x1b; const GS = 0x1d; const FS = 0x1c; const LF = 0x0a;
 export const ESCPOS_RENDERER_VERSION = "event-pos-escpos-v1";
+export const ESCPOS_RENDERER_VERSION_ROTATE180 = "event-pos-escpos-v1-rot180";
 export const BUILTIN_FONT = { id: "tm-t70ii-cp932", version: 1, sha256: "builtin-tm-t70ii-cp932-v1" } as const;
 export const DEFAULT_FINISHING_POLICY = { id: "receipt-partial-cut", version: 2 } as const;
 
 export type EscPosRasterAsset = { assetId: string; version: number; sha256: string; widthDots: number; heightDots: number; rasterBase64: string };
+export type EscPosRenderOptions = { rotate180?: boolean };
 
 export class EscPosError extends Error {}
 
@@ -96,18 +98,62 @@ export function encodeBarcode(value: string, options: { type?: "code128" | "itf"
   return Uint8Array.from([ESC, 0x61, 1, GS, 0x48, hriValue, GS, 0x77, width, GS, 0x68, height, GS, 0x6b, 73, data.length, ...data, LF, ESC, 0x61, 0]);
 }
 
-function rasterBytes(asset: EscPosRasterAsset, requestedWidth: number): Uint8Array {
+function reverseBits(value: number): number {
+  return ((value & 1) << 7) | ((value & 2) << 5) | ((value & 4) << 3) | ((value & 8) << 1) | ((value & 0x10) >> 1) | ((value & 0x20) >> 3) | ((value & 0x40) >> 5) | ((value & 0x80) >> 7);
+}
+
+function rasterBytes(asset: EscPosRasterAsset, requestedWidth: number, rotate180 = false): Uint8Array {
   if (requestedWidth !== asset.widthDots || requestedWidth > 384 || asset.widthDots > 416 || asset.heightDots < 1 || asset.heightDots > 4096) throw new EscPosError(`画像assetの寸法が不正です: ${asset.assetId}`);
   const raster = Uint8Array.from(Buffer.from(asset.rasterBase64, "base64")); const widthBytes = Math.ceil(asset.widthDots / 8);
   if (raster.length !== widthBytes * asset.heightDots || bytesSha256(raster) !== asset.sha256) throw new EscPosError(`画像assetのhashまたは長さが不正です: ${asset.assetId}`);
-  return Uint8Array.from([ESC, 0x61, 1, GS, 0x76, 0x30, 0, widthBytes & 0xff, (widthBytes >> 8) & 0xff, asset.heightDots & 0xff, (asset.heightDots >> 8) & 0xff, ...raster, LF, ESC, 0x61, 0]);
+  const outputRaster = rotate180 ? Uint8Array.from(raster, (_value, index) => reverseBits(raster[raster.length - index - 1]!)) : raster;
+  return Uint8Array.from([ESC, 0x61, 1, GS, 0x76, 0x30, 0, widthBytes & 0xff, (widthBytes >> 8) & 0xff, asset.heightDots & 0xff, (asset.heightDots >> 8) & 0xff, ...outputRaster, LF, ESC, 0x61, 0]);
 }
 
 function append(parts: number[], bytes: Uint8Array): void { parts.push(...bytes); }
 
-export function receiptDocumentToEscPos(document: ReceiptDocument, assets: readonly EscPosRasterAsset[] = []): Uint8Array {
+export function receiptDocumentToEscPos(document: ReceiptDocument, assets: readonly EscPosRasterAsset[] = [], options: EscPosRenderOptions = {}): Uint8Array {
   validateDocument(document);
   const assetsById = new Map(assets.map((asset) => [asset.assetId, asset])); const output: number[] = [];
+  if (options.rotate180) {
+    type State = { align: "left" | "center" | "right"; bold: boolean; underline: boolean; invert: boolean; width: 1 | 2; height: 1 | 2 };
+    type Segment = { state: State; node: Exclude<typeof document.nodes[number], { kind: "reset" | "cut" | "align" | "emphasis" | "size" }> };
+    const state: State = { align: "left", bold: false, underline: false, invert: false, width: 1, height: 1 };
+    const first: number[] = []; const last: number[] = []; const segments: Segment[] = [];
+    const copyState = (): State => ({ ...state });
+    const appendState = (target: number[], value: State): void => {
+      target.push(ESC, 0x61, { left: 0, center: 1, right: 2 }[value.align]);
+      target.push(ESC, 0x45, value.bold ? 1 : 0, ESC, 0x2d, value.underline ? 1 : 0, FS, 0x2d, value.underline ? 1 : 0, GS, 0x42, value.invert ? 1 : 0);
+      target.push(GS, 0x21, ((value.width - 1) << 4) | (value.height - 1));
+    };
+    for (const node of document.nodes) {
+      if (node.kind === "reset") { first.push(ESC, 0x40, ESC, 0x33, 24, ESC, 0x52, 8, FS, 0x43, 1, FS, 0x26); continue; }
+      if (node.kind === "cut") { if (node.mode === "partial") last.push(ESC, 0x69); else if (node.mode === "partial3") last.push(ESC, 0x6d); continue; }
+      if (node.kind === "align") { state.align = node.value; continue; }
+      if (node.kind === "emphasis") { state.bold = node.bold; state.underline = node.underline; state.invert = node.invert; continue; }
+      if (node.kind === "size") { state.width = node.width; state.height = node.height; continue; }
+      if (node.kind === "text" && node.value.includes("\n")) {
+        for (const value of node.value.split("\n")) segments.push({ state: copyState(), node: { kind: "text", value } });
+      } else segments.push({ state: copyState(), node });
+    }
+    output.push(...first, ESC, 0x7b, 1);
+    for (const segment of segments.reverse()) {
+      const bytes: number[] = []; appendState(bytes, segment.state);
+      const node = segment.node;
+      switch (node.kind) {
+        case "text": append(bytes, encodeCp932(node.value)); bytes.push(LF); break;
+        case "row": append(bytes, encodeCp932(rowText(node.left, node.right))); bytes.push(LF); break;
+        case "rule": append(bytes, encodeCp932((node.style === "double" ? "=" : "-").repeat(32))); bytes.push(LF); break;
+        case "feed": bytes.push(...new Array<number>(node.lines).fill(LF)); break;
+        case "image": { const asset = assetsById.get(node.assetId); if (!asset) throw new EscPosError(`画像assetがありません: ${node.assetId}`); append(bytes, rasterBytes(asset, node.widthDots, true)); break; }
+        case "qr": bytes.push(ESC, 0x61, 1); append(bytes, qrBytes(node.data, node.moduleSize, node.errorCorrection)); bytes.push(ESC, 0x61, 0); break;
+        case "barcode": append(bytes, encodeBarcode(node.value, { type: node.format ?? "code128", width: node.width, height: node.height, hri: node.hri })); break;
+      }
+      output.push(...bytes);
+    }
+    output.push(...last);
+    return Uint8Array.from(output);
+  }
   for (const node of document.nodes) {
     switch (node.kind) {
       case "reset": output.push(ESC, 0x40, ESC, 0x33, 24, ESC, 0x52, 8, FS, 0x43, 1, FS, 0x26); break;
@@ -127,6 +173,6 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
   return Uint8Array.from(output);
 }
 
-export function canonicalIrToEscPos(source: string, assets: readonly EscPosRasterAsset[] = []): Uint8Array {
-  return receiptDocumentToEscPos(parseCanonicalReceiptIr(source), assets);
+export function canonicalIrToEscPos(source: string, assets: readonly EscPosRasterAsset[] = [], options: EscPosRenderOptions = {}): Uint8Array {
+  return receiptDocumentToEscPos(parseCanonicalReceiptIr(source), assets, options);
 }
