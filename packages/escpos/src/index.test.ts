@@ -71,18 +71,20 @@ describe("pure ESC/POS renderer", () => {
     expect(bytes.slice(13, 16)).toEqual([0x1b, 0x7b, 1]);
     const text = Buffer.from(rotated).toString("binary");
     expect(text.indexOf("LINE2")).toBeLessThan(text.indexOf("LINE1"));
-    expect(bytes.filter((value, index) => value === 0x1b && bytes[index + 1] === 0x61)).toHaveLength(3);
+    expect(bytes.filter((value, index) => value === 0x1b && bytes[index + 1] === 0x61)).toHaveLength(4);
     expect(bytes.slice(-2)).toEqual([0x1b, 0x69]);
   });
 
-  it("180度回転でcut直前のfeedを末尾へ残す", () => {
+  it("180度回転では文書末尾feedを反転列へ残し、cut直前へ固定4行を追加する", () => {
     const nodes = (feedLines: number) => [
       { kind: "reset" as const }, { kind: "text" as const, value: "A" }, { kind: "feed" as const, lines: feedLines }, { kind: "cut" as const, mode: "partial" as const },
     ];
-    for (const feedLines of [2, 8]) {
+    for (const feedLines of [1, 8]) {
       const bytes = Array.from(receiptDocumentToEscPos({ ...document, nodes: nodes(feedLines) }, [], { rotate180: true }));
-      expect(bytes[15]).not.toBe(0x0a);
-      expect(bytes.slice(-(feedLines + 2))).toEqual([...new Array(feedLines).fill(0x0a), 0x1b, 0x69]);
+      expect(bytes.slice(-6)).toEqual([0x0a, 0x0a, 0x0a, 0x0a, 0x1b, 0x69]);
+      const firstFeed = bytes.indexOf(0x0a, 16);
+      expect(bytes.slice(firstFeed, firstFeed + feedLines)).toEqual(new Array(feedLines).fill(0x0a));
+      expect(bytes.filter((value) => value === 0x0a)).toHaveLength(feedLines + 5);
     }
   });
 

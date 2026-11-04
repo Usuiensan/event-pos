@@ -5,6 +5,7 @@ import { parseCanonicalReceiptIr, validateDocument, type ReceiptDocument } from 
 const ESC = 0x1b; const GS = 0x1d; const FS = 0x1c; const LF = 0x0a;
 export const ESCPOS_RENDERER_VERSION = "event-pos-escpos-v1";
 export const ESCPOS_RENDERER_VERSION_ROTATE180 = "event-pos-escpos-v1-rot180";
+export const ESCPOS_ROTATE_PRE_CUT_FEED_LINES = 4;
 export const BUILTIN_FONT = { id: "tm-t70ii-cp932", version: 1, sha256: "builtin-tm-t70ii-cp932-v1" } as const;
 export const DEFAULT_FINISHING_POLICY = { id: "receipt-partial-cut", version: 2 } as const;
 
@@ -137,13 +138,7 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
         for (const value of node.value.split("\n")) segments.push({ state: copyState(), node: { kind: "text", value } });
       } else segments.push({ state: copyState(), node });
     }
-    let tailFeedLines = 0;
-    if (document.nodes.at(-1)?.kind === "cut") {
-      while (segments.at(-1)?.node.kind === "feed") {
-        const segment = segments.pop()!;
-        if (segment.node.kind === "feed") tailFeedLines += segment.node.lines;
-      }
-    }
+    const endsWithCut = document.nodes.at(-1)?.kind === "cut";
     output.push(...first, ESC, 0x7b, 1);
     for (const segment of segments.reverse()) {
       const bytes: number[] = []; appendState(bytes, segment.state);
@@ -159,7 +154,7 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
       }
       output.push(...bytes);
     }
-    output.push(...new Array<number>(tailFeedLines).fill(LF), ...last);
+    output.push(...(endsWithCut ? new Array<number>(ESCPOS_ROTATE_PRE_CUT_FEED_LINES).fill(LF) : []), ...last);
     return Uint8Array.from(output);
   }
   for (const node of document.nodes) {
