@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cashDenominations, calculateCashActual, type CashCount, type CashDenomination } from "@event-pos/contracts";
 import { checkoutApi, type BackupArtifactDto, type CashSessionDto, type CashSettlementSummary } from "./checkout-api.js";
+import { ReasonSelect, DEFAULT_REASON } from "./reason-options.js";
 import { createUuid } from "./uuid.js";
 
 type CheckKind = "opening" | "interim" | "closing";
@@ -24,6 +25,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
   const [movementType, setMovementType] = useState<"pay_in" | "pay_out" | null>(null);
   const [movementAmount, setMovementAmount] = useState("");
   const [reason, setReason] = useState("");
+  const [movementReason, setMovementReason] = useState(DEFAULT_REASON);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [lastArtifact, setLastArtifact] = useState<BackupArtifactDto | null>(null);
   const [settlementSummary, setSettlementSummary] = useState<CashSettlementSummary | null>(null);
@@ -51,8 +53,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
     if (!movementType) return;
     const amountYen = Number(movementAmount);
     if (!Number.isSafeInteger(amountYen) || amountYen <= 0) return setError("金額は1円以上の整数で入力してください");
-    if (!reason.trim()) return setError(`${movementLabels[movementType]}理由を入力してください`);
-    setError(""); setPending({ kind: "movement", movementType, amountYen, reason: reason.trim() });
+    setError(""); setPending({ kind: "movement", movementType, amountYen, reason: movementReason });
   };
   const execute = async () => {
     if (!pending || submitting) return;
@@ -80,7 +81,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
         if (!session) throw new Error("現金セッションがありません");
         await checkoutApi.reopenCashSession(session.sessionId, pending.reason, terminalId, actorId);
       }
-      await refresh(); setPending(null); setCheckKind(null); setMovementType(null); setMovementAmount(""); setReason(""); setCounts({}); setCarryover("");
+      await refresh(); setPending(null); setCheckKind(null); setMovementType(null); setMovementAmount(""); setReason(""); setMovementReason(DEFAULT_REASON); setCounts({}); setCarryover("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "現金操作に失敗しました"); }
     finally { setSubmitting(false); }
   };
@@ -98,7 +99,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
       </div>}
       {session?.state === "closed" && !checkKind && !movementType && !pending && <div className="cash-reopen"><label>再開理由<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label><button disabled={!reason.trim()} onClick={() => setPending({ kind: "reopen", reason: reason.trim() })}>責任者として再開確認へ</button></div>}
       {checkKind && <div className="cash-count-form"><h3>{labels[checkKind]} — 金種別実査</h3><div className="denomination-grid">{cashDenominations.slice().reverse().map((denomination) => <label key={denomination}><span>{denomination.toLocaleString("ja-JP")}円</span><input aria-label={`${denomination}円の枚数`} inputMode="numeric" value={counts[denomination] ?? ""} onChange={(event) => setCounts((current) => ({ ...current, [denomination]: event.target.value.replace(/\D/g, "").slice(0, 6) }))} /><small>{yen(denomination * Number(counts[denomination] || 0))}</small></label>)}</div><div className="cash-check-preview"><span>理論現金 {yen(theoreticalYen)}</span><span>実在高 {yen(countedYen)}</span><strong>過不足 {yen(differenceYen)}</strong></div>{checkKind === "closing" && <label>翌日残し（円）<input aria-label="翌日残し" inputMode="numeric" value={carryover} onChange={(event) => setCarryover(event.target.value.replace(/\D/g, "").slice(0, 9))} /></label>}<div><button onClick={prepareCheck}>確認へ</button><button onClick={() => setCheckKind(null)}>戻る</button></div></div>}
-      {movementType && <div className="cash-movement-form"><h3>{movementLabels[movementType]}</h3><label>金額（円）<input aria-label={`${movementLabels[movementType]}金額`} inputMode="numeric" value={movementAmount} onChange={(event) => setMovementAmount(event.target.value.replace(/\D/g, "").slice(0, 9))} /></label><label>理由<textarea value={reason} onChange={(event) => setReason(event.target.value)} /></label><div><button onClick={prepareMovement}>確認へ</button><button onClick={() => setMovementType(null)}>戻る</button></div></div>}
+      {movementType && <div className="cash-movement-form"><h3>{movementLabels[movementType]}</h3><label>金額（円）<input aria-label={`${movementLabels[movementType]}金額`} inputMode="numeric" value={movementAmount} onChange={(event) => setMovementAmount(event.target.value.replace(/\D/g, "").slice(0, 9))} /></label><label>理由<ReasonSelect value={movementReason} onChange={setMovementReason} /></label><div><button onClick={prepareMovement}>確認へ</button><button onClick={() => setMovementType(null)}>戻る</button></div></div>}
       {pending && <div className="cash-confirm" role="dialog" aria-label="現金操作の確認"><h3>操作前確認</h3><dl><dt>操作</dt><dd>{pending.kind === "check" ? labels[pending.checkKind] : pending.kind === "movement" ? movementLabels[pending.movementType] : "精算の再開"}</dd><dt>責任者</dt><dd>{actorId}</dd><dt>営業日</dt><dd>{businessDate}</dd>{pending.kind === "check" && <><dt>理論現金</dt><dd>{yen(theoreticalYen)}</dd><dt>実在高</dt><dd>{yen(calculateCashActual(pending.counted))}</dd><dt>過不足</dt><dd>{yen(calculateCashActual(pending.counted) - theoreticalYen)}</dd>{pending.carryoverYen !== undefined && <><dt>翌日残し</dt><dd>{yen(pending.carryoverYen)}</dd></>}</>}{pending.kind === "movement" && <><dt>金額</dt><dd>{yen(pending.amountYen)}</dd><dt>理由</dt><dd>{pending.reason}</dd></>}{pending.kind === "reopen" && <><dt>理由</dt><dd>{pending.reason}</dd></>}</dl><p>この操作は監査ログへ記録されます。</p><div><button className="cash-danger" disabled={submitting} onClick={() => void execute()}>{submitting ? "確定中…" : "確定する"}</button><button disabled={submitting} onClick={() => setPending(null)}>戻る</button></div></div>}
       {error && <p className="cash-operation-error" role="alert">{error}</p>}
     </>}
