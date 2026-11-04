@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, displayColumns, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
+import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, displayColumns, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
 
 const snapshot: ReceiptSnapshot = {
   schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", publicReferenceRaw: "10000015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", businessDateYYMMDD: "260802", registerNo: "1", staffPrintLabel: "001",
@@ -11,7 +11,7 @@ const snapshot: ReceiptSnapshot = {
 
 describe("receipt template", () => {
   it("TM-T70II実紙面に合わせた返品バーコード余白と旧版を識別できる", () => {
-    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(8);
+    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(9);
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feed: 4");
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain('text: "品番 {{productCode}}"');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3).not.toContain('text: "品番 {{productCode}}"');
@@ -19,6 +19,7 @@ describe("receipt template", () => {
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5).not.toContain("barcode:");
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2).toContain('  - row: { left: "値引", right: "{{discountTotalFormatted}}" }');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1).toContain("feedLines: 3");
+    expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8).toContain("finish: { feedLines: 2, cutMode: partial }");
   });
 
   it("同じsnapshotから同じASTと人間向けpreviewを生成する", () => {
