@@ -111,8 +111,15 @@ describe("durable checkout API", () => {
     expect(response.statusCode).toBe(201); const id=response.json().transactionId;
     expect(db.prepare("SELECT type,total_yen,staff_id FROM transactions WHERE transaction_id=?").get(id)).toEqual({type:"return",total_yen:-350,staff_id:"unsigned-operator"});
     expect(db.prepare("SELECT type,amount_yen FROM cash_movements WHERE transaction_id=?").get(id)).toEqual({type:"return",amount_yen:350});
+    expect(db.prepare("SELECT reason_text FROM transactions WHERE transaction_id=?").get(id)).toEqual({reason_text:"紙面へ手書き"});
     const snapshot=JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(id) as {receipt_snapshot_json:string}).receipt_snapshot_json));
     expect(snapshot.footer).toContain("扱い者署名"); expect(snapshot.footer).toContain("返品理由");
+    const selected=await app.inject({method:"POST",url:"/api/v1/refunds/manual",headers:{"idempotency-key":"manual-refund-2"},payload:{eventId:catalog.eventId,cashSessionId:sessionId,terminalId:"register-1",description:"お客様都合の返金",amountYen:200,paymentKind:"cash",reason:"買主都合"}});
+    expect(selected.statusCode).toBe(201); const selectedId=selected.json().transactionId;
+    expect(db.prepare("SELECT reason_text FROM transactions WHERE transaction_id=?").get(selectedId)).toEqual({reason_text:"買主都合"});
+    expect(db.prepare("SELECT reason FROM cash_movements WHERE transaction_id=?").get(selectedId)).toEqual({reason:"買主都合"});
+    const audit=db.prepare("SELECT detail_json FROM audit_log WHERE action='manual_refund' AND entity_id=?").get(selectedId) as {detail_json:string};
+    expect(JSON.parse(audit.detail_json)).toMatchObject({reason:"買主都合",reasonRecordedOnPaper:false});
   });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
