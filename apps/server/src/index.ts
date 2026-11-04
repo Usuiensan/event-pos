@@ -62,7 +62,7 @@ const app = buildApp({ database, requireAuth, drawerEnabled, errorReportDirector
 const registerWebDist = process.env.REGISTER_WEB_DIST ?? "/app/register-web";
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".wav": "audio/wav", ".mp3": "audio/mpeg" };
 const sendAsset = async (file: string, reply: { type(value: string): { send(value: Buffer): unknown }; code(value: number): { send(value: unknown): unknown } }) => {
-  try { const path = join(registerWebDist, file === "index.html" ? "index.html" : file); const data = await readFile(path); return reply.type(contentTypes[path.slice(path.lastIndexOf("."))] ?? "application/octet-stream").send(data); }
+  try { const path = join(registerWebDist, file === "index.html" ? "index.html" : file); let data = await readFile(path); if (file === "index.html" && trainingMode) data = Buffer.from(data.toString("utf8").replace("</head>", "<script>window.__POS_TRAINING__=true;</script></head>"), "utf8"); return reply.type(contentTypes[path.slice(path.lastIndexOf("."))] ?? "application/octet-stream").send(data); }
   catch { return reply.code(404).send({ error: "not_found" }); }
 };
 app.get("/", async (_request, reply) => sendAsset("index.html", reply));

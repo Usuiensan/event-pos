@@ -18,12 +18,12 @@ export const GLOBAL_VARIABLE_LABELS: Array<[string, string]> = [
   ["eventName", "イベント名"], ["circleName", "サークル名"], ["publicReference", "受付番号"], ["publicReferenceRaw", "受付番号（ハイフンなし）"], ["confirmedAtPrinted", "確定日時"], ["businessDate", "営業日"], ["businessDateYYMMDD", "営業日（YYMMDD）"], ["registerNo", "レジ番号"], ["staffPrintLabel", "担当者"], ["subtotalFormatted", "小計"], ["discountTotalFormatted", "値引合計"], ["taxTotalFormatted", "税合計"], ["totalFormatted", "合計"], ["tenderedFormatted", "預り金"], ["changeFormatted", "釣銭"], ["footer", "フッター文"], ["returnPolicy", "返品ポリシー"], ["reprintLabel", "再印刷ラベル"], ["reprintNo", "再印刷番号"], ["originalReceiptNumber", "元受付番号"], ["transactionType", "取引種別"], ["originalPublicReference", "元の受付番号"], ["confirmedAt", "確定日時（ISO）"], ["transactionId", "取引ID"],
 ];
 export const COLLECTION_VARIABLE_LABELS: Record<"lines" | "discounts" | "taxSummaries" | "payments", Array<[string, string]>> = {
-  lines: [["name", "商品名"], ["productCode", "商品コード"], ["quantity", "数量"], ["unitPriceFormatted", "単価"], ["grossFormatted", "金額"], ["discountFormatted", "値引"], ["taxFormatted", "税"], ["netFormatted", "明細金額"], ["taxRateBps", "税率（bps）"]],
+  lines: [["name", "商品名"], ["productCode", "商品コード"], ["receiptNote", "追加事項"], ["quantity", "数量"], ["unitPriceFormatted", "単価"], ["grossFormatted", "金額"], ["discountFormatted", "値引"], ["taxFormatted", "税"], ["netFormatted", "明細金額"], ["taxRateBps", "税率（bps）"]],
   discounts: [["label", "値引名"], ["amountFormatted", "値引額"]],
   taxSummaries: [["taxRateBps", "税率（bps）"], ["taxableNetFormatted", "対象額"], ["taxFormatted", "税額"]],
   payments: [["methodName", "支払方法"], ["amountFormatted", "支払額"], ["tenderedFormatted", "預り金"], ["changeFormatted", "釣銭"]],
 };
-export const CONDITION_LABELS: Array<[string, string]> = [["isReprint", "再印刷のとき"], ["hasOriginalTransaction", "元伝票があるとき"], ["hasDiscounts", "値引があるとき"], ["hasTendered", "預り金があるとき"], ["hasChange", "釣銭があるとき"], ["quantityOne", "数量が1のとき（明細の中だけ）"], ["quantityMoreThanOne", "数量が2以上のとき（明細の中だけ）"]];
+export const CONDITION_LABELS: Array<[string, string]> = [["isReprint", "再印刷のとき"], ["hasOriginalTransaction", "元伝票があるとき"], ["hasDiscounts", "値引があるとき"], ["hasTendered", "預り金があるとき"], ["hasChange", "釣銭があるとき"], ["hasReceiptNote", "追加事項があるとき（明細の中だけ）"], ["quantityOne", "数量が1のとき（明細の中だけ）"], ["quantityMoreThanOne", "数量が2以上のとき（明細の中だけ）"]];
 export const COLLECTION_LABELS: Record<"lines" | "discounts" | "taxSummaries" | "payments", string> = { lines: "商品明細", discounts: "値引", taxSummaries: "税区分", payments: "支払い" };
 export const NODE_LABELS: Record<TemplateNode["kind"], string> = { reset: "初期化", text: "文字", row: "左右2列", align: "行ぞろえ", emphasis: "強調", size: "文字サイズ", rule: "罫線", feed: "空行", image: "画像", qr: "QRコード", barcode: "バーコード", finish: "仕上げ（カット）", each: "繰り返し", if: "条件つき" };
 

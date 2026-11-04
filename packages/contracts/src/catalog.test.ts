@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { exportEventCatalog, importEventCatalog, taxCategoryLabel } from "./catalog.js";
+import { exportEventCatalog, importEventCatalog, taxCategoryLabel, type EventCatalog } from "./catalog.js";
 
 const sample = { eventId: "event-1", products: [{ productCode: "A001", name: "新刊", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10" as const, saleState: "on_sale" as const, thumbnailUrl: "/products/a001.webp" }], quickEntries: [{ id: "set-1", label: "新刊セット", components: [{ productCode: "A001", quantity: 2 }] }], staffMembers: [{ responsibleNumber: "001", displayName: "テスト管理者" }] };
 
 describe("event catalog JSON", () => {
+  it("商品ごとのreceiptNoteをimport/exportで保持し、文字列以外を拒否する", () => {
+    const withNote = { ...sample, products: [{ ...sample.products[0], receiptNote: "一部予約\n会場限定" }] };
+    expect(importEventCatalog(exportEventCatalog(withNote as EventCatalog)).products[0]?.receiptNote).toBe("一部予約\n会場限定");
+    expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [{ ...sample.products[0], receiptNote: 123 }] }))).toThrow("receiptNote");
+  });
   it("imports and exports event-scoped products and sets", () => expect(importEventCatalog(exportEventCatalog(sample))).toEqual(sample));
   it("rejects duplicate product codes and invalid prices", () => {
     expect(() => importEventCatalog(JSON.stringify({ ...sample, products: [sample.products[0], sample.products[0]] }))).toThrow("重複");
