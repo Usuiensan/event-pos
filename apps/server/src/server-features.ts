@@ -8,7 +8,8 @@ import { createPrintJob } from "./db.js";
 import type { PosDatabase } from "./db.js";
 import { CheckoutError, allocatePublicReference, getSaleDraft } from "./checkout-store.js";
 import { assertRegisterOpen } from "./business-store.js";
-import { requireAuthActor } from "./auth.js";
+import { AuthError, requireAuthActor } from "./auth.js";
+import { uuidV7 } from "./ids.js";
 import { formatJstDateTime } from "./time-format.js";
 import { receiptRenderOptions } from "./receipt-render-config.js";
 
@@ -17,6 +18,7 @@ const yen = (value: number) => `¥${value.toLocaleString("ja-JP")}`;
 const actorId = (request: any, authRequired: boolean, actor: any) => authRequired ? actor.responsibleNumber : request.headers["x-pos-actor-id"] ?? "unsigned-operator";
 const error = (reply: any, e: unknown) => {
   if (e instanceof CheckoutError) return reply.code(e.status).send({ error: { code: e.code, message: e.message, details: e.details } });
+  if (e instanceof AuthError) return reply.code(e.status).send({ error: { code: e.code, message: e.message, details: {} } });
   return reply.code(500).send({ error: { code: "SERVER_FEATURE_ERROR", message: "処理に失敗しました", details: {} } });
 };
 
@@ -44,6 +46,38 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
         const opening = Number(row.opening_quantity); const remaining = opening + Number(row.quantity_delta); const reserved = Number(row.reserved);
         return { productCode: String(row.product_code), tracked: true, openingQuantity: opening, remaining, reserved, available: remaining - reserved };
       }) };
+    } catch (e) { return error(reply, e); }
+  });
+
+  app.post<{ Params: { eventId: string }; Body: { productCode?: unknown; newOnHand?: unknown; reason?: unknown } }>("/api/v1/events/:eventId/inventory/adjustments", async (request, reply) => {
+    try {
+      const auth = requireAuthActor(options.database, request, "manager", options.authRequired);
+      const eventId = request.params.eventId; const body = request.body ?? {};
+      if (typeof body.productCode !== "string" || !body.productCode) throw new CheckoutError(400, "INVENTORY_ADJUSTMENT_INVALID", "productCodeが必要です");
+      const catalogRow = options.database.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(eventId) as { catalog_json: string } | undefined;
+      const product = catalogRow ? importEventCatalog(catalogRow.catalog_json).products.find((item) => item.productCode === body.productCode) : undefined;
+      if (!product) throw new CheckoutError(404, "PRODUCT_NOT_FOUND", "商品が見つかりません");
+      const opening = product.inventory?.openingQuantity ?? null;
+      if (opening === null) throw new CheckoutError(400, "INVENTORY_NOT_TRACKED", "在庫管理をしていない商品は調整できません");
+      if (typeof body.newOnHand !== "number" || !Number.isSafeInteger(body.newOnHand) || body.newOnHand < 0) throw new CheckoutError(400, "INVENTORY_ADJUSTMENT_INVALID", "調整後の在庫数は0以上の整数で入力してください");
+      if (typeof body.reason !== "string" || !body.reason.trim()) throw new CheckoutError(400, "INVENTORY_ADJUSTMENT_REASON_REQUIRED", "調整理由が必要です");
+      const newOnHand = body.newOnHand; const reason = body.reason.trim(); const productId = `${eventId}:${product.productCode}`;
+      const db = options.database; const now = new Date().toISOString();
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        const moved = db.prepare("SELECT COALESCE(SUM(quantity_delta),0) AS total FROM inventory_movements WHERE event_id=? AND product_id=?").get(eventId, productId) as { total: number };
+        const before = opening + Number(moved.total); const delta = newOnHand - before;
+        const balance = db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(eventId, productId) as { reserved: number } | undefined;
+        const reserved = Number(balance?.reserved ?? 0);
+        if (delta !== 0) {
+          db.prepare("INSERT INTO inventory_movements (inventory_movement_id,event_id,product_id,type,quantity_delta,transaction_line_id,actor_id,created_at) VALUES (?,?,?,'adjustment',?,NULL,?,?)").run(uuidV7(), eventId, productId, delta, actorId(request, options.authRequired, auth), now);
+          const updated = db.prepare("UPDATE inventory_balances SET on_hand=on_hand+?,version=version+1 WHERE event_id=? AND product_id=?").run(delta, eventId, productId);
+          if (Number(updated.changes) === 0) db.prepare("INSERT INTO inventory_balances (event_id, product_id, on_hand, reserved, version) VALUES (?,?,?,0,1)").run(eventId, productId, newOnHand);
+          db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'inventory_adjustment','product',?,?,?)").run(eventId, productId, JSON.stringify({ productCode: product.productCode, before, after: newOnHand, delta, reason }), now);
+        }
+        db.exec("COMMIT");
+        return { productCode: product.productCode, tracked: true, openingQuantity: opening, remaining: newOnHand, reserved, available: newOnHand - reserved };
+      } catch (e) { db.exec("ROLLBACK"); throw e; }
     } catch (e) { return error(reply, e); }
   });
 

@@ -50,4 +50,11 @@ describe("checkout API client", () => {
     await checkoutApi.recordProductLookupFeedback("event-1", "4901234567890", "ハンズ", "negative");
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/events/event-1/product-lookup/feedback", expect.objectContaining({ method: "POST", body: JSON.stringify({ productCode: "4901234567890", token: "ハンズ", feedback: "negative" }) }));
   });
+
+  it("在庫調整へ商品・目標数・理由を送る", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ productCode: "00000001", tracked: true, openingQuantity: 5, remaining: 7, reserved: 0, available: 7 }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(checkoutApi.adjustInventory("event-1", "00000001", 7, "棚卸し")).resolves.toMatchObject({ remaining: 7 });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/events/event-1/inventory/adjustments", expect.objectContaining({ method: "POST", body: JSON.stringify({ productCode: "00000001", newOnHand: 7, reason: "棚卸し" }) }));
+  });
 });

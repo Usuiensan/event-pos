@@ -73,3 +73,80 @@ describe("在庫残数・領収書・会計保留", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/transactions/not-found/official-receipts", payload: input })).statusCode).toBe(404);
   });
 });
+
+describe("在庫調整", () => {
+  const adjust = (app: FastifyInstance, payload: Record<string, unknown>, headers?: Record<string, string>) => {
+    const options: { method: "POST"; url: string; headers?: Record<string, string>; payload: Record<string, unknown> } = { method: "POST", url: "/api/v1/events/feature-event/inventory/adjustments", payload };
+    if (headers) options.headers = headers;
+    return app.inject(options);
+  };
+
+  async function sellOne(app: FastifyInstance): Promise<void> {
+    const draft = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: "feature-event", staffId: "001", terminalId: "register-1", businessDate: "2026-08-02" } })).json();
+    const line = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    const paid = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(line.json().version) }, payload: { kind: "cash", amountYen: 110, tenderedYen: 110 } });
+    expect((await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "adjust-sale" }, payload: { version: paid.json().version } })).statusCode).toBe(201);
+  }
+
+  it("販売で減った後に目標数へ調整するとremainingが目標数になる", async () => {
+    const { app, db } = await setup();
+    await sellOne(app);
+    const response = await adjust(app, { productCode: "00000001", newOnHand: 7, reason: "棚卸しで実在庫が多かった" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ productCode: "00000001", tracked: true, openingQuantity: 5, remaining: 7, reserved: 0, available: 7 });
+    const inventory = (await app.inject({ method: "GET", url: "/api/v1/events/feature-event/inventory" })).json();
+    expect(inventory.products).toContainEqual(expect.objectContaining({ productCode: "00000001", remaining: 7 }));
+    expect(db.prepare("SELECT type,quantity_delta,transaction_line_id FROM inventory_movements WHERE type='adjustment'").get()).toEqual({ type: "adjustment", quantity_delta: 3, transaction_line_id: null });
+    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001")).toEqual({ on_hand: 2 });
+  });
+
+  it("未追跡商品は400 INVENTORY_NOT_TRACKED", async () => {
+    const { app } = await setup();
+    const response = await adjust(app, { productCode: "00000002", newOnHand: 3, reason: "棚卸し" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("INVENTORY_NOT_TRACKED");
+  });
+
+  it("負数・非整数は400", async () => {
+    const { app } = await setup();
+    expect((await adjust(app, { productCode: "00000001", newOnHand: -1, reason: "棚卸し" })).statusCode).toBe(400);
+    expect((await adjust(app, { productCode: "00000001", newOnHand: 2.5, reason: "棚卸し" })).statusCode).toBe(400);
+  });
+
+  it("理由なしは400", async () => {
+    const { app } = await setup();
+    expect((await adjust(app, { productCode: "00000001", newOnHand: 3 })).statusCode).toBe(400);
+    expect((await adjust(app, { productCode: "00000001", newOnHand: 3, reason: " " })).statusCode).toBe(400);
+  });
+
+  it("audit_logに調整内容が記録される", async () => {
+    const { app, db } = await setup();
+    expect((await adjust(app, { productCode: "00000001", newOnHand: 8, reason: "棚卸し" })).statusCode).toBe(200);
+    const row = db.prepare("SELECT action,detail_json FROM audit_log WHERE action='inventory_adjustment'").get() as { action: string; detail_json: string };
+    expect(JSON.parse(row.detail_json)).toMatchObject({ productCode: "00000001", before: 5, after: 8, delta: 3, reason: "棚卸し" });
+  });
+
+  it("reservedは不変でavailableが連動する", async () => {
+    const { app, db } = await setup();
+    db.prepare("UPDATE inventory_balances SET reserved=1 WHERE event_id=? AND product_id=?").run("feature-event", "feature-event:00000001");
+    const response = await adjust(app, { productCode: "00000001", newOnHand: 6, reason: "棚卸し" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ remaining: 6, reserved: 1, available: 5 });
+    const inventory = (await app.inject({ method: "GET", url: "/api/v1/events/feature-event/inventory" })).json();
+    expect(inventory.products).toContainEqual(expect.objectContaining({ productCode: "00000001", remaining: 6, reserved: 1, available: 5 }));
+  });
+
+  it("operator権限では403（manager必須）", async () => {
+    const { app } = await setup();
+    const response = await adjust(app, { productCode: "00000001", newOnHand: 3, reason: "棚卸し" }, { "x-pos-role": "operator" });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("delta=0ではmovementを作らない", async () => {
+    const { app, db } = await setup();
+    const response = await adjust(app, { productCode: "00000001", newOnHand: 5, reason: "棚卸しで一致" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ remaining: 5 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements WHERE type='adjustment'").get()).toEqual({ count: 0 });
+  });
+});

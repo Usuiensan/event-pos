@@ -122,6 +122,7 @@ export const checkoutApi = {
   lookupProduct: (eventId: string, code: string) => request<ProductLookupResult>(`/api/v1/events/${encodeURIComponent(eventId)}/product-lookup/${encodeURIComponent(code)}`),
   getUnregisteredProducts: (eventId: string) => request<{ products: UnregisteredProductDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/unregistered-products`),
   getInventory: (eventId: string) => request<{ products: InventoryProductDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/inventory`),
+  adjustInventory: (eventId: string, productCode: string, newOnHand: number, reason: string) => request<InventoryProductDto>(`/api/v1/events/${encodeURIComponent(eventId)}/inventory/adjustments`, { method: "POST", body: body({ productCode, newOnHand, reason }) }),
   getJournal: (eventId: string, date: string) => request<{ date: string; transactions: JournalEntryDto[] }>(`/api/v1/events/${encodeURIComponent(eventId)}/journal?date=${encodeURIComponent(date)}`),
   lookupJournal: (eventId: string, reference: string) => request<{ transactionId: string }>(`/api/v1/events/${encodeURIComponent(eventId)}/journal/lookup?reference=${encodeURIComponent(reference)}`),
   getJournalDetail: (transactionId: string) => request<JournalDetailDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/journal`),
