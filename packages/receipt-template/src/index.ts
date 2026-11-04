@@ -17,6 +17,7 @@ export type ReceiptSnapshotLine = {
   netYen: number;
   netFormatted: string;
   taxRateBps: number;
+  receiptNote?: string;
 };
 
 export type ReceiptSnapshot = {
@@ -76,12 +77,12 @@ const GLOBAL_VARIABLES = new Set([
   "originalReceiptNumber", "footer", "returnPolicy", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange",
 ]);
 const COLLECTION_VARIABLES: Record<string, Set<string>> = {
-  lines: new Set(["productCode", "name", "quantity", "unitPriceFormatted", "grossFormatted", "discountFormatted", "taxFormatted", "netFormatted", "taxRateBps"]),
+  lines: new Set(["productCode", "name", "quantity", "unitPriceFormatted", "grossFormatted", "discountFormatted", "taxFormatted", "netFormatted", "taxRateBps", "receiptNote"]),
   discounts: new Set(["label", "amountFormatted"]),
   taxSummaries: new Set(["taxRateBps", "taxableNetFormatted", "taxFormatted"]),
   payments: new Set(["methodName", "amountFormatted", "tenderedFormatted", "changeFormatted"]),
 };
-const CONDITIONS = new Set(["isReprint", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange", "quantityOne", "quantityMoreThanOne"]);
+const CONDITIONS = new Set(["isReprint", "hasOriginalTransaction", "hasDiscounts", "hasTendered", "hasChange", "hasReceiptNote", "quantityOne", "quantityMoreThanOne"]);
 const NODE_NAMES = new Set(["reset", "text", "row", "align", "emphasis", "size", "rule", "feed", "image", "qr", "barcode", "finish", "each", "if"]);
 const VARIABLE_RE = /\{\{\s*([A-Za-z][A-Za-z0-9]*)\s*\}\}/g;
 
@@ -256,7 +257,7 @@ function compileNodes(rawNodes: unknown[], snapshot: ReceiptSnapshot, global: Re
       case "each": for (const item of collection(snapshot, String(node.each))) compileNodes(node.body as unknown[], snapshot, global, item, output); break;
       case "if": {
         const condition = String(node.if);
-        const result = condition === "quantityMoreThanOne" ? Number(local.quantity) > 1 : condition === "quantityOne" ? Number(local.quantity) === 1 : Boolean(global[condition]);
+        const result = condition === "quantityMoreThanOne" ? Number(local.quantity) > 1 : condition === "quantityOne" ? Number(local.quantity) === 1 : condition === "hasReceiptNote" ? typeof local.receiptNote === "string" && local.receiptNote.trim() !== "" : Boolean(global[condition]);
         if (result) compileNodes(node.body as unknown[], snapshot, global, local, output);
         break;
       }
@@ -301,7 +302,7 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 9;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 10;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -324,6 +325,9 @@ body:
   - each: lines
     body:
       - text: "{{name}}"
+      - if: hasReceiptNote
+        body:
+          - text: "{{receiptNote}}"
       - text: "品番 {{productCode}}"
       - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }
   - rule: single
@@ -353,10 +357,12 @@ body:
   - finish: { feedLines: 4, cutMode: partial }
 `;
 
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8 = DEFAULT_RECEIPT_TEMPLATE
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9 = DEFAULT_RECEIPT_TEMPLATE.replace('      - if: hasReceiptNote\n        body:\n          - text: "{{receiptNote}}"\n', '');
+
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9
   .replace('  - finish: { feedLines: 4, cutMode: partial }', '  - finish: { feedLines: 2, cutMode: partial }');
 
-export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V7 = DEFAULT_RECEIPT_TEMPLATE
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V7 = LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9
   .replace('  - text: "{{confirmedAtPrinted}}　({{publicReference}})"\n  - text: "レジ{{registerNo}}　担当{{staffPrintLabel}}"', '  - row: { left: "受付番号", right: "{{publicReference}}" }\n  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }\n  - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }')
   .replace('      - text: "元 {{originalReceiptNumber}}"', '      - text: "元受付番号 {{originalReceiptNumber}}"')
   .replace('      - text: "品番 {{productCode}}"\n      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }', '      - text: "JAN {{productCode}}"\n      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }')

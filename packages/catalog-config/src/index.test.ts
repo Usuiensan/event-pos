@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -18,6 +18,11 @@ describe("分割イベント設定", () => {
       await mkdir(join(destination, ".."), { recursive: true });
       await writeFile(destination, execFileSync("git", ["show", `cf02719:${file}`], { cwd: repository, encoding: "utf8" }), "utf8");
     }));
+    return directory;
+  }
+  async function copiedDemoFromWorktree(): Promise<string> {
+    const directory = await mkdtemp(join(tmpdir(), "event-pos-catalog-worktree-")); temporaryDirectories.push(directory);
+    await cp(resolve(import.meta.dirname, "../../../event-config/demo"), directory, { recursive: true });
     return directory;
   }
   it("demo設定を決定的な既存互換カタログへ統合する", async () => {
@@ -79,5 +84,17 @@ describe("分割イベント設定", () => {
     await writeCatalog(directory, { ...original, departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
     expect((await readdir(join(directory, "products")).catch(() => []))).toEqual([]);
     await expect(buildCatalog(directory)).resolves.toMatchObject({ departments: [], products: [], productTabs: [], quickEntries: [], autoDiscountRules: [] });
+  }, 30_000);
+
+  it("receiptNoteをYAMLへ書き戻して再読込できる", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    catalog.products[0]!.receiptNote = "一行目\n二行目";
+    await writeCatalog(directory, catalog);
+    const productFile = (await readdir(join(directory, "products"))).find((file) => /\.ya?ml$/i.test(file));
+    expect(productFile).toBeDefined();
+    const productsYaml = await readFile(join(directory, "products", productFile!), "utf8");
+    expect(productsYaml).toContain("receiptNote:");
+    expect((await buildCatalog(directory)).products[0]?.receiptNote).toBe("一行目\n二行目");
   }, 30_000);
 });

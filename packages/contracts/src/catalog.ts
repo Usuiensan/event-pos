@@ -9,6 +9,7 @@ export type ProductDefinition = {
   seller?: string;
   producer?: string;
   specification?: string;
+  receiptNote?: string;
   departmentId?: string;
   priceInclTax: number;
   taxRate: number;
@@ -114,11 +115,11 @@ export function validateEventCatalog(input: unknown): EventCatalog {
     if (p.saleState !== "on_sale" && p.saleState !== "off_sale") fail(`products[${index}].saleStateが不正です`);
     const priceInclTax = p.priceInclTax as number;
     if (p.ageCheck !== undefined && p.ageCheck !== "none" && p.ageCheck !== "18" && p.ageCheck !== "20") fail(`products[${index}].ageCheckが不正です`);
-    for (const key of ["departmentId", "manufacturer", "brand", "seller", "producer", "specification", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
+    for (const key of ["departmentId", "manufacturer", "brand", "seller", "producer", "specification", "receiptNote", "displayColor", "tabId", "thumbnailUrl"] as const) if (p[key] !== undefined && typeof p[key] !== "string") fail(`products[${index}].${key}が不正です`);
     if (p.gs1 !== undefined && (!p.gs1 || typeof p.gs1 !== "object" || (p.gs1.codeType !== "upc-a" && p.gs1.codeType !== "ean-13"))) fail(`products[${index}].gs1が不正です`);
     if (p.isdn !== undefined && (!p.isdn || typeof p.isdn !== "object" || typeof p.isdn.code !== "string" || typeof p.isdn.productName !== "string" || typeof p.isdn.sourceUrl !== "string" || typeof p.isdn.fetchedAt !== "string")) fail(`products[${index}].isdnが不正です`);
     if (p.inventory !== undefined && (!p.inventory || typeof p.inventory !== "object" || !Object.prototype.hasOwnProperty.call(p.inventory, "openingQuantity") || (p.inventory.openingQuantity !== null && (!Number.isSafeInteger(p.inventory.openingQuantity) || p.inventory.openingQuantity < 0)))) fail(`products[${index}].inventory.openingQuantityが不正です`);
-    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), ...(p.manufacturer ? { manufacturer: p.manufacturer } : {}), ...(p.brand ? { brand: p.brand } : {}), ...(p.seller ? { seller: p.seller } : {}), ...(p.producer ? { producer: p.producer } : {}), ...(p.specification ? { specification: p.specification } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}), ...(p.gs1 ? { gs1: p.gs1 } : {}), ...(p.isdn ? { isdn: p.isdn } : {}), ...(p.inventory !== undefined ? { inventory: { openingQuantity: p.inventory.openingQuantity! } } : {}) };
+    return { productCode: p.productCode, name: p.name, ...(p.departmentId ? { departmentId: p.departmentId } : {}), ...(p.manufacturer ? { manufacturer: p.manufacturer } : {}), ...(p.brand ? { brand: p.brand } : {}), ...(p.seller ? { seller: p.seller } : {}), ...(p.producer ? { producer: p.producer } : {}), ...(p.specification ? { specification: p.specification } : {}), ...(p.receiptNote ? { receiptNote: p.receiptNote } : {}), priceInclTax, taxRate: p.taxRate, taxCategory, ...(p.priceExclTax !== undefined ? { priceExclTax: p.priceExclTax } : {}), saleState: p.saleState, ...(typeof p.internalToken === "string" ? { internalToken: p.internalToken } : {}), ...(p.ageCheck ? { ageCheck: p.ageCheck } : {}), ...(p.tabId ? { tabId: p.tabId } : {}), ...(p.displayColor ? { displayColor: p.displayColor } : {}), ...(p.thumbnailUrl ? { thumbnailUrl: p.thumbnailUrl } : {}), ...(p.gs1 ? { gs1: p.gs1 } : {}), ...(p.isdn ? { isdn: p.isdn } : {}), ...(p.inventory !== undefined ? { inventory: { openingQuantity: p.inventory.openingQuantity! } } : {}) };
   });
   const codes = new Set<string>();
   for (const p of products) if (codes.has(p.productCode)) fail(`商品コードが重複しています: ${p.productCode}`); else codes.add(p.productCode);

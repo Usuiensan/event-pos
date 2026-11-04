@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, displayColumns, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
+import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, displayColumns, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
 
 const snapshot: ReceiptSnapshot = {
   schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", publicReferenceRaw: "10000015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", businessDateYYMMDD: "260802", registerNo: "1", staffPrintLabel: "001",
@@ -11,7 +11,9 @@ const snapshot: ReceiptSnapshot = {
 
 describe("receipt template", () => {
   it("TM-T70II実紙面に合わせた返品バーコード余白と旧版を識別できる", () => {
-    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(9);
+    expect(DEFAULT_RECEIPT_TEMPLATE_VERSION).toBe(10);
+    expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9).not.toContain("hasReceiptNote");
+    expect(DEFAULT_RECEIPT_TEMPLATE).toContain("hasReceiptNote");
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain("feed: 4");
     expect(DEFAULT_RECEIPT_TEMPLATE).toContain('text: "品番 {{productCode}}"');
     expect(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3).not.toContain('text: "品番 {{productCode}}"');
@@ -29,6 +31,17 @@ describe("receipt template", () => {
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).toContain("[ITF: 26080210000015]");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot).humanReadable).not.toContain("値引");
     expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, { ...snapshot, discountTotalYen: 1, discountTotalFormatted: "¥1", hasDiscounts: true }).humanReadable).toContain("値引");
+  });
+
+  it("メモなしの既定レシートは旧v9と完全一致する", () => {
+    expect(compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, snapshot)).toEqual(compileReceiptTemplate(LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9, snapshot));
+  });
+
+  it("複数行のreceiptNoteを商品名の直後へ印字する", () => {
+    const compiled = compileReceiptTemplate(DEFAULT_RECEIPT_TEMPLATE, { ...snapshot, lines: [{ ...snapshot.lines[0]!, receiptNote: "一行目\n二行目" }] });
+    const text = compiled.humanReadable;
+    expect(text.indexOf("新刊")).toBeLessThan(text.indexOf("一行目\n二行目"));
+    expect(text.indexOf("一行目\n二行目")).toBeLessThan(text.indexOf("品番 00000001"));
   });
 
   it("未知node・変数・幅超過・finish欠落/複数を有効化前に拒否する", () => {

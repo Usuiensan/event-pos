@@ -359,6 +359,12 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .training-mode .training-open-action:hover:not(:disabled) { background: #047857; }
 .training-mode .training-open-action:focus-visible { outline: 4px solid #facc15; outline-offset: 3px; }
 .training-mode .training-open-action:disabled { border-color: #6b7280; background: #9ca3af; box-shadow: none; color: #fff; }
+.training-banner { box-sizing: border-box; width: 100%; padding: .45rem; background: #b45309; color: #fff; font-weight: 900; text-align: center; }
+.training-mode { background: #fffbeb; }
+.launcher-screen.training-mode { grid-template-rows: auto 1fr; }
+.training-mode.lifecycle-shell { grid-template-rows: auto auto 1fr; }
+.training-mode.customer-screen { grid-template-rows: auto 1fr auto; }
+.pos-screen.register-shell.training-mode { grid-template-rows: auto 72px minmax(0, 1fr) auto; }
 .lifecycle-top-link { padding: .45rem .75rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: white; color: #17212b; font-weight: 700; text-decoration: none; white-space: nowrap; }
 
 .lifecycle-card,

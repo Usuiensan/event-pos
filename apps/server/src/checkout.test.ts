@@ -154,6 +154,19 @@ describe("durable checkout API", () => {
     }
   });
 
+  it("商品マスタのreceiptNoteを確定時のレシートスナップショットへ保存する", async () => {
+    const { app, db } = makeApp();
+    await installCatalog(app, { ...catalog, products: catalog.products.map((product) => product.productCode === "00000001" ? { ...product, receiptNote: "一行目\n二行目" } : product) });
+    let draft = await startDraft(app, "register-receipt-note"); draft = await addLine(app, draft, "00000001"); draft = await addLine(app, draft, "00000002"); draft = await addPayment(app, draft, "credit", 218);
+    const response = await finalize(app, draft, "receipt-note"); expect(response.statusCode).toBe(201);
+    const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(response.json().transactionId) as { receipt_snapshot_json: string }).receipt_snapshot_json));
+    expect(snapshot.lines[0].receiptNote).toBe("一行目\n二行目");
+    expect(snapshot.lines[1]).not.toHaveProperty("receiptNote");
+    const canonicalIr = String((db.prepare("SELECT canonical_ir FROM print_jobs WHERE transaction_id=?").get(response.json().transactionId) as { canonical_ir: string }).canonical_ir);
+    expect(canonicalIr.indexOf("一行目")).toBeGreaterThan(canonicalIr.indexOf("10%商品"));
+    expect(canonicalIr.indexOf("一行目")).toBeLessThan(canonicalIr.indexOf("品番 00000001"));
+  });
+
   it("drawer未受入時は現金会計でもpulse jobを作らない", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
