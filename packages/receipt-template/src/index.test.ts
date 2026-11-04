@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
+import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, displayColumns, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, validateReceiptTemplate, type ReceiptSnapshot } from "./index.js";
 
 const snapshot: ReceiptSnapshot = {
   schemaVersion: 1, eventName: "例大祭", circleName: "サークル", transactionId: "tx-1", publicReference: "1000-0015", publicReferenceRaw: "10000015", transactionType: "sale", originalPublicReference: "", confirmedAt: "2026-08-02T03:00:00.000Z", confirmedAtPrinted: "2026-08-02 12:00", businessDate: "2026-08-02", businessDateYYMMDD: "260802", registerNo: "1", staffPrintLabel: "001",
@@ -37,6 +37,12 @@ describe("receipt template", () => {
     expect(() => validateReceiptTemplate("schemaVersion: 1\nbody:\n  - text: ok\n")).toThrow("finishは1個");
     expect(() => validateReceiptTemplate("schemaVersion: 1\nbody:\n  - finish: { feedLines: 1, cutMode: partial }\n  - finish: { feedLines: 1, cutMode: partial }\n")).toThrow("finishは1個");
     expect(() => validateReceiptTemplate("schemaVersion: 1\nbody:\n  - barcode: { value: ABC, width: 1, height: 96, hri: below }\n  - finish: { feedLines: 1, cutMode: partial }\n")).toThrow("2〜6");
+  });
+
+  it("displayColumnsは¥を半角1列として数える", () => {
+    expect(displayColumns("¥1,000")).toBe(6);
+    expect(displayColumns("合計")).toBe(4);
+    expect(displayColumns("ABC")).toBe(3);
   });
 
   it("raw ESC/POS・drawer・buzzer・full cutを許可しない", () => {

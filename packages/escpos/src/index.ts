@@ -28,7 +28,8 @@ export function encodeCp932(value: string): Uint8Array {
 
 function columns(value: string): number {
   let result = 0;
-  for (const char of value.normalize("NFC")) { const cp = char.codePointAt(0)!; result += cp <= 0x7f || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; }
+  // ¥ (U+00A5) は CP932 では半角1桁 (0x5C) で印字されるため1列として数える。
+  for (const char of value.normalize("NFC")) { const cp = char.codePointAt(0)!; result += cp <= 0x7f || cp === 0xa5 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; }
   return result;
 }
 
