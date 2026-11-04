@@ -301,7 +301,7 @@ export function receiptDocumentToText(document: ReceiptDocument): string {
   return result.join("\n");
 }
 
-export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 8;
+export const DEFAULT_RECEIPT_TEMPLATE_VERSION = 9;
 
 export const DEFAULT_RECEIPT_TEMPLATE = `schemaVersion: 1
 body:
@@ -350,14 +350,17 @@ body:
   - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 128, hri: none }
   - feed: 4
   - align: left
-  - finish: { feedLines: 2, cutMode: partial }
+  - finish: { feedLines: 4, cutMode: partial }
 `;
+
+export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8 = DEFAULT_RECEIPT_TEMPLATE
+  .replace('  - finish: { feedLines: 4, cutMode: partial }', '  - finish: { feedLines: 2, cutMode: partial }');
 
 export const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V7 = DEFAULT_RECEIPT_TEMPLATE
   .replace('  - text: "{{confirmedAtPrinted}}　({{publicReference}})"\n  - text: "レジ{{registerNo}}　担当{{staffPrintLabel}}"', '  - row: { left: "受付番号", right: "{{publicReference}}" }\n  - row: { left: "確定日時", right: "{{confirmedAtPrinted}}" }\n  - row: { left: "レジ/担当", right: "{{registerNo}}/{{staffPrintLabel}}" }')
   .replace('      - text: "元 {{originalReceiptNumber}}"', '      - text: "元受付番号 {{originalReceiptNumber}}"')
   .replace('      - text: "品番 {{productCode}}"\n      - row: { left: "単{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }', '      - text: "JAN {{productCode}}"\n      - row: { left: "単¥{{unitPriceFormatted}} × {{quantity}}", right: "{{netFormatted}}" }')
-  .replace('  - align: center\n  - feed: 2\n  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 128, hri: none }\n  - feed: 4\n  - align: left\n  - finish: { feedLines: 2, cutMode: partial }', '  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }\n  - finish: { feedLines: 8, cutMode: partial }');
+  .replace('  - align: center\n  - feed: 2\n  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 128, hri: none }\n  - feed: 4\n  - align: left\n  - finish: { feedLines: 4, cutMode: partial }', '  - barcode: { value: "{{businessDateYYMMDD}}{{publicReferenceRaw}}", format: itf, width: 2, height: 96, hri: below }\n  - finish: { feedLines: 8, cutMode: partial }');
 
 const LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3_LINES = `  - each: lines
     body:

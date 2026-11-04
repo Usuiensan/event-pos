@@ -71,8 +71,26 @@ describe("pure ESC/POS renderer", () => {
     expect(bytes.slice(13, 16)).toEqual([0x1b, 0x7b, 1]);
     const text = Buffer.from(rotated).toString("binary");
     expect(text.indexOf("LINE2")).toBeLessThan(text.indexOf("LINE1"));
-    expect(bytes.filter((value, index) => value === 0x1b && bytes[index + 1] === 0x61)).toHaveLength(4);
+    expect(bytes.filter((value, index) => value === 0x1b && bytes[index + 1] === 0x61)).toHaveLength(3);
     expect(bytes.slice(-2)).toEqual([0x1b, 0x69]);
+  });
+
+  it("180度回転でcut直前のfeedを末尾へ残す", () => {
+    const nodes = (feedLines: number) => [
+      { kind: "reset" as const }, { kind: "text" as const, value: "A" }, { kind: "feed" as const, lines: feedLines }, { kind: "cut" as const, mode: "partial" as const },
+    ];
+    for (const feedLines of [2, 8]) {
+      const bytes = Array.from(receiptDocumentToEscPos({ ...document, nodes: nodes(feedLines) }, [], { rotate180: true }));
+      expect(bytes[15]).not.toBe(0x0a);
+      expect(bytes.slice(-(feedLines + 2))).toEqual([...new Array(feedLines).fill(0x0a), 0x1b, 0x69]);
+    }
+  });
+
+  it("cutがない回転文書のfeedは従来どおり反転する", () => {
+    const nodes = [{ kind: "reset" as const }, { kind: "text" as const, value: "A" }, { kind: "feed" as const, lines: 2 }];
+    const bytes = Array.from(receiptDocumentToEscPos({ ...document, nodes }, [], { rotate180: true }));
+    expect(bytes.slice(-2)).toEqual([0x41, 0x0a]);
+    expect(bytes.indexOf(0x0a)).toBeLessThan(bytes.indexOf(0x41));
   });
 
   it("180度回転ではラスターのバイト順とビット順を反転する", () => {
