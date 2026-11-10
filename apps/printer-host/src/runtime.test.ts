@@ -16,4 +16,16 @@ describe("PrinterHost本番設定", () => {
     expect(() => resolvePrinterHostRuntime({ PRINTER_BACKEND: "bridge" })).toThrow("PRINTER_BRIDGE_URL");
     expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "bridge", PRINTER_BRIDGE_URL: "http://127.0.0.1:4319/", PRINTER_BRIDGE_TOKEN: "secret" })).toMatchObject({ backend: "bridge", printerBridgeUrl: "http://127.0.0.1:4319/", printerBridgeToken: "secret" });
   });
+
+  it("Windows DLE EOT status backendに既定のUSB IDを設定する", () => {
+    expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PRINTER_STATUS_BACKEND: "dle-eot" })).toMatchObject({ windowsStatusBackend: "dle-eot", printerUsbVendorId: 0x04b8, printerUsbProductId: 0x0202 });
+  });
+
+  it("Windows DLE EOTでもUSB IDの範囲を検証する", () => {
+    expect(() => resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PRINTER_STATUS_BACKEND: "dle-eot", PRINTER_USB_VENDOR_ID: "65536" })).toThrow("USB vendor/product IDは0〜65535の整数で指定してください");
+  });
+
+  it("Windows DLE EOTへUSB serial numberを伝播する", () => {
+    expect(resolvePrinterHostRuntime({ PRINTER_BACKEND: "windows-spooler", PRINTER_NAME: "TM-T70II", PRINTER_STATUS_BACKEND: "dle-eot", PRINTER_USB_SERIAL_NUMBER: "ABC123" })).toMatchObject({ windowsStatusBackend: "dle-eot", printerUsbSerialNumber: "ABC123" });
+  });
 });

@@ -19,7 +19,7 @@ export type PrinterHostRuntime = {
   printerUsbSerialNumber?: string;
   printerHostToken?: string;
   windowsRawPrintScript?: string;
-  windowsStatusBackend?: "spooler" | "opos";
+  windowsStatusBackend?: "spooler" | "opos" | "dle-eot";
   oposLogicalName?: string;
   oposClaimTimeoutMs?: number;
   statusTimeoutMs: number;
@@ -53,10 +53,16 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
   }
   if (selectedBackend === "windows-spooler") {
     if (!env.PRINTER_NAME) throw new Error("windows-spoolerにはPRINTER_NAMEが必要です");
-    if (env.PRINTER_STATUS_BACKEND && !["spooler", "opos"].includes(env.PRINTER_STATUS_BACKEND)) throw new Error(`未対応のPRINTER_STATUS_BACKENDです: ${env.PRINTER_STATUS_BACKEND}`);
-    const statusBackend = env.PRINTER_STATUS_BACKEND === "opos" ? "opos" as const : "spooler" as const;
+    if (env.PRINTER_STATUS_BACKEND && !["spooler", "opos", "dle-eot"].includes(env.PRINTER_STATUS_BACKEND)) throw new Error(`未対応のPRINTER_STATUS_BACKENDです: ${env.PRINTER_STATUS_BACKEND}`);
+    const statusBackend = env.PRINTER_STATUS_BACKEND === "opos" ? "opos" as const : env.PRINTER_STATUS_BACKEND === "dle-eot" ? "dle-eot" as const : "spooler" as const;
     if (statusBackend === "opos" && !env.PRINTER_OPOS_LOGICAL_NAME) throw new Error("PRINTER_STATUS_BACKEND=oposにはPRINTER_OPOS_LOGICAL_NAMEが必要です");
-    return { ...common, printerName: env.PRINTER_NAME, windowsStatusBackend: statusBackend, ...(env.PRINTER_OPOS_LOGICAL_NAME ? { oposLogicalName: env.PRINTER_OPOS_LOGICAL_NAME } : {}), ...(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS ? { oposClaimTimeoutMs: positiveInteger(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS, 3_000, "PRINTER_OPOS_CLAIM_TIMEOUT_MS", 60_000) } : {}), ...(env.WINDOWS_RAW_PRINT_SCRIPT ? { windowsRawPrintScript: env.WINDOWS_RAW_PRINT_SCRIPT } : {}) };
+    const usb = statusBackend === "dle-eot" ? (() => {
+      const vendorId = Number(env.PRINTER_USB_VENDOR_ID ?? "0x04b8");
+      const productId = Number(env.PRINTER_USB_PRODUCT_ID ?? "0x0202");
+      if (![vendorId, productId].every((value) => Number.isInteger(value) && value >= 0 && value <= 0xffff)) throw new Error("USB vendor/product IDは0〜65535の整数で指定してください");
+      return { printerUsbVendorId: vendorId, printerUsbProductId: productId, ...(env.PRINTER_USB_SERIAL_NUMBER ? { printerUsbSerialNumber: env.PRINTER_USB_SERIAL_NUMBER } : {}) };
+    })() : {};
+    return { ...common, printerName: env.PRINTER_NAME, windowsStatusBackend: statusBackend, ...usb, ...(env.PRINTER_OPOS_LOGICAL_NAME ? { oposLogicalName: env.PRINTER_OPOS_LOGICAL_NAME } : {}), ...(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS ? { oposClaimTimeoutMs: positiveInteger(env.PRINTER_OPOS_CLAIM_TIMEOUT_MS, 3_000, "PRINTER_OPOS_CLAIM_TIMEOUT_MS", 60_000) } : {}), ...(env.WINDOWS_RAW_PRINT_SCRIPT ? { windowsRawPrintScript: env.WINDOWS_RAW_PRINT_SCRIPT } : {}) };
   }
   if (selectedBackend === "macos-usb") {
     const host = env.PRINTER_HOST_BIND ?? env.HOST ?? "127.0.0.1";
@@ -71,7 +77,7 @@ export function resolvePrinterHostRuntime(env: NodeJS.ProcessEnv = process.env):
 }
 
 export function createPrinterTransport(runtime: PrinterHostRuntime): PrinterTransport {
-  if (runtime.backend === "windows-spooler") return new WindowsRawTransport({ printerName: runtime.printerName!, ...(runtime.windowsRawPrintScript ? { rawPrintScript: runtime.windowsRawPrintScript } : {}), ...(runtime.windowsStatusBackend ? { statusBackend: runtime.windowsStatusBackend } : {}), ...(runtime.oposLogicalName ? { oposLogicalName: runtime.oposLogicalName } : {}), ...(runtime.oposClaimTimeoutMs ? { oposClaimTimeoutMs: runtime.oposClaimTimeoutMs } : {}) });
+  if (runtime.backend === "windows-spooler") return new WindowsRawTransport({ printerName: runtime.printerName!, ...(runtime.windowsRawPrintScript ? { rawPrintScript: runtime.windowsRawPrintScript } : {}), ...(runtime.windowsStatusBackend ? { statusBackend: runtime.windowsStatusBackend } : {}), ...(runtime.oposLogicalName ? { oposLogicalName: runtime.oposLogicalName } : {}), ...(runtime.oposClaimTimeoutMs ? { oposClaimTimeoutMs: runtime.oposClaimTimeoutMs } : {}), ...(runtime.printerUsbVendorId !== undefined ? { usbVendorId: runtime.printerUsbVendorId } : {}), ...(runtime.printerUsbProductId !== undefined ? { usbProductId: runtime.printerUsbProductId } : {}), ...(runtime.printerUsbSerialNumber ? { usbSerialNumber: runtime.printerUsbSerialNumber } : {}), ...(runtime.windowsStatusBackend === "dle-eot" ? { dleEotTimeoutMs: runtime.statusTimeoutMs } : {}) });
   if (runtime.backend === "linux-raw") {
     const device = runtime.printerDevice!;
     return new LinuxRawTransport(device, undefined, undefined, runtime.statusTimeoutMs, runtime.drawerOpenHigh);
