@@ -5,24 +5,27 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PrinterStatusObservation } from "@event-pos/contracts";
+import { decodeDleEot, type RawStatusObservation } from "./linux-status-probe.js";
 import { statusObservation, type PrinterTransport, type SendReceipt } from "./transport.js";
 
 const execFileAsync = promisify(execFile);
 
-export type WindowsStatusBackend = "spooler" | "opos";
-export type WindowsRawTransportOptions = { printerName: string; rawPrintScript?: string; statusBackend?: WindowsStatusBackend; oposLogicalName?: string; oposClaimTimeoutMs?: number };
+export type WindowsStatusBackend = "spooler" | "opos" | "dle-eot";
+export type WindowsRawTransportOptions = { printerName: string; rawPrintScript?: string; statusBackend?: WindowsStatusBackend; oposLogicalName?: string; oposClaimTimeoutMs?: number; dleEotScript?: string; usbVendorId?: number; usbProductId?: number; usbSerialNumber?: string; dleEotTimeoutMs?: number };
 
 const bundledRawPrintScript = fileURLToPath(new URL("../scripts/windows-raw-spooler.ps1", import.meta.url));
 const bundledStatusScript = fileURLToPath(new URL("../scripts/windows-status.ps1", import.meta.url));
 const bundledOposStatusScript = fileURLToPath(new URL("../scripts/windows-opos-status.ps1", import.meta.url));
+const bundledDleEotScript = fileURLToPath(new URL("../scripts/windows-dle-eot.ps1", import.meta.url));
 
 export class WindowsRawTransport implements PrinterTransport {
-  readonly statusPollingSharesTransport = false;
-  constructor(private readonly options: WindowsRawTransportOptions) {}
+  readonly statusPollingSharesTransport: boolean;
+  constructor(private readonly options: WindowsRawTransportOptions) { this.statusPollingSharesTransport = options.statusBackend === "dle-eot"; }
   async getStatus() {
-    if (process.platform !== "win32") return statusObservation("unknown", { adapter: "windows-raw", reason: "Windows以外で実行" });
+    if (process.platform !== "win32") return statusObservation("unknown", { adapter: this.options.statusBackend === "dle-eot" ? "windows-dle-eot" : "windows-raw", reason: "Windows以外で実行" });
     try {
       if (this.options.statusBackend === "opos") return await this.getOposStatus();
+      if (this.options.statusBackend === "dle-eot") return await this.getDleEotStatus();
       const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bundledStatusScript, "-PrinterName", this.options.printerName], { windowsHide: true, maxBuffer: 1024 * 1024 });
       const raw = JSON.parse(String(result.stdout)) as { normalized?: "ready" | "offline" | "unknown" };
       const unknown = (reason: string) => ({ support: "unknown" as const, reason });
@@ -38,6 +41,18 @@ export class WindowsRawTransport implements PrinterTransport {
       };
       return observation;
     } catch (error) { return statusObservation("unknown", { adapter: "windows-raw", printerName: this.options.printerName, error: error instanceof Error ? error.message : String(error) }); }
+  }
+  private async getDleEotStatus(): Promise<PrinterStatusObservation> {
+    const vendorId = this.options.usbVendorId;
+    const productId = this.options.usbProductId;
+    if (vendorId === undefined || productId === undefined) return statusObservation("unknown", { adapter: "windows-dle-eot", error: "USB vendor/product IDが未設定です" });
+    try {
+      const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.dleEotScript ?? bundledDleEotScript, "-VendorId", String(vendorId), "-ProductId", String(productId), "-TimeoutMs", String(this.options.dleEotTimeoutMs ?? 1_000)];
+      if (this.options.usbSerialNumber) args.push("-SerialNumber", this.options.usbSerialNumber);
+      const result = await execFileAsync("powershell.exe", args, { windowsHide: true, maxBuffer: 1024 * 1024 });
+      const observations = JSON.parse(String(result.stdout)) as RawStatusObservation[];
+      return { ...decodeDleEot(observations), raw: { adapter: "windows-dle-eot", statusProbe: observations, vendorId, productId } };
+    } catch (error) { return statusObservation("unknown", { adapter: "windows-dle-eot", error: error instanceof Error ? error.message : String(error) }); }
   }
   private async getOposStatus(): Promise<PrinterStatusObservation> {
     if (!this.options.oposLogicalName) return statusObservation("unknown", { adapter: "windows-opos", reason: "PRINTER_OPOS_LOGICAL_NAMEが未設定" });
