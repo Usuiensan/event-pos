@@ -304,7 +304,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setParkedDraftsLoading(true);
     void checkoutApi.getParkedDrafts(registerId, catalog.eventId).then(setParkedDrafts).catch((error) => showSystemError(errorMessage(error), error)).finally(() => setParkedDraftsLoading(false));
   };
-  const clearParkedCart = () => { setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); updateInputBuffer(""); setSelectedLine(null); setRecentAddedProducts([]); setLastAddedShortcut(null); };
+  const clearParkedCart = () => { setCart([]); draftRef.current = null; setServerDraft(null); setAuthoritativeTotal(0); setProjectedDiscounts([]); setPaymentFinished(false); setCompletedPaymentLabel("現金"); setReceived(0); updateInputBuffer(""); setSelectedLine(null); setRecentAddedProducts([]); setLastAddedShortcut(null); setAgeVerified(false); setAgeVerifiedMinimum(0); };
   const parkCurrentDraft = (onSuccess?: () => void) => {
     const draft = draftRef.current;
     if (!draft || activeCart.length === 0) return showOperationError("保留する明細がありません。");
