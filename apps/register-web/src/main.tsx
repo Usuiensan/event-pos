@@ -219,9 +219,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     highlightTimeoutRef.current = window.setTimeout(() => { setHighlighted((current) => current === highlightKey ? null : current); highlightTimeoutRef.current = null; }, 750);
   };
   const productForLine = (line: { productCode: string; name: string; priceInclTax: number; taxRate: number; taxCategory: ProductDefinition["taxCategory"] }): ProductDefinition => catalog.products.find((product) => product.productCode === line.productCode) ?? { productCode: line.productCode, name: line.name, priceInclTax: line.priceInclTax, taxRate: line.taxRate, taxCategory: line.taxCategory, saleState: "on_sale" };
-  const applyDraft = (draft: CheckoutDraft) => {
+  const applyDraft = (draft: CheckoutDraft, force = false) => {
     const current = draftRef.current;
-    if (!shouldApplyDraft(current, draft)) return;
+    if (!force && !shouldApplyDraft(current, draft)) return;
     if (draft.state === "parked") {
       draftRef.current = draft; setServerDraft(draft); setCart([]); setAuthoritativeTotal(0); setProjectedDiscounts([]); setPaymentFinished(false); setReceived(0); setShowPayment(false); setSelectedLine(null); return;
     }
@@ -312,7 +312,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     void checkoutApi.parkDraft(draft.draftId, terminalId).then((result) => { clearParkedCart(); setScanNotice(`保留しました（受付番号 ${result.parkReferenceDisplay}）`); refreshParkedDrafts(); onSuccess?.(); }).catch((error) => showSystemError(errorMessage(error), error));
   };
   const resumeParkedDraft = (parkReference: string) => {
-    void checkoutApi.resumeParkedDraft(registerId, parkReference, terminalId).then((draft) => { applyDraft(draft); setShowParkedDrafts(false); setScanNotice(`保留中の受付番号 ${parkReference} を呼び戻しました`); }).catch((error) => { if (error instanceof CheckoutApiError && error.status === 409) showOperationError("現在の会計に明細があるため、呼び戻せません。"); else showSystemError(errorMessage(error), error); });
+    void checkoutApi.resumeParkedDraft(registerId, parkReference, terminalId).then((draft) => { applyDraft(draft, true); setShowParkedDrafts(false); setScanNotice(`保留中の受付番号 ${parkReference} を呼び戻しました`); }).catch((error) => { if (error instanceof CheckoutApiError && error.status === 409) showOperationError("現在の会計に明細があるため、呼び戻せません。"); else showSystemError(errorMessage(error), error); });
   };
   const issueOfficialReceipt = () => {
     if (!currentTransactionId) return showOperationError("会計済み取引を取得できません。");
