@@ -185,7 +185,7 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
 }
 
 export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleDraftDto | undefined {
-  const row = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id = ? ORDER BY created_at DESC LIMIT 1").get(registerId) as { draft_id: string } | undefined;
+  const row = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id = ? ORDER BY CASE WHEN state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, created_at DESC LIMIT 1").get(registerId) as { draft_id: string } | undefined;
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
 
