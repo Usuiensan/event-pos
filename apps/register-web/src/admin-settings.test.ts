@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validGtin } from "@event-pos/contracts";
-import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, nextProductCode, productFromNewProductDraft, validateNewProductDraft } from "./admin-settings.js";
+import { validGtin, validateGs1CompanyPrefixRegistry } from "@event-pos/contracts";
+import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, nextProductCode, productFromNewProductDraft, syncProductGs1, validateNewProductDraft } from "./admin-settings.js";
 
 describe("商品名候補の整理", () => {
   it("重複語と販売者ノイズを除き、短い候補を生成する", () => {
@@ -56,5 +56,17 @@ describe("000始まりの商品コード自動付番", () => {
 
   it("使用済みコードを飛ばす", () => {
     expect(nextProductCode([{ productCode: "00000017", name: "商品", priceInclTax: 0, taxRate: 0, taxCategory: "exempt", saleState: "on_sale" }])).toBe("00000024");
+  });
+});
+
+describe("商品コードとGS1情報の同期", () => {
+  const registry = validateGs1CompanyPrefixRegistry({ schemaVersion: 1, country: "JP", source: "test", sourceUrl: "https://example.invalid", records: [{ prefix: "4901234", companyName: "テスト株式会社", source: "test" }] });
+
+  it("有効なコードではGS1情報を設定し、不正なコードでは削除する", () => {
+    const product = { productCode: "old", name: "商品", priceInclTax: 0, taxRate: 0, taxCategory: "exempt" as const, saleState: "on_sale" as const, gs1: { codeType: "ean-13" as const } };
+    syncProductGs1(product, registry, "4901234567894");
+    expect(product.gs1).toMatchObject({ codeType: "ean-13", gs1Prefix: "4901234", companyName: "テスト株式会社" });
+    syncProductGs1(product, registry, "invalid");
+    expect(product.gs1).toBeUndefined();
   });
 });
