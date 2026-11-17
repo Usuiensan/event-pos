@@ -169,6 +169,14 @@ export function validateEventCatalog(input: unknown): EventCatalog {
   }
   const departments = value.departments?.map((raw, index) => { const d = raw as Partial<Department>; if (typeof d.departmentId !== "string" || !d.departmentId.trim() || typeof d.code !== "string" || !d.code.trim() || typeof d.name !== "string" || !d.name.trim() || typeof d.settlementOwnerId !== "string" || !d.settlementOwnerId.trim() || typeof d.enabled !== "boolean") fail(`departments[${index}]が不正です`); return { departmentId: d.departmentId, code: d.code, name: d.name, settlementOwnerId: d.settlementOwnerId, enabled: d.enabled }; });
   if (departments) { const ids = new Set<string>(); const codes = new Set<string>(); for (const d of departments) { if (ids.has(d.departmentId) || codes.has(d.code)) fail(`departmentIdまたはcodeが重複しています: ${d.departmentId}`); ids.add(d.departmentId); codes.add(d.code); } }
+  if (productTabs !== undefined) {
+    const tabIds = new Set(productTabs.map((tab) => tab.id));
+    products.forEach((product, index) => { if (product.tabId !== undefined && !tabIds.has(product.tabId)) fail(`products[${index}].tabId: 商品コード${product.productCode}のタブが存在しません: ${product.tabId}`); });
+  }
+  if (departments !== undefined) {
+    const departmentIds = new Set(departments.map((department) => department.departmentId));
+    products.forEach((product, index) => { if (product.departmentId !== undefined && !departmentIds.has(product.departmentId)) fail(`products[${index}].departmentId: 商品コード${product.productCode}の部門が存在しません: ${product.departmentId}`); });
+  }
   let receiptSettings: ReceiptSettings | undefined;
   if (value.receiptSettings !== undefined) { const r = value.receiptSettings as Partial<ReceiptSettings>; if (!r || typeof r !== "object" || Array.isArray(r) || !r.templates || typeof r.templates !== "object" || Array.isArray(r.templates)) fail("receiptSettings.templatesが必要です"); const templates: ReceiptSettings["templates"] = {}; for (const [kind, raw] of Object.entries(r.templates)) { const t = raw as Partial<ReceiptSettings["templates"][string]>; const activeVersion = t.activeVersion; if (!kind.trim() || typeof t.templateKey !== "string" || !t.templateKey.trim() || !Number.isSafeInteger(activeVersion) || (activeVersion as number) <= 0 || (t.templatePath !== undefined && typeof t.templatePath !== "string")) fail(`receiptSettings.templates.${kind}が不正です`); templates[kind] = { templateKey: t.templateKey, activeVersion: activeVersion as number, ...(t.templatePath ? { templatePath: t.templatePath } : {}) }; } receiptSettings = { templates, ...(r.commonText ? { commonText: r.commonText } : {}) }; }
   let event: EventDetails | undefined;
