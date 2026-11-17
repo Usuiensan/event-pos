@@ -25,6 +25,10 @@ describe("分割イベント設定", () => {
     await cp(resolve(import.meta.dirname, "../../../event-config/demo"), directory, { recursive: true });
     return directory;
   }
+  async function snapshotYamlFiles(directory: string): Promise<Map<string, string>> {
+    const files = ["event.yaml", "departments.yaml", "staff.yaml", "register-ui.yaml", "discounts.yaml", "receipt-settings.yaml", ...(await readdir(join(directory, "products")).catch(() => [])).map((file) => `products/${file}`)];
+    return new Map(await Promise.all(files.map(async (file) => [file, await readFile(join(directory, file), "utf8")] as const)));
+  }
   it("demo設定を決定的な既存互換カタログへ統合する", async () => {
     const directory = await copiedDemo();
     const first = deterministicCatalogJson(await buildCatalog(directory));
@@ -96,5 +100,50 @@ describe("分割イベント設定", () => {
     const productsYaml = await readFile(join(directory, "products", productFile!), "utf8");
     expect(productsYaml).toContain("receiptNote:");
     expect((await buildCatalog(directory)).products[0]?.receiptNote).toBe("一行目\n二行目");
+  }, 30_000);
+
+  it("タブ0件の商品保存を拒否し、既存ファイルを変更しない", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const original = await buildCatalog(directory);
+    const expected = structuredClone(original);
+    original.products.forEach((product) => { product.tabId = undefined; });
+    const before = await snapshotYamlFiles(directory);
+    await expect(writeCatalog(directory, { ...original, productTabs: [] })).rejects.toThrow("商品タブがないため商品を保存できません");
+    expect(await snapshotYamlFiles(directory)).toEqual(before);
+    await expect(buildCatalog(directory)).resolves.toEqual(expected);
+  }, 30_000);
+
+  it("存在しない商品タブを指定した商品を拒否する", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    catalog.products[0]!.tabId = "missing-tab";
+    await expect(writeCatalog(directory, catalog)).rejects.toThrow("missing-tab");
+  }, 30_000);
+
+  it("部門0件の商品保存を拒否し、既存ファイルを変更しない", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const original = await buildCatalog(directory);
+    const expected = structuredClone(original);
+    original.products.forEach((product) => { product.departmentId = undefined; });
+    const before = await snapshotYamlFiles(directory);
+    await expect(writeCatalog(directory, { ...original, departments: [] })).rejects.toThrow("部門がないため商品を保存できません");
+    expect(await snapshotYamlFiles(directory)).toEqual(before);
+    await expect(buildCatalog(directory)).resolves.toEqual(expected);
+  }, 30_000);
+
+  it("存在しない部門を指定した商品を拒否する", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    catalog.products[0]!.departmentId = "missing-department";
+    await expect(writeCatalog(directory, catalog)).rejects.toThrow("missing-department");
+  }, 30_000);
+
+  it("未指定の商品タブを先頭タブへ割り当てて再読込できる", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    catalog.products[0]!.tabId = undefined;
+    await writeCatalog(directory, catalog);
+    const reloaded = await buildCatalog(directory);
+    expect(reloaded.products[0]?.tabId).toBe(reloaded.productTabs?.[0]?.id);
   }, 30_000);
 });

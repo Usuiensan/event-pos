@@ -35,6 +35,15 @@ describe("event catalog JSON", () => {
     expect(importEventCatalog(JSON.stringify({ ...sample, customerWelcome })).customerWelcome).toEqual(customerWelcome);
     expect(() => importEventCatalog(JSON.stringify({ ...sample, customerWelcome: { message: 123 } }))).toThrow("customerWelcome.message");
   });
+  it("商品が存在しないタブまたは部門を参照する場合は拒否する", () => {
+    const catalog = {
+      ...sample,
+      productTabs: [{ id: "general", label: "一般" }],
+      departments: [{ departmentId: "main", code: "01", name: "本", settlementOwnerId: "owner", enabled: true }],
+    };
+    expect(() => importEventCatalog(JSON.stringify({ ...catalog, products: [{ ...sample.products[0], tabId: "missing" }] }))).toThrow("missing");
+    expect(() => importEventCatalog(JSON.stringify({ ...catalog, products: [{ ...sample.products[0], departmentId: "missing" }] }))).toThrow("missing");
+  });
   it("supports and labels all six tax categories", () => {
     const products = [
       { ...sample.products[0], productCode: "A010", taxCategory: "inclusive_10", taxRate: 10 },
