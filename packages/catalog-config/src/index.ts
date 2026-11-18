@@ -36,25 +36,29 @@ async function writeYaml(root: string, file: string, value: unknown): Promise<vo
   await rename(temporary, destination);
 }
 
-/** Persist the editable catalogue back to the split YAML layout.
- * Existing product files remain their source group; new products use other.yaml. */
+/** Persist the editable catalogue back to the split YAML layout. */
 export async function writeCatalog(configDirectory: string, catalog: EventCatalog): Promise<void> {
   const root = resolve(configDirectory); const checked = validateEventCatalog(catalog);
   if (checked.products.length > 0 && !checked.productTabs?.length) throw new Error("商品タブがないため商品を保存できません");
   if (checked.products.length > 0 && !checked.departments?.length) throw new Error("部門がないため商品を保存できません");
-  const sourceByCode = new Map<string, string>();
   const productDir = join(root, "products");
   const existingProductFiles = (await readdir(productDir).catch(() => [])).filter((name) => /\.ya?ml$/i.test(name));
+  const fileByDepartment = new Map<string, string>();
   for (const name of existingProductFiles) {
-    if (!/\.ya?ml$/i.test(name)) continue;
     const doc = await yamlFile(root, `products/${name}`);
-    for (const product of Array.isArray(doc.products) ? doc.products : []) if (isRecord(product) && typeof product.productCode === "string") sourceByCode.set(product.productCode, name);
+    if (typeof doc.departmentId === "string" && !fileByDepartment.has(doc.departmentId)) fileByDepartment.set(doc.departmentId, name);
   }
+  const assignedFiles = new Set(fileByDepartment.values());
   const grouped = new Map<string, ProductDefinition[]>();
-  for (const product of checked.products) { const file = sourceByCode.get(product.productCode) ?? "other.yaml"; grouped.set(file, [...(grouped.get(file) ?? []), product]); }
-  for (const [file, products] of grouped) {
-    const departmentIds = new Set(products.map((product) => product.departmentId ?? checked.departments?.[0]?.departmentId));
-    if (departmentIds.size > 1) throw new Error(`商品ファイル${file}内で部門が混在しているため商品を保存できません`);
+  for (const product of checked.products) {
+    const departmentId = product.departmentId ?? checked.departments?.[0]?.departmentId;
+    let file = fileByDepartment.get(departmentId);
+    if (!file) {
+      file = !assignedFiles.has("other.yaml") ? "other.yaml" : `${departmentId}.yaml`;
+      fileByDepartment.set(departmentId, file);
+      assignedFiles.add(file);
+    }
+    grouped.set(file, [...(grouped.get(file) ?? []), product]);
   }
   await writeYaml(root, "event.yaml", { schemaVersion, event: { eventId: checked.eventId, name: checked.event?.name ?? checked.eventId, businessDate: checked.event?.businessDate ?? "1970-01-01" }, seller: checked.event?.seller ?? { circleName: "", space: "", receiptIssuerName: "" }, locale: checked.event?.locale ?? { language: "ja-JP", currency: "JPY", timezone: "Asia/Tokyo" } });
   await writeYaml(root, "departments.yaml", { schemaVersion, departments: checked.departments ?? [] });
