@@ -146,4 +146,43 @@ describe("分割イベント設定", () => {
     const reloaded = await buildCatalog(directory);
     expect(reloaded.products[0]?.tabId).toBe(reloaded.productTabs?.[0]?.id);
   }, 30_000);
+
+  it("部門ごとに商品ファイルを分け、新規部門の商品を保存できる", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    const firstProduct = catalog.products[0]!;
+    catalog.products.push({ ...firstProduct, productCode: "new-department-product", name: "部門B商品", departmentId: "002" });
+
+    await writeCatalog(directory, catalog);
+
+    const other = await readFile(join(directory, "products", "other.yaml"), "utf8");
+    const departmentB = await readFile(join(directory, "products", "002.yaml"), "utf8");
+    expect(other).toContain('departmentId: "001"');
+    expect(other).not.toContain("new-department-product");
+    expect(departmentB).toContain('departmentId: "002"');
+    expect(departmentB).toContain("new-department-product");
+    await expect(buildCatalog(directory)).resolves.toMatchObject({
+      products: expect.arrayContaining([
+        expect.objectContaining({ productCode: firstProduct.productCode, departmentId: "001" }),
+        expect.objectContaining({ productCode: "new-department-product", departmentId: "002" }),
+      ]),
+    });
+  }, 30_000);
+
+  it("商品の部門変更で移動元ファイルを削除する", async () => {
+    const directory = await copiedDemoFromWorktree();
+    const catalog = await buildCatalog(directory);
+    const movedCode = catalog.products[0]!.productCode;
+    catalog.products.push({ ...catalog.products[0]!, productCode: "existing-department-b", name: "部門B商品", departmentId: "002" });
+    await writeCatalog(directory, catalog);
+
+    const movedCatalog = await buildCatalog(directory);
+    movedCatalog.products.forEach((product) => { product.departmentId = "002"; });
+    await writeCatalog(directory, movedCatalog);
+
+    expect(await readdir(join(directory, "products"))).toEqual(["002.yaml"]);
+    await expect(buildCatalog(directory)).resolves.toMatchObject({
+      products: expect.arrayContaining([expect.objectContaining({ productCode: movedCode, departmentId: "002" })]),
+    });
+  }, 30_000);
 });
