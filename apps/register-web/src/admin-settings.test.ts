@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validGtin, validateGs1CompanyPrefixRegistry } from "@event-pos/contracts";
-import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, nextDepartmentId, nextProductCode, productFromNewProductDraft, syncProductGs1, validateNewProductDraft } from "./admin-settings.js";
+import { buildProductNameCandidates, createNewProductDraft, ensureEventDetails, newDepartment, newProductTab, nextDepartmentId, nextProductTabId, nextProductCode, productFromNewProductDraft, syncProductGs1, validateNewProductDraft } from "./admin-settings.js";
 
 describe("商品名候補の整理", () => {
   it("重複語と販売者ノイズを除き、短い候補を生成する", () => {
@@ -19,6 +19,21 @@ describe("管理画面の部門採番", () => {
 
   it("新規部門は内部IDを表示名から分離する", () => {
     expect(newDepartment([])).toEqual({ departmentId: "001", code: "001", name: "新しい部門", settlementOwnerId: "001", enabled: true });
+  });
+});
+
+describe("管理画面の商品タブ採番", () => {
+  it("未使用のtab連番を採番する", () => {
+    expect(nextProductTabId([])).toBe("tab-1");
+    expect(nextProductTabId([{ id: "tab-1", label: "新刊" }, { id: "tab-3", label: "既刊" }])).toBe("tab-2");
+  });
+
+  it("tab形式でない既存IDとも重複しない", () => {
+    expect(nextProductTabId([{ id: "books", label: "書籍" }])).toBe("tab-1");
+  });
+
+  it("新規商品タブを既定値で生成する", () => {
+    expect(newProductTab([])).toEqual({ id: "tab-1", label: "新しいタブ" });
   });
 });
 
