@@ -38,6 +38,14 @@ $payloadDir = Join-Path $work 'payload'
 # $stage は作らない（build-usb-kit.ps1 は既存フォルダーにマーカーが無いと拒否するため、作成はビルド側に任せる）
 New-Item -ItemType Directory -Path $payloadDir -Force | Out-Null
 try {
+  if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command corepack -ErrorAction SilentlyContinue)) { throw 'pnpm と corepack のどちらも見つかりません。Node.js 環境を確認してください。' }
+    $shimDir = Join-Path $work 'pnpm-shim'
+    New-Item -ItemType Directory -Path $shimDir -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $shimDir 'pnpm.cmd') -Value "@echo off`r`ncorepack pnpm %*" -Encoding Ascii
+    $env:PATH = "$shimDir;$env:PATH"
+    Write-Host 'pnpm が PATH にないため、corepack 経由のシムを使います。'
+  }
   # ビルドは別プロセス（PowerShell 5.1 の stderr 誤判定を避ける。update-usb-kit.ps1 と同じ理由）
   $buildOut = Join-Path $work 'build-out.log'
   $buildErr = Join-Path $work 'build-err.log'
