@@ -270,7 +270,7 @@ function Invoke-GitHubUpdate {
     if ($entries.Count -gt 5000) { throw 'ペイロードのファイル数が上限を超えています。' }
     $totalSize = ($entries | Measure-Object -Property size -Sum).Sum
     if ($totalSize -gt 314572800) { throw 'ペイロードの合計サイズが上限を超えています。' }
-    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit')
+    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit')
     $seen = @{}
     foreach ($e in $entries) {
       $rel = ([string]$e.path).Replace('/', '\')
