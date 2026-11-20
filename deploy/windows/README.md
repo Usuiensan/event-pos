@@ -1,5 +1,22 @@
 # Windows x64 PrinterHost本番起動
 
+## USB単体キット
+
+開発PCで配布物を作成します。Docker Desktopは使いません。出力先の例は`E:\event-pos-usb-kit`です。
+
+```powershell
+pnpm install --frozen-lockfile
+.\deploy\windows\build-usb-kit.ps1 -OutputDirectory E:\event-pos-usb-kit
+```
+
+空のキットにはSQLite DBを含めません。使用するイベントのDBをUSB上の`data\event-pos.sqlite`へ配置してから`Start-USB-Kit.bat`を実行します。DBコピー、プリンター設定、終了手順は同梱`README.md`を参照してください。バンドル済みNode実行ファイルを使うため、Surface側でNode.jsやDockerを導入しません。
+
+配布物を作成した後の起動確認は次で行います。実機プリンターへは接続せず、HTTP healthとWeb資産を確認します。
+
+```powershell
+.\deploy\windows\test-usb-kit.ps1 -KitPath E:\event-pos-usb-kit
+```
+
 `PrinterHost` はPOS serverとは別processで動かす。`pnpm build` はbundleを作らず、PrinterHostとworkspace packageをそれぞれ`dist`へ出力する。本番Nodeはworkspace packageの`default` exportとして`dist/index.js`を読む。repository、production dependencies、各`dist`、`apps/printer-host/scripts`を同じreleaseとして配置し、一部だけを差し替えない。
 
 ## portable起動
