@@ -35,7 +35,8 @@ if (-not (Test-Path -LiteralPath $buildScript)) { throw "ビルドスクリプ�
 $work = Join-Path $env:TEMP "event-pos-release-$([guid]::NewGuid().ToString('N'))"
 $stage = Join-Path $work 'kit'
 $payloadDir = Join-Path $work 'payload'
-New-Item -ItemType Directory -Path $stage, $payloadDir -Force | Out-Null
+# $stage は作らない（build-usb-kit.ps1 は既存フォルダーにマーカーが無いと拒否するため、作成はビルド側に任せる）
+New-Item -ItemType Directory -Path $payloadDir -Force | Out-Null
 try {
   # ビルドは別プロセス（PowerShell 5.1 の stderr 誤判定を避ける。update-usb-kit.ps1 と同じ理由）
   $buildOut = Join-Path $work 'build-out.log'
