@@ -34,7 +34,13 @@ export function registerOperationsDashboard(app: FastifyInstance, options: { dat
     const checks = options.database.prepare("SELECT cs.cashbox_id AS cashboxId,cc.kind,MAX(cc.created_at) AS createdAt FROM cash_checks cc JOIN cash_sessions cs ON cs.session_id=cc.session_id WHERE cs.event_id=? AND cs.business_date=? GROUP BY cs.cashbox_id,cc.kind").all(request.query.eventId, request.query.businessDate);
     const holds = options.database.prepare(`SELECT h.hold_id AS holdId,h.public_reference_display AS publicReferenceDisplay,h.state,h.business_session_id AS businessSessionId,h.created_at AS createdAt,
       EXISTS(SELECT 1 FROM print_jobs p WHERE p.transaction_id='hold:' || h.hold_id AND p.document_type='hold_ticket' AND (p.state IN ('failed','device_fault') OR p.delivery_certainty='unknown')) AS printAttention,
-      EXISTS(SELECT 1 FROM hold_lines l JOIN inventory_balances i ON i.event_id=h.event_id AND i.product_id=l.product_id WHERE l.hold_id=h.hold_id AND i.on_hand-i.reserved<0) AS shortage
+      EXISTS(SELECT 1 FROM hold_lines l
+        JOIN inventory_balances i ON i.event_id=h.event_id AND i.product_id=l.product_id
+        JOIN json_each((SELECT catalog_json FROM event_catalogs WHERE event_id=h.event_id),'$.products') p ON json_extract(p.value,'$.productCode')=l.product_code
+        WHERE l.hold_id=h.hold_id AND json_extract(p.value,'$.inventory.openingQuantity') IS NOT NULL
+          AND (CAST(json_extract(p.value,'$.inventory.openingQuantity') AS INTEGER)
+            + COALESCE((SELECT SUM(quantity_delta) FROM inventory_movements m WHERE m.event_id=h.event_id AND m.product_id=l.product_id),0)
+            - i.reserved) < 0) AS shortage
       FROM holds h WHERE h.event_id=? AND h.business_date=? AND h.state IN ('active','carried') ORDER BY h.created_at`).all(request.query.eventId, request.query.businessDate) as Array<Record<string, unknown>>;
     const connections = options.realtimeHub.connections();
     const registerIds = [...new Set([...(options.database.prepare("SELECT DISTINCT register_id AS registerId FROM sale_drafts WHERE event_id=?").all(request.query.eventId) as Array<{ registerId: string }>).map((row) => row.registerId), ...connections.map((item) => item.registerId)])].sort();

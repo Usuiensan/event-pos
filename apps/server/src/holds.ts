@@ -25,8 +25,14 @@ export function createHold(db: PosDatabase, input: HoldInput) {
       if (!Number.isSafeInteger(requested.quantity) || requested.quantity < 1) throw new CheckoutError(400, "HOLD_QUANTITY_INVALID", "取り置き数は1以上の整数です");
       const product = db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, requested.productCode) as { product_id: string; product_code: string; name: string } | undefined;
       if (!product) throw new CheckoutError(404, "PRODUCT_NOT_FOUND", "取り置き商品が見つかりません", { productCode: requested.productCode });
-      const balance = db.prepare("SELECT on_hand,reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(input.eventId, product.product_id) as { on_hand: number; reserved: number } | undefined;
-      const shortage = Math.max(0, requested.quantity - (Number(balance?.on_hand ?? 0) - Number(balance?.reserved ?? 0)));
+      const inventory = db.prepare(`SELECT json_extract(p.value,'$.inventory.openingQuantity') AS opening_quantity,
+          COALESCE((SELECT SUM(quantity_delta) FROM inventory_movements WHERE event_id=? AND product_id=?),0) AS quantity_delta,
+          COALESCE(b.reserved,0) AS reserved
+        FROM event_catalogs c, json_each(c.catalog_json,'$.products') p
+        LEFT JOIN inventory_balances b ON b.event_id=c.event_id AND b.product_id=?
+        WHERE c.event_id=? AND json_extract(p.value,'$.productCode')=?`).get(input.eventId, product.product_id, product.product_id, input.eventId, product.product_code) as { opening_quantity: number | null; quantity_delta: number; reserved: number } | undefined;
+      const remaining = inventory?.opening_quantity === null || inventory === undefined ? null : Number(inventory.opening_quantity) + Number(inventory.quantity_delta);
+      const shortage = remaining === null ? 0 : Math.max(0, requested.quantity - (remaining - Number(inventory?.reserved ?? 0)));
       if (shortage && !input.allowShortage) throw new CheckoutError(409, "HOLD_STOCK_SHORTAGE", "在庫不足のため明示続行が必要です", { productCode: requested.productCode, shortage });
       stored.push({ productId: product.product_id, productCode: product.product_code, name: product.name, quantity: requested.quantity, shortage });
     }
@@ -65,4 +71,9 @@ export function releaseHold(db: PosDatabase, holdId: string, actorId: string, re
   } catch(error) { db.exec("ROLLBACK"); throw error; }
 }
 
-export function findHold(db: PosDatabase, eventId: string, reference: string) { return db.prepare("SELECT h.*,json_group_array(json_object('productCode',l.product_code,'name',l.product_name,'quantity',l.quantity)) AS lines FROM holds h LEFT JOIN hold_lines l ON l.hold_id=h.hold_id WHERE h.event_id=? AND (h.hold_id=? OR h.public_reference=? OR h.public_reference_display=?) GROUP BY h.hold_id").get(eventId,reference,reference,reference); }
+export function findHold(db: PosDatabase, eventId: string, reference: string) {
+  const hold = db.prepare("SELECT hold_id AS holdId,public_reference AS publicReference,public_reference_display AS publicReferenceDisplay,state FROM holds WHERE event_id=? AND (hold_id=? OR public_reference=? OR public_reference_display=?)").get(eventId, reference, reference, reference) as { holdId: string; publicReference: string; publicReferenceDisplay: string; state: "active" | "claimed" | "released" | "carried" } | undefined;
+  if (!hold) return undefined;
+  const lines = db.prepare("SELECT product_code AS productCode,product_name AS name,quantity FROM hold_lines WHERE hold_id=? ORDER BY created_at,hold_line_id").all(hold.holdId) as Array<{ productCode: string; name: string; quantity: number }>;
+  return { ...hold, lines };
+}

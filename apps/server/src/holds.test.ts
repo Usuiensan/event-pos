@@ -7,8 +7,21 @@ import { openRegisterForTest } from "./test-support.js";
 const apps: FastifyInstance[]=[];
 afterEach(async()=>{while(apps.length)await apps.pop()!.close();});
 const catalog={eventId:"hold-event",products:[{productCode:"00000001",name:"予約商品",priceInclTax:500,taxRate:10,taxCategory:"inclusive_10",saleState:"on_sale"}],quickEntries:[],staffMembers:[{responsibleNumber:"001",displayName:"担当",role:"operator"},{responsibleNumber:"002",displayName:"責任者",role:"manager"}]};
+const trackedCatalog={...catalog,products:[{...catalog.products[0],inventory:{openingQuantity:10}}]};
 
 describe("取り置き",()=>{
+  it("期首在庫と移動台帳を基準に取り置きを作成し、検索結果を画面用DTOで返す",async()=>{
+    const db=openDatabase(); const app=buildApp({database:db});apps.push(app); await app.inject({method:"PUT",url:"/api/v1/events/hold-event/catalog",payload:trackedCatalog});
+    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE event_id=? AND product_id=?").get("hold-event","hold-event:00000001")).toMatchObject({on_hand:10});
+    await openRegisterForTest(app,catalog.eventId,"2026-08-03","register-1");
+    db.prepare("UPDATE inventory_balances SET on_hand=0 WHERE event_id=? AND product_id=?").run(catalog.eventId,"hold-event:00000001");
+    db.prepare("INSERT INTO inventory_movements (inventory_movement_id,event_id,product_id,type,quantity_delta,transaction_line_id,actor_id,created_at) VALUES (?,?,?,?,?,?,?,?)").run("movement-1",catalog.eventId,"hold-event:00000001","sale",-1,null,"test",new Date().toISOString());
+    const hold=await app.inject({method:"POST",url:"/api/v1/holds",payload:{eventId:catalog.eventId,registerId:"register-1",terminalId:"register-1",lines:[{productCode:"00000001",quantity:1}]}});
+    expect(hold.statusCode).toBe(201);
+    const found=await app.inject({method:"GET",url:`/api/v1/holds/find?eventId=${catalog.eventId}&reference=${hold.json().publicReference}`});
+    expect(found.statusCode).toBe(200); expect(found.json()).toMatchObject({holdId:hold.json().holdId,publicReference:hold.json().publicReference,publicReferenceDisplay:hold.json().publicReferenceDisplay,state:"active",lines:[{productCode:"00000001",name:"予約商品",quantity:1}]});
+    expect(typeof found.json().lines).toBe("object"); expect(Array.isArray(found.json().lines)).toBe(true);
+  });
   it("共通受付番号で在庫を予約し、claimと解除を追記的に管理する",async()=>{
     const db=openDatabase(); const app=buildApp({database:db});apps.push(app); await app.inject({method:"PUT",url:"/api/v1/events/hold-event/catalog",payload:catalog});
     const operator={}; await openRegisterForTest(app,catalog.eventId,"2026-08-03","register-1");

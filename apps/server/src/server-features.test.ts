@@ -97,7 +97,8 @@ describe("在庫調整", () => {
     const inventory = (await app.inject({ method: "GET", url: "/api/v1/events/feature-event/inventory" })).json();
     expect(inventory.products).toContainEqual(expect.objectContaining({ productCode: "00000001", remaining: 7 }));
     expect(db.prepare("SELECT type,quantity_delta,transaction_line_id FROM inventory_movements WHERE type='adjustment'").get()).toEqual({ type: "adjustment", quantity_delta: 3, transaction_line_id: null });
-    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001")).toEqual({ on_hand: 2 });
+    // F-031 修正後は on_hand も期首＋移動合計（＝remaining）と一致する（旧期待値2は on_hand が0始まりだった頃の値）
+    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001")).toEqual({ on_hand: 7 });
   });
 
   it("未追跡商品は400 INVENTORY_NOT_TRACKED", async () => {
