@@ -82,9 +82,25 @@ try {
   }
   $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payloadDir 'manifest.json') -Encoding UTF8
 
+  Add-Type -AssemblyName System.IO.Compression
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   $zipPath = Join-Path $work $assetName
-  [System.IO.Compression.ZipFile]::CreateFromDirectory($payloadDir, $zipPath)
+  # CreateFromDirectory は Windows で区切り文字 '\' のエントリ名を作ってしまうため、
+  # ZIP標準の '/' 区切りで1件ずつ作成する
+  $zipStream = [System.IO.File]::Open($zipPath, [System.IO.FileMode]::Create)
+  $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+  try {
+    foreach ($f in (Get-ChildItem -LiteralPath $payloadDir -Recurse -File)) {
+      $rel = $f.FullName.Substring($payloadDir.Length).TrimStart('\').Replace('\', '/')
+      $entry = $archive.CreateEntry($rel, [System.IO.Compression.CompressionLevel]::Optimal)
+      $entryStream = $entry.Open()
+      $fileStream = [System.IO.File]::OpenRead($f.FullName)
+      try { $fileStream.CopyTo($entryStream) } finally { $fileStream.Dispose(); $entryStream.Dispose() }
+    }
+  } finally {
+    $archive.Dispose()
+    $zipStream.Dispose()
+  }
   $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLower()
   Write-Host "ペイロード: $($files.Count) ファイル / ZIP SHA256: $zipHash"
 
