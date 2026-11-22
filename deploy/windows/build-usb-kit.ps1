@@ -52,6 +52,8 @@ try {
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-USB-Kit.bat') -Destination $target -Force
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'update-usb-kit.ps1') -Destination $target -Force
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Update-USB-Kit.bat') -Destination $target -Force
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Recover-USB-Kit-DB.ps1') -Destination $target -Force
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Recover-USB-Kit-DB.bat') -Destination $target -Force
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'usb-kit-printer-host.env') -Destination (Join-Path $target 'printer-host.env') -Force
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'usb-kit-README.md') -Destination (Join-Path $target 'README.md') -Force
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'usb-kit-marker.txt') -Destination $marker -Force

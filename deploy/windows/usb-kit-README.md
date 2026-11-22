@@ -15,3 +15,7 @@
 ビルド元PCでは、リポジトリから直接ビルドして反映することもできます。その場合は環境変数`EVENT_POS_UPDATE_MODE`に`local`を設定してから実行してください（ビルド元は`EVENT_POS_REPO`で変更できます）。
 
 配布リリースの作成は、ビルド元PCで`deploy\windows\publish-kit-release.ps1`を実行します（GitHubトークンが要ります）。
+
+## DBの復旧（強制終了・電源断で起動できなくなったとき）
+
+終了時にUSBへのDB書き戻しができなかった場合、次回起動時に「前回の終了時にUSBへのDB書き戻しを確認できませんでした」と表示されて止まります。データはPC側（`%LOCALAPPDATA%\EventPos\UsbKit\data`）に残っているので、キット内の`Recover-USB-Kit-DB.bat`をダブルクリックすると、両方のDBをデスクトップへ退避したうえでローカルDBをUSBへ書き戻し、ハッシュ照合まで行って復旧できます。
