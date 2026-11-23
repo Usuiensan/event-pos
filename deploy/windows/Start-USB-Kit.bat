@@ -1,3 +1,3 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-usb-kit.ps1"
+"%~dp0runtime\node.exe" "%~dp0server\dist\start.mjs"
 if errorlevel 1 pause

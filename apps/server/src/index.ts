@@ -62,3 +62,7 @@ app.get<{ Params: { file: string } }>("/audio/:file", async (request, reply) => 
 app.get<{ Params: { speakerId: string; file: string } }>("/audio/speaker/:speakerId/:file", async (request, reply) => sendAsset(`audio/speaker/${basename(request.params.speakerId)}/${basename(request.params.file)}`, reply));
 app.get<{ Params: { speakerId: string; file: string } }>("/audio/yen/:speakerId/:file", async (request, reply) => sendAsset(`audio/yen/${basename(request.params.speakerId)}/${basename(request.params.file)}`, reply));
 await app.listen({ port, host });
+
+export function closeService(): Promise<void> {
+  return app.close();
+}

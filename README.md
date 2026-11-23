@@ -69,6 +69,10 @@ WindowsでTM-T70IIへ印刷する場合はPrinterHostを起動します。
 Invoke-WebRequest http://127.0.0.1:4318/health/live
 ```
 
+## USB起動セット
+
+WindowsとmacOSのUSB起動セットでは、POSとPrinterHostを1つのコンソールから起動できます。稼働中は変更のあったSQLite DBをUSBへ自動保存します。異常終了後は、同じPC・ユーザー・USBで起動するとDBを自動復旧します。作成手順は [Windows版](deploy/windows/README.md) と [macOS版](deploy/macos/README.md) を参照してください。
+
 ## 設定・運用資料
 
 - [`docs/CURRENT_SPEC.md`](docs/CURRENT_SPEC.md): 現行仕様

@@ -13,13 +13,18 @@ try {
     throw "ローカルDBが見つかりません: $localDb（このPCには復旧できるDBがありません）"
   }
 
-  $kit = $null
-  foreach ($drive in [System.IO.DriveInfo]::GetDrives()) {
-    if (-not $drive.IsReady) { continue }
-    $candidate = Join-Path $drive.RootDirectory.FullName 'event-pos-usb-kit'
-    if ((Test-Path -LiteralPath (Join-Path $candidate 'data\event-pos.sqlite')) -and (Test-Path -LiteralPath (Join-Path $candidate 'start-usb-kit.ps1'))) { $kit = $candidate; break }
+  if ((Get-Content -LiteralPath $marker -Raw).TrimStart().StartsWith('{')) {
+    throw '新版の復旧情報があります。同じPC・USBで Start-USB-Kit.bat を起動すると自動復旧します。'
   }
-  if (-not $kit) { throw 'USBキットが見つかりません。USBを挿してから実行してください。' }
+
+  $kit = $PSScriptRoot
+  if (-not (Test-Path -LiteralPath (Join-Path $kit 'data\event-pos.sqlite'))) {
+    throw 'このUSBにDBがありません。前回使ったUSBから復旧を実行してください。'
+  }
+  Write-Host "旧版の復旧情報にはUSBの識別情報がありません。書き戻し先: $kit"
+  if ((Read-Host '前回と同じUSBだと確認できた場合は RECOVER と入力') -cne 'RECOVER') {
+    throw '復旧を中止しました。'
+  }
   $usbDb = Join-Path $kit 'data\event-pos.sqlite'
 
   $runtimePrefix = Join-Path $kit 'runtime'

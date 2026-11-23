@@ -1,5 +1,4 @@
 import type { PrinterStatusObservation } from "@event-pos/contracts";
-import { usb } from "usb";
 import { decodeDleEot, type RawStatusObservation } from "./linux-status-probe.js";
 import { TransportSendError, type PrinterTransport, type SendReceipt, statusObservation } from "./transport.js";
 
@@ -10,7 +9,7 @@ export type MacOsUsbTransportOptions = {
   timeoutMs?: number;
   drawerOpenHigh?: boolean;
 };
-type UsbDevice = NonNullable<Awaited<ReturnType<typeof usb.findDeviceByIds>>>;
+type UsbDevice = NonNullable<Awaited<ReturnType<typeof import("usb").usb.findDeviceByIds>>>;
 
 function usbDisconnected(error: unknown): boolean { return /disconnected/i.test(error instanceof Error ? error.message : String(error)); }
 
@@ -29,6 +28,7 @@ export class MacOsUsbTransport implements PrinterTransport {
     if (this.device?.opened) return this.device;
     if (this.opening) return this.opening;
     this.opening = (async () => {
+      const { usb } = await import("usb");
       const device = this.options.serialNumber
         ? await usb.findDeviceBySerial(this.options.serialNumber)
         : await usb.findDeviceByIds(this.options.vendorId, this.options.productId);

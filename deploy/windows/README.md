@@ -9,7 +9,7 @@ pnpm install --frozen-lockfile
 .\deploy\windows\build-usb-kit.ps1 -OutputDirectory E:\event-pos-usb-kit
 ```
 
-空のキットにはSQLite DBを含めません。使用するイベントのDBをUSB上の`data\event-pos.sqlite`へ配置してから`Start-USB-Kit.bat`を実行します。DBコピー、プリンター設定、終了手順は同梱`README.md`を参照してください。バンドル済みNode実行ファイルを使うため、Surface側でNode.jsやDockerを導入しません。
+空のキットにはSQLite DBを含めません。`Start-USB-Kit.bat` の初回起動でイベントをセットアップできます。既存のイベントDBを使う場合は、DBと対応するイベント設定をセットで移してください。プリンター設定、終了・復旧手順は同梱`README.md`を参照してください。バンドル済みNode実行ファイルを使うため、Surface側でNode.jsやDockerを導入しません。
 
 配布物を作成した後の起動確認は次で行います。実機プリンターへは接続せず、HTTP healthとWeb資産を確認します。
 

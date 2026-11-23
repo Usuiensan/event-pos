@@ -15,7 +15,7 @@ try {
   try {
     $env:LOCALAPPDATA = $testLocalRoot
     $recovery = & pwsh -NoProfile -ExecutionPolicy Bypass -File (Join-Path $KitPath 'start-usb-kit.ps1') 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0 -or $recovery -notmatch '前回の終了時にUSBへのDB書き戻しを確認できませんでした') { throw 'USB sync recovery marker smoke failed' }
+    if ($LASTEXITCODE -eq 0 -or $recovery -notmatch '旧版または読み取れない復旧情報') { throw 'USB sync recovery marker smoke failed' }
     Write-Output 'USB sync recovery marker: OK'
   } finally { $env:LOCALAPPDATA = $originalLocalAppData }
 
