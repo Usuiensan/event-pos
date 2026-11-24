@@ -9,7 +9,7 @@ import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtif
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
 import { connectRealtime } from "./realtime-client.js";
 import { ageSkipRemainingSeconds, canSkipCustomerAgeConfirmation } from "./age-skip.js";
-import { shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
+import { isActiveDraft, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 import { ErrorDialog, type PosError } from "./error-dialog.js";
 import { createErrorReportMailto, createSystemErrorReport, toPosSystemError } from "./error-report.js";
 import { formatPrintStatus } from "./print-status.js";
@@ -249,7 +249,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   };
   const openDraft = async (staffId = signedInResponsibleNumber): Promise<CheckoutDraft> => {
     const current = draftRef.current;
-    if (current && (current.state === "editing" || current.state === "payment" || current.state === "finalizing")) return current;
+    if (current && isActiveDraft(current.state)) return current;
     if (!staffId || staffId === "---") throw new CheckoutApiError(401, "STAFF_SIGN_IN_REQUIRED", "責任者をサインオンしてください", {});
     if (!businessSession || registerState?.state !== "open") throw new CheckoutApiError(409, registerState ? "REGISTER_NOT_OPEN" : "BUSINESS_NOT_OPEN", "営業全体とレジを開局してから商品を登録してください", {});
     const draft = await checkoutApi.createDraft(`register-${registerNumber}`, { eventId: catalog.eventId, staffId, terminalId: `register-${registerNumber}`, businessDate: businessSession.businessDate, sessionNo: businessSession.sessionNo }); applyDraft(draft); return draft;
@@ -347,8 +347,9 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       const keyName = storageKey(`finalize-${draft.draftId}`); const idempotencyKey = localStorage.getItem(keyName) ?? createUuid(); localStorage.setItem(keyName, idempotencyKey);
       await checkoutApi.finalize(draft.draftId, draft.version, idempotencyKey);
       inventoryRefreshRef.current();
-      const completed = await checkoutApi.getDraft(draft.draftId); applyDraft(completed);
-      setReceived(amount); setCompletedPaymentLabel(method); setPaymentFinished(true); setShowPayment(false); updateInputBuffer(""); playOperationSound("complete", audioSettings.tapVolume); localStorage.removeItem(keyName);
+      const completed = await checkoutApi.getDraft(draft.draftId);
+      if (draftRef.current?.draftId === completed.draftId) { applyDraft(completed); updateInputBuffer(""); }
+      playOperationSound("complete", audioSettings.tapVolume); localStorage.removeItem(keyName);
       if (method === "現金" && amount > total) speakChangeReady(routedSpeech); else speakReceiptReady(routedSpeech);
     } catch (error) { showSystemError(errorMessage(error), error); }
     finally { paymentSubmittingRef.current = false; }
@@ -406,7 +407,20 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   useEffect(() => {
     if (role !== "staff" || !authActor) return;
     let stopped = false;
-    const refresh = () => { void checkoutApi.getRegisterDraft(registerId).then((draft) => { if (stopped) return; setServerOnline(true); applyDraft(draft); if (draft.completedTransactionId) void checkoutApi.getTransaction(draft.completedTransactionId).catch(() => undefined); }).catch((error) => { if (error instanceof CheckoutApiError && error.status === 404) return; setServerOnline(false); }); };
+    const refresh = () => {
+      const draftId = draftRef.current?.draftId;
+      void checkoutApi.getRegisterDraft(registerId).then(async (draft) => {
+        const current = draftRef.current;
+        if (stopped || current?.draftId !== draftId) return;
+        setServerOnline(true);
+        // レジの取得結果が別の非アクティブな下書きなら、操作中の下書き自身の状態を確認する。
+        if (current && current.draftId !== draft.draftId && isActiveDraft(current.state) && !isActiveDraft(draft.state)) {
+          draft = await checkoutApi.getDraft(current.draftId);
+          if (stopped || draftRef.current?.draftId !== draftId) return;
+        }
+        applyDraft(draft);
+      }).catch((error) => { if (stopped || error instanceof CheckoutApiError && error.status === 404) return; setServerOnline(false); });
+    };
     draftRefreshRef.current = refresh; refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); draftRefreshRef.current = () => undefined; };
   }, [authActor, catalog.products, registerId, role]);
