@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { CheckoutDraft } from "./checkout-api.js";
 import { shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 
 describe("REST状態の巻き戻り防止", () => {
@@ -18,6 +19,23 @@ describe("REST状態の巻き戻り防止", () => {
     const current = { draftId: "draft-1", state: "editing", version: 5, createdAt: "2026-08-02T00:00:00.000Z" } as never;
     expect(shouldApplyDraft(current, { draftId: "draft-1", state: "editing", version: 4, createdAt: "2026-08-02T00:00:00.000Z" } as never)).toBe(false);
     expect(shouldApplyDraft(current, { draftId: "draft-1", state: "editing", version: 6, createdAt: "2026-08-02T00:00:00.000Z" } as never)).toBe(true);
+  });
+
+  it.each(["canceled", "completed"] as const)("呼戻した会計の確定前後に別下書き (%s) が届いても表示を維持する", (state) => {
+    const payment = { draftId: "recalled", state: "payment", version: 6, createdAt: "2026-08-02T00:00:00.000Z" } as CheckoutDraft;
+    const completed = { ...payment, state: "completed", version: 7 } as const;
+    const other = { draftId: "other", state, version: 3, createdAt: "2026-08-03T00:00:00.000Z" } as CheckoutDraft;
+
+    expect(shouldApplyDraft(payment, other)).toBe(false);
+    expect(shouldApplyDraft(payment, completed)).toBe(true);
+    expect(shouldApplyDraft(completed, other)).toBe(false);
+  });
+
+  it("会計完了後に届いた同じ下書きの支払中応答を拒否する", () => {
+    const payment = { draftId: "recalled", state: "payment", version: 6, createdAt: "2026-08-02T00:00:00.000Z" } as CheckoutDraft;
+    const completed = { ...payment, state: "completed", version: 7 } as const;
+
+    expect(shouldApplyDraft(completed, payment)).toBe(false);
   });
 
   it("低帯域で前後した顧客projectionをversionで拒否する", () => {
