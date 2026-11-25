@@ -321,7 +321,6 @@ export function claimHoldToDraft(db: PosDatabase, holdId: string, draftId: strin
       const product = db.prepare("SELECT * FROM event_products WHERE product_id=? AND event_id=?").get(line.product_id, String(row.event_id)) as Record<string, unknown> | undefined;
       if (!product) throw new CheckoutError(409, "HOLD_PRODUCT_UNAVAILABLE", "取り置き商品の商品マスタが見つかりません");
       insertLine(db, draftId, product, Number(line.quantity), "hold", null, "{}", new Date().toISOString());
-      db.prepare("UPDATE inventory_balances SET reserved=reserved-?,version=version+1 WHERE event_id=? AND product_id=? AND reserved>=?").run(line.quantity, hold.event_id, line.product_id, line.quantity);
     }
     const changed = db.prepare("UPDATE holds SET state='claimed',claimed_draft_id=?,claimed_at=? WHERE hold_id=? AND state='active'").run(draftId, new Date().toISOString(), holdId);
     if (Number(changed.changes) !== 1) throw new CheckoutError(409, "HOLD_CLAIM_CONFLICT", "取り置きが別端末で更新されています");
@@ -417,15 +416,9 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
 
 // 下書きを中止するトランザクション内で呼び出す。
 export function restoreHoldsForCanceledDraft(db: PosDatabase, draftId: string, eventId: string): void {
-  const restoredHolds = db.prepare(`UPDATE holds
+  db.prepare(`UPDATE holds
     SET state='active', claimed_draft_id=NULL, claimed_at=NULL
-    WHERE event_id=? AND claimed_draft_id=? AND state='claimed'
-    RETURNING hold_id`).all(eventId, draftId) as Array<{ hold_id: string }>;
-  for (const hold of restoredHolds) {
-    const lines = db.prepare("SELECT product_id,quantity FROM hold_lines WHERE hold_id=?").all(hold.hold_id) as Array<{ product_id: string; quantity: number }>;
-    const restoreReservation = db.prepare("UPDATE inventory_balances SET reserved=reserved+?,version=version+1 WHERE event_id=? AND product_id=?");
-    for (const line of lines) restoreReservation.run(line.quantity, eventId, line.product_id);
-  }
+    WHERE event_id=? AND claimed_draft_id=? AND state='claimed'`).run(eventId, draftId);
 }
 
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
@@ -559,6 +552,16 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
       db.prepare("INSERT INTO inventory_movements (inventory_movement_id,event_id,product_id,type,quantity_delta,transaction_line_id,actor_id,created_at) VALUES (?,?,?,?,?,?,?,?)").run(movementId, String(row.event_id), source.productId, noCharge ? "distribution" : "sale", -line.quantity, transactionLineIds.get(line.lineId)!, String(row.staff_id), now);
       db.prepare("UPDATE inventory_balances SET on_hand=on_hand-?,version=version+1 WHERE event_id=? AND product_id=?").run(line.quantity, String(row.event_id), source.productId);
     }
+    // 会計で数量を減らしたり明細を取り消したりしても、引当は元の取り置き分を全数解除する。
+    db.prepare(`UPDATE inventory_balances AS b
+      SET reserved=b.reserved-pickup.quantity, version=b.version+1
+      FROM (
+        SELECT l.product_id, SUM(l.quantity) AS quantity
+        FROM holds h JOIN hold_lines l ON l.hold_id=h.hold_id
+        WHERE h.claimed_draft_id=? AND h.state='claimed'
+        GROUP BY l.product_id
+      ) AS pickup
+      WHERE b.event_id=? AND b.product_id=pickup.product_id`).run(draftId, String(row.event_id));
     failureInjector?.("after_inventory");
     for (const payment of payments.filter((item) => item.kind === "cash" && item.amountYen > 0)) db.prepare("INSERT INTO cash_movements (session_id,type,amount_yen,transaction_id,reason,idempotency_key,actor_id,terminal_id,created_at) VALUES (?,'sale',?,?,?, ?,?,?,?)").run(String(row.cash_session_id), payment.amountYen, transactionId, "商品売上", `sale-finalize:${idempotencyKey}:${payment.sequence}`, String(row.staff_id), String(row.terminal_id), now);
     failureInjector?.("after_cash");
