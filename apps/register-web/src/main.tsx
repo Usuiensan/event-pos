@@ -9,6 +9,7 @@ import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtif
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
 import { connectRealtime } from "./realtime-client.js";
 import { AgeConfirmationActions, type AgeFlowState } from "./age-confirmation-actions.js";
+import { ageRequirement, isAgeRestricted } from "./age-requirement.js";
 import { draftMatchesBusiness, isActiveDraft, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 import { ErrorDialog, type PosError } from "./error-dialog.js";
 import { createErrorReportMailto, createSystemErrorReport, toPosSystemError } from "./error-report.js";
@@ -181,8 +182,6 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     localStorage.setItem(key, created);
     return created;
   });
-  const ageRequirement = (product: ProductDefinition): 18 | 20 | null => product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : product.ageCheck === "none" ? null : /R18|18禁|成人向け/.test(product.name) ? 18 : /チューハイ|レモンハイ|獺祭|酒|ビール/.test(product.name) ? 20 : null;
-  const isAgeRestricted = (product: ProductDefinition) => ageRequirement(product) !== null;
   const showOperationError = (message: string) => { if (role === "staff") playOperationSound("error", audioSettings.errorVolume); setErrorModal({ kind: "operation", message }); };
   const showSystemError = (message: string, error?: unknown) => { if (role === "staff") playOperationSound("error", audioSettings.errorVolume); const report = createSystemErrorReport(message, error); setErrorModal(toPosSystemError(report, message)); void checkoutApi.saveErrorReport(report.errorId, report.content).catch(() => undefined); };
   const today = new Date();
