@@ -251,7 +251,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return job ? job : reply.code(404).send({ error: "not_found" });
   });
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
-  registerServerFeatureRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}) });
+  registerServerFeatureRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), realtimeHub });
   registerJournalRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });

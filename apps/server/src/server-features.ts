@@ -6,14 +6,16 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { createPrintJob } from "./db.js";
 import type { PosDatabase } from "./db.js";
-import { CheckoutError, allocatePublicReference, getSaleDraft, restoreHoldsForCanceledDraft } from "./checkout-store.js";
+import { CheckoutError, allocatePublicReference, getSaleDraft, restoreHoldsForCanceledDraft, updateProjection } from "./checkout-store.js";
+import { notifyDraft } from "./checkout-routes.js";
 import { assertRegisterOpen } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { uuidV7 } from "./ids.js";
 import { formatJstDateTime } from "./time-format.js";
 import { receiptRenderOptions } from "./receipt-render-config.js";
+import type { RealtimeHub } from "./realtime.js";
 
-type Options = { database: PosDatabase; authRequired: boolean; printQueue?: { trigger(): void } };
+type Options = { database: PosDatabase; authRequired: boolean; printQueue?: { trigger(): void }; realtimeHub?: RealtimeHub };
 const yen = (value: number) => `¥${value.toLocaleString("ja-JP")}`;
 const actorId = (request: any, authRequired: boolean, actor: any) => authRequired ? actor.responsibleNumber : request.headers["x-pos-actor-id"] ?? "unsigned-operator";
 const error = (reply: any, e: unknown) => {
@@ -115,8 +117,17 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
     try { const auth = requireAuthActor(options.database, request, "operator", options.authRequired); const draft = getSaleDraft(options.database, request.params.draftId); if (!request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "terminalIdが必要です"); if (!draft.lines.some((line) => line.status === "active")) throw new CheckoutError(400, "PARK_EMPTY", "明細がない会計は保留できません"); if (!options.database.prepare("SELECT 1 FROM sale_drafts WHERE draft_id=? AND state IN ('editing','payment')").get(draft.draftId)) throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは保留できません"); const register = assertRegisterOpen(options.database, draft.eventId, draft.registerId); const reference = allocatePublicReference(options.database, draft.eventId, register.businessDate, register.sessionNo); const now = new Date().toISOString();
       const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [{ kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: "保留レシート" }, { kind: "emphasis", bold: false, underline: false, invert: false }, { kind: "barcode", value: `{BPS13${reference.raw}`, width: 3, height: 96, hri: "below" }, { kind: "align", value: "left" }, { kind: "text", value: `受付番号 ${reference.display}` }, ...draft.lines.filter((line) => line.status === "active").map((line) => ({ kind: "row" as const, left: line.name.slice(0, 18), right: `${line.quantity}点` })), { kind: "text", value: `合計 ${yen(draft.calculation.totalYen)}` }, { kind: "text", value: `作成 ${formatJstDateTime(now)}` }, { kind: "text", value: "精算のときにこのレシートをスキャンすると会計を呼び戻せます" }, { kind: "feed", lines: 5 }, { kind: "cut", mode: "partial" }] };
       const printJobId = enqueueDocument(options.database, { transactionId: `park:${draft.draftId}`, printerId: request.body.terminalId, documentType: "park_ticket", document, payload: { draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display }, createdAt: now });
-      options.database.exec("BEGIN IMMEDIATE"); try { options.database.prepare("UPDATE sale_drafts SET state='parked',park_reference=?,parked_at=?,version=version+1,updated_at=? WHERE draft_id=?").run(reference.raw, now, now, draft.draftId); options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'sale_draft_parked','sale_draft',?,?,?)").run(draft.eventId, draft.draftId, JSON.stringify({ parkReference: reference.raw, printJobId, actorId: actorId(request, options.authRequired, auth), terminalId: request.body.terminalId }), now); options.database.exec("COMMIT"); } catch (e) { options.database.exec("ROLLBACK"); throw e; }
-      options.printQueue?.trigger(); return reply.code(201).send({ draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display, printJobId });
+      let parkedDraft: ReturnType<typeof updateProjection>;
+      options.database.exec("BEGIN IMMEDIATE");
+      try {
+        options.database.prepare("UPDATE sale_drafts SET state='parked',park_reference=?,parked_at=?,version=version+1,updated_at=? WHERE draft_id=?").run(reference.raw, now, now, draft.draftId);
+        parkedDraft = updateProjection(options.database, draft.draftId);
+        options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'sale_draft_parked','sale_draft',?,?,?)").run(draft.eventId, draft.draftId, JSON.stringify({ parkReference: reference.raw, printJobId, actorId: actorId(request, options.authRequired, auth), terminalId: request.body.terminalId }), now);
+        options.database.exec("COMMIT");
+      } catch (e) { options.database.exec("ROLLBACK"); throw e; }
+      options.printQueue?.trigger();
+      notifyDraft(options, parkedDraft);
+      return reply.code(201).send({ draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display, printJobId });
     } catch (e) { return error(reply, e); }
   });
 
@@ -128,6 +139,8 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
     try {
       requireAuthActor(options.database, request, "operator", options.authRequired); if (!request.body?.parkReference || !request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "parkReferenceとterminalIdが必要です"); const parked = options.database.prepare("SELECT * FROM sale_drafts WHERE register_id=? AND park_reference=? AND state='parked'").get(request.params.registerId, request.body.parkReference) as Record<string, unknown> | undefined; if (!parked) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const session = assertRegisterOpen(options.database, String(parked.event_id), request.params.registerId); if (parked.cash_session_id !== session.cashSessionId) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const active = options.database.prepare("SELECT d.* FROM sale_drafts d WHERE d.register_id=? AND d.cash_session_id=? AND d.state IN ('editing','payment','finalizing') LIMIT 1").get(request.params.registerId, session.cashSessionId) as Record<string, unknown> | undefined; if (active && (options.database.prepare("SELECT 1 FROM sale_draft_lines WHERE draft_id=? AND status='active' LIMIT 1").get(String(active.draft_id)) || options.database.prepare("SELECT 1 FROM draft_payments WHERE draft_id=? LIMIT 1").get(String(active.draft_id)))) throw new CheckoutError(409, "PARK_RESUME_BLOCKED", "現在の会計に明細または支払いがあるため呼び戻せません");
       const now = new Date().toISOString();
+      const parkedDraftId = String(parked.draft_id);
+      let resumedDraft: ReturnType<typeof updateProjection>;
       options.database.exec("BEGIN IMMEDIATE");
       try {
         if (active) {
@@ -135,10 +148,12 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
           options.database.prepare("UPDATE sale_drafts SET state='canceled',version=version+1,updated_at=? WHERE draft_id=?").run(now, draftId);
           restoreHoldsForCanceledDraft(options.database, draftId, String(active.event_id));
         }
-        options.database.prepare("UPDATE sale_drafts SET state='editing',park_reference=NULL,parked_at=NULL,version=version+1,updated_at=? WHERE draft_id=?").run(now, String(parked.draft_id));
+        options.database.prepare("UPDATE sale_drafts SET state='editing',park_reference=NULL,parked_at=NULL,version=version+1,updated_at=? WHERE draft_id=?").run(now, parkedDraftId);
+        resumedDraft = updateProjection(options.database, parkedDraftId);
         options.database.exec("COMMIT");
       } catch (e) { options.database.exec("ROLLBACK"); throw e; }
-      return getSaleDraft(options.database, String(parked.draft_id));
+      notifyDraft(options, resumedDraft);
+      return resumedDraft;
     } catch (e) { return error(reply, e); }
   });
 }
