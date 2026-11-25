@@ -107,7 +107,13 @@ export class PersistentPrintQueue {
       updateAttempt(this.db, job.jobId, attemptNo, { phase: "dispatch_started", adapterHash: compilerHash, writeHash: compilerHash });
     });
     try {
-      const result = await this.host.accept({ ...job, state: "sending", updatedAt: startedAt });
+      // 取り置き票は描画済みバイトを escpos_bytes 列にだけ持ち、payload には含まない。
+      // Host の描画は payload.escposBase64 を必須とするため、送信時に保存済みバイト
+      // （直上でハッシュと長さを照合済み）から補う。DB への二重保存はしない。
+      const dispatchJob = job.documentType === "hold_ticket" && row.escpos_bytes
+        ? { ...job, payload: { ...(job.payload as Record<string, unknown>), escposBase64: Buffer.from(row.escpos_bytes).toString("base64") } }
+        : job;
+      const result = await this.host.accept({ ...dispatchJob, state: "sending", updatedAt: startedAt });
       if (result.bytesSha256 !== compilerHash || result.payloadLength !== payloadLength || result.acceptedBytes !== payloadLength) {
         return this.finishFailure(operation, job, attemptNo, { code: "SHORT_WRITE_OR_HASH_MISMATCH", message: "acceptedBytesまたはbytes hashが一致しません", acceptedBytes: result.acceptedBytes, notSentProven: false, retryable: false, deviceFault: false });
       }
