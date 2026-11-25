@@ -5,6 +5,7 @@ import { buildApp } from "./app.js";
 import { openDatabase, type PosDatabase } from "./db.js";
 import { ensureDefaultReceiptTemplate, renderReceipt } from "./receipt-store.js";
 import { openRegisterForTest } from "./test-support.js";
+import { PrinterHostFailure } from "./print-queue.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -178,5 +179,38 @@ describe("receipt template and reprint routes", () => {
     expect(response.statusCode, response.body).toBe(201);
     const snapshot = JSON.parse(String((db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE job_id=?").get(response.json().jobId) as { receipt_snapshot_json: string }).receipt_snapshot_json)) as ReceiptSnapshot;
     expect(snapshot).toMatchObject({ reprintLabel: "控え再発行", reprintNo: 1 });
+  });
+});
+
+describe("print job cancel kicks the queue (F-037)", () => {
+  it("機器障害で止まった先頭ジョブを取り消すと、後続ジョブが送信される", async () => {
+    const sent: string[] = [];
+    const db = openDatabase();
+    const app = buildApp({ database: db, printerHost: { accept: async (job) => {
+      sent.push(job.jobId);
+      if (job.jobId === "head") throw new PrinterHostFailure({ code: "PAPER_OUT", message: "用紙切れ", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true });
+      return { jobId: job.jobId, bytesSha256: job.bytesSha256!, payloadLength: job.expectedBytesLength!, acceptedBytes: job.expectedBytesLength!, completionEvidence: "transport_accepted" as const, duplicate: false };
+    } } });
+    apps.push(app);
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+    const enqueue = async (jobId: string) => {
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId, transactionId: `print-test:${jobId}`, printerId: "receipt-1", documentType: "receipt", createdAt: new Date().toISOString(), source: "test", payload: { escposBase64: "G0A=" } } });
+      expect(response.statusCode, response.body).toBe(201);
+    };
+    const state = async (jobId: string) => (await app.inject({ method: "GET", url: `/api/v1/print-jobs/${jobId}` })).json().state as string;
+    const waitState = async (jobId: string, expected: string) => {
+      let current = "";
+      for (let i = 0; i < 40; i++) { current = await state(jobId); if (current === expected) break; await new Promise((resolve) => setTimeout(resolve, 50)); }
+      return current;
+    };
+    await enqueue("head");
+    await enqueue("next");
+    expect(await waitState("head", "retry_wait")).toBe("retry_wait");
+    expect(await state("next")).toBe("pending");
+    const cancel = await app.inject({ method: "POST", url: "/api/v1/print-jobs/head/cancel" });
+    expect(cancel.statusCode, cancel.body).toBe(200);
+    expect(cancel.json().state).toBe("canceled");
+    expect(await waitState("next", "completed")).toBe("completed");
+    expect(sent).toEqual(["head", "next"]);
   });
 });

@@ -119,6 +119,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     if (!operation) return error(reply, 404, "PRINT_JOB_NOT_FOUND", "印刷jobが見つかりません");
     if (operation.state !== "pending" && operation.state !== "retry_wait") return error(reply, 409, "PRINT_JOB_NOT_CANCELABLE", "待機または再試行待ちだけ取消できます");
     const now = new Date().toISOString(); options.database.prepare("UPDATE printer_operations SET state='canceled',updated_at=? WHERE operation_id=?").run(now, String(operation.operation_id)); options.database.prepare("UPDATE print_jobs SET state='canceled',updated_at=? WHERE job_id=?").run(now, request.params.jobId);
+    options.queue?.trigger();
     return getPrintJob(options.database, request.params.jobId);
   });
   app.post<{ Params: { transactionId: string }; Body: ReprintBody }>("/api/v1/transactions/:transactionId/reprints", async (request, reply) => {
