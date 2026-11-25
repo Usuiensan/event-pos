@@ -1,8 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { buildPrinterHost } from "@event-pos/printer-host/app";
+import { FakeTransport } from "@event-pos/printer-host/transport";
 import { buildApp } from "./app.js";
 import type { SaleDraftDto } from "./checkout-store.js";
 import { openDatabase } from "./db.js";
+import { HttpPrinterHostClient } from "./printer-host-client.js";
 import { openRegisterForTest } from "./test-support.js";
 
 const apps: FastifyInstance[]=[];
@@ -69,6 +72,34 @@ describe("取り置き",()=>{
     expect(db.prepare("SELECT state FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({state:"claimed"}); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:2});
     const second=await app.inject({method:"POST",url:"/api/v1/holds",headers:operator,payload:{eventId:catalog.eventId,registerId:"register-1",terminalId:"register-1",lines:[{productCode:"00000001",quantity:1}]}}); expect(second.statusCode).toBe(201);
     expect((await app.inject({method:"POST",url:`/api/v1/holds/${second.json().holdId}/release`,headers:operator,payload:{reason:"来場取消"}})).statusCode).toBe(200); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:2});
+  });
+  it("取り置き票は保存済み描画バイトで印刷され、初回と再印刷の両方が完了する", async () => {
+    const db = openDatabase();
+    const transport = new FakeTransport();
+    const host = buildPrinterHost({ transport });
+    apps.push(host);
+    await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = host.server.address();
+    if (!address || typeof address === "string") throw new Error("PrinterHost test portを取得できません");
+    const app = buildApp({ database: db, printerHost: new HttpPrinterHostClient(`http://127.0.0.1:${address.port}`) });
+    apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: catalog });
+    await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 2 }] } });
+    expect(hold.statusCode).toBe(201);
+    const reprint = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/reprint`, payload: { terminalId: "register-1", reason: "紙切れ" } });
+    expect(reprint.statusCode).toBe(201);
+    expect(reprint.json().printJobId).not.toBe(hold.json().printJobId);
+    const jobIds = [hold.json().printJobId as string, reprint.json().printJobId as string];
+    const [firstJobId, secondJobId] = jobIds;
+    if (!firstJobId || !secondJobId) throw new Error("取り置き票のjobIdを取得できません");
+    await vi.waitFor(() => expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE job_id IN (?,?) AND state='completed'").get(firstJobId, secondJobId)).toEqual({ count: 2 }), { timeout: 5_000 });
+    for (const jobId of jobIds) {
+      const row = db.prepare("SELECT escpos_bytes AS escposBytes FROM print_jobs WHERE job_id=?").get(jobId) as { escposBytes: Buffer };
+      expect(row.escposBytes.length).toBeGreaterThan(0);
+      expect(transport.sent.some((bytes) => Buffer.from(bytes).equals(row.escposBytes))).toBe(true);
+      expect(db.prepare("SELECT COUNT(*) AS count FROM print_attempts WHERE job_id=? AND phase='postcheck_completed' AND accepted_bytes>0").get(jobId)).toEqual({ count: 1 });
+    }
   });
 
   it.each(["editing", "parked"])("最後の1点は受取会計（%s）中も引当済みで、追加の取り置きには明示続行が必要", async (state) => {
