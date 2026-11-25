@@ -8,7 +8,7 @@ import { convertToTenThousands } from "./tender-input.js";
 import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CustomerProjection, type ParkedDraftDto, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
 import { connectRealtime } from "./realtime-client.js";
-import { ageSkipRemainingSeconds, canSkipCustomerAgeConfirmation } from "./age-skip.js";
+import { AgeConfirmationActions, type AgeFlowState } from "./age-confirmation-actions.js";
 import { isActiveDraft, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 import { ErrorDialog, type PosError } from "./error-dialog.js";
 import { createErrorReportMailto, createSystemErrorReport, toPosSystemError } from "./error-report.js";
@@ -141,7 +141,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [showPayment, setShowPayment] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState<"クレジット" | "売掛" | "無配" | null>(null);
   const [ageProduct, setAgeProduct] = useState<ProductDefinition | null>(null);
-  const [ageFlowState, setAgeFlowState] = useState<"idle" | "staff_pending" | "customer_pending">("idle");
+  const [ageFlowState, setAgeFlowState] = useState<AgeFlowState>("idle");
   const [ageVerified, setAgeVerified] = useState(false);
   const [ageVerifiedMinimum, setAgeVerifiedMinimum] = useState<0 | 18 | 20>(0);
   const [customerAgeNotice, setCustomerAgeNotice] = useState<"required" | "verified" | null>(null);
@@ -169,8 +169,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [backupArtifactsError, setBackupArtifactsError] = useState("");
   const [regeneratingArtifactId, setRegeneratingArtifactId] = useState<string | null>(null);
   const [customerDisplayAvailable, setCustomerDisplayAvailable] = useState(false);
-  const [ageConfirmationRequest, setAgeConfirmationRequest] = useState<{ requestId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled"; requestedAt: string } | null>(null);
-  const [ageCountdownSeconds, setAgeCountdownSeconds] = useState(0);
+  const [ageConfirmationRequest, setAgeConfirmationRequest] = useState<{ requestId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled" } | null>(null);
+  const staffAgeRequestRef = useRef<{ id: Promise<string | null>; confirming: boolean } | null>(null);
   const registerId = `register-${registerNumber}`;
   const [terminalId] = useState(() => {
     if (role === "staff") return registerId;
@@ -234,7 +234,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setPaymentFinished(draft.state === "completed");
     if (draft.state === "payment" && draft.payments.length === 0) setShowPayment(true);
     if (draft.state === "completed") { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); }
-    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setRecentAddedProducts([]); setLastAddedShortcut(null); setReceived(0); updateInputBuffer(""); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }
+    if (canceled) { setShowPayment(false); setPendingPaymentMethod(null); setSelectedLine(null); setShowPriceChange(false); setCancelConfirm(false); setRecentAddedProducts([]); setLastAddedShortcut(null); setReceived(0); updateInputBuffer(""); closeAgeConfirmation(); }
     const verified = draft.ageVerifications.filter((item) => item.result === "passed" && (item.method === "appearance" || item.method === "id_visual")).reduce<0 | 18 | 20>((maximum, item) => Math.max(maximum, item.minimumAge) as 0 | 18 | 20, 0);
     setAgeVerified(verified > 0); setAgeVerifiedMinimum(verified);
   };
@@ -272,7 +272,6 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const visibleProducts = catalog.products.filter((product) => productTab === "all" || product.tabId === productTab);
   const total = authoritativeTotal ?? activeCart.reduce((sum, line) => sum + line.product.priceInclTax * line.quantity, 0) - autoDiscountYen;
   const totalDiscountYen = role === "customer" ? projectedDiscounts.reduce((sum, discount) => sum + discount.amountYen, 0) : serverDraft?.calculation.discountTotalYen ?? autoDiscountYen;
-  const ageCustomerSkipAvailable = ageFlowState === "customer_pending" && canSkipCustomerAgeConfirmation(customerDisplayAvailable, ageConfirmationRequest?.requestedAt ?? null);
   const routedSpeech = useMemo<SpeechPlayer>(() => ({
     get speakerId() { return speech.speakerId; },
     get volume() { return speech.volume; },
@@ -433,7 +432,12 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       setAgeConfirmationRequest(request);
       if (request) { setCustomerAgeMinimum(request.minimumAge); setCustomerAgeNotice(request.state === "acknowledged" ? "verified" : "required"); }
       else if (role === "customer") setCustomerAgeNotice(null);
-      if (role === "staff" && ageProduct && request?.state === "acknowledged") setAgeFlowState("staff_pending");
+      if (role === "staff" && ageProduct && request?.state === "acknowledged") {
+        const pendingRequest = staffAgeRequestRef.current;
+        void pendingRequest?.id.then((requestId) => {
+          if (!stopped && staffAgeRequestRef.current === pendingRequest && request.requestId === requestId) setAgeFlowState("staff_pending");
+        });
+      }
     }).catch(() => { if (!stopped) { setServerOnline(false); setCustomerDisplayAvailable(false); } }); };
     refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); };
@@ -473,11 +477,6 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     rows.forEach((row) => { row.classList.remove(...animationClasses); row.classList.add(`line-animation-${highlightAnimation}`); });
     return () => rows.forEach((row) => row.classList.remove(...animationClasses));
   }, [highlighted, highlightAnimation, cart, panel]);
-  useEffect(() => {
-    if (!ageProduct || ageFlowState !== "customer_pending" || !ageConfirmationRequest) { setAgeCountdownSeconds(0); return; }
-    const update = () => setAgeCountdownSeconds(ageSkipRemainingSeconds(ageConfirmationRequest.requestedAt));
-    update(); const timer = window.setInterval(update, 250); return () => window.clearInterval(timer);
-  }, [ageConfirmationRequest, ageFlowState, ageProduct]);
   useEffect(() => {
     if (cancelConfirm) cancelConfirmButtonRef.current?.focus();
   }, [cancelConfirm]);
@@ -599,7 +598,22 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const requiredAge = ageRequirement(product);
     if (!ageCheckBypass && requiredAge && (!ageVerified || ageVerifiedMinimum < requiredAge)) {
       setAgeProduct(product); setAgeFlowState("customer_pending"); setAgeConfirmationRequest(null);
-      void openDraft().then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge)).then((request) => { setAgeConfirmationRequest(request); speakAgeCheckRequired(routedSpeech); }).catch((error) => { setAgeProduct(null); setAgeFlowState("idle"); showSystemError(errorMessage(error), error); });
+      const pendingRequest = openDraft()
+        .then((draft) => checkoutApi.createAgeConfirmationRequest(registerId, draft.draftId, requiredAge))
+        .then(({ requestId }) => {
+          if (staffAgeRequestRef.current?.id === pendingRequest) speakAgeCheckRequired(routedSpeech);
+          return requestId;
+        })
+        .catch((error) => {
+          if (staffAgeRequestRef.current?.id === pendingRequest) {
+            staffAgeRequestRef.current = null;
+            setAgeProduct(null);
+            setAgeFlowState("idle");
+            showSystemError(errorMessage(error), error);
+          }
+          return null;
+        });
+      staffAgeRequestRef.current = { id: pendingRequest, confirming: false };
       return;
     }
     void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); setRecentAddedProducts((current) => [{ id: Date.now(), product, quantity }, ...current].slice(0, 6)); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode, "active", "add"); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
@@ -681,7 +695,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     setLifecycleLoading(true); setLifecycleError("");
     void checkoutApi.signIn(catalog.eventId, normalized, registerId).then((actor) => { setResponsibleNumber(normalized); setSignedInResponsibleNumber(actor.responsibleNumber); setSignedInUser(actor.displayName); setAuthActor(actor); setShowSignIn(false); }).catch((error) => setLifecycleError(errorMessage(error))).finally(() => setLifecycleLoading(false));
   };
-  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { applyDraft(next); setRecentAddedProducts([]); setReceived(0); setPaymentFinished(false); setAgeVerified(false); setAgeProduct(null); setAgeFlowState("idle"); setAgeConfirmationRequest(null); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); }).catch((error) => showSystemError(errorMessage(error), error)); };
+  const cancelRegistration = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。登録中止はできません。"); const draft = draftRef.current; if (!draft) return; void checkoutApi.cancelDraft(draft.draftId, draft.version).then((next) => { const request = staffAgeRequestRef.current ? null : ageConfirmationRequest; applyDraft(next); if (request) return checkoutApi.cancelAgeConfirmationRequest(registerId, request.requestId); }).catch((error) => showSystemError(errorMessage(error), error)); };
   const selectedLineItem = selectedLine !== null ? cart[selectedLine] : undefined;
   const selectedLineCalculation = selectedLineItem?.lineId ? serverDraft?.calculation.lines.find((line) => line.lineId === selectedLineItem.lineId) : undefined;
   const selectedLineAmount = selectedLineCalculation?.netYen ?? (selectedLineItem ? selectedLineItem.product.priceInclTax * selectedLineItem.quantity : 0);
@@ -705,7 +719,38 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const closePriceChange = () => { setShowPriceChange(false); setDiscountMode(null); setDiscountInput(""); };
    const applySelectedDiscount = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。売価・値引きは変更できません。"); if (!selectedLineItem?.lineId || selectedLine === null || priceChangePreview === null || !discountMode) return showOperationError(discountMode === "percent" ? "値引率は0～100％で入力してください。" : "値引額は現在の単価以下で入力してください。"); const value = Number(discountInput); void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, selectedLineItem.lineId!, draft.version, { manualDiscount: { kind: discountMode === "percent" ? "rate" : "amount", value } })).then((next) => { if (!next) return; highlightLine(selectedLineItem.product.productCode, selectedLineItem.cancelled ? "cancelled" : "active"); closePriceChange(); setSelectedLine(null); }); };
   useEffect(() => { if (!showPriceChange) return; const onDiscountKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setDiscountInput((current) => `${current}${event.key}`.replace(/^0+(?=\d)/, "").slice(0, 7)); } else if (event.key === "Backspace") { event.preventDefault(); setDiscountInput((current) => current.slice(0, -1)); } else if (event.key === "Escape") { event.preventDefault(); closePriceChange(); } else if (event.key === "Enter" && discountMode) { event.preventDefault(); applySelectedDiscount(); } }; window.addEventListener("keydown", onDiscountKey); return () => window.removeEventListener("keydown", onDiscountKey); }, [showPriceChange, discountMode, discountInput, priceChangePreview, selectedLine]);
-  const confirmAge = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。年齢確認は変更できません。"); const product = ageProduct; const verifiedMinimum = product ? (ageRequirement(product) ?? 20) : 20; if (!product) return; void runDraftMutation(async (draft) => { const verified = await checkoutApi.addAgeVerification(draft.draftId, draft.version, { minimumAge: verifiedMinimum, method: "id_visual", result: "passed", confirmerId: signedInResponsibleNumber, terminalId: registerId }); return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, 1); }).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeVerified(true); setAgeVerifiedMinimum(verifiedMinimum); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); if (line) highlightLine(line.productCode, "active", "add"); speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); }); };
+  const closeAgeConfirmation = () => {
+    const pendingRequest = staffAgeRequestRef.current;
+    staffAgeRequestRef.current = null;
+    setAgeFlowState("idle");
+    setAgeConfirmationRequest(null);
+    setAgeProduct(null);
+    void pendingRequest?.id.then((requestId) => {
+      if (requestId) return checkoutApi.cancelAgeConfirmationRequest(registerId, requestId);
+    }).catch((error) => showSystemError(errorMessage(error), error));
+  };
+  const confirmAge = async () => {
+    if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。年齢確認は変更できません。");
+    const product = ageProduct;
+    const pendingRequest = staffAgeRequestRef.current;
+    if (!product || !pendingRequest || pendingRequest.confirming) return;
+    pendingRequest.confirming = true;
+    if (!(await pendingRequest.id) || staffAgeRequestRef.current !== pendingRequest) return;
+    const verifiedMinimum = ageRequirement(product) ?? 20;
+    const next = await runDraftMutation(async (draft) => {
+      const verified = await checkoutApi.addAgeVerification(draft.draftId, draft.version, { minimumAge: verifiedMinimum, method: "id_visual", result: "passed", confirmerId: signedInResponsibleNumber, terminalId: registerId });
+      return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, 1);
+    });
+    if (!next) { pendingRequest.confirming = false; return; }
+    const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active");
+    if (staffAgeRequestRef.current === pendingRequest) closeAgeConfirmation();
+    setAgeVerified(true);
+    setAgeVerifiedMinimum(verifiedMinimum);
+    setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null);
+    playOperationSound("register", audioSettings.tapVolume);
+    if (line) highlightLine(line.productCode, "active", "add");
+    speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax));
+  };
   const updateAudioSetting = (key: "tapVolume" | "errorVolume" | "systemErrorVolume" | "speechVolume" | "speakerId", value: number) => {
     const requested = normalizeAudioSettings({ ...audioSettings, [key]: value });
     setAudioSettings(requested);
@@ -771,7 +816,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     {selectedLineItem && selectedLine !== null && showPriceChange && <div className="modal-backdrop price-change-layer"><section className="price-change-modal"><header><span>{selectedLineItem.product.name}</span><strong>現在単価 {selectedLineItem.product.priceInclTax.toLocaleString()}円</strong></header>{discountMode === null ? <div className="discount-mode-selector"><p>値引き方法を選択してください</p><button onClick={() => { setDiscountMode("percent"); setDiscountInput(""); }}>％引き</button><button onClick={() => { setDiscountMode("amount"); setDiscountInput(""); }}>金額値引き</button><button className="price-change-back" onClick={closePriceChange}>戻る</button></div> : <div className="discount-entry"><div className="discount-display"><span>{discountMode === "percent" ? "値引率" : "値引額"}</span><strong>{discountInput ? Number(discountInput).toLocaleString() : "0"}{discountMode === "percent" ? "％" : "円"}</strong><small>変更後単価　{priceChangePreview === null ? "—" : `${priceChangePreview.toLocaleString()}円`}</small></div><div className="discount-keypad">{["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "00"].map((key) => <button key={key} onClick={() => setDiscountInput((current) => `${current}${key}`.replace(/^0+(?=\d)/, "").slice(0, 7))}>{key}</button>)}<button className="discount-clear" onClick={() => setDiscountInput("")}>C</button><button className="discount-back" onClick={() => { setDiscountMode(null); setDiscountInput(""); }}>戻る</button><button className="discount-apply" disabled={priceChangePreview === null} onClick={applySelectedDiscount}>確定</button></div></div>}</section></div>}
     {pendingUnknownProduct && <div className="modal-backdrop unknown-product-layer"><form className="modal unknown-product-modal" onSubmit={(event) => { event.preventDefault(); submitUnknownProduct(); }}><h2 id="unknown-product-title">未登録商品の価格入力</h2><p>JAN {pendingUnknownProduct.code} は商品マスタにありません。今回の会計だけ仮登録します。</p><label>税込価格<input autoFocus inputMode="numeric" value={pendingUnknownProduct.priceInput} onChange={(event) => setPendingUnknownProduct((current) => current ? { ...current, priceInput: event.target.value.replace(/\D/g, "").slice(0, 9) } : current)} /></label><label>税率<select value={pendingUnknownProduct.taxRate} onChange={(event) => setPendingUnknownProduct((current) => current ? { ...current, taxRate: Number(event.target.value) as 0 | 8 | 10 } : current)}><option value="10">10%</option><option value="8">8%</option><option value="0">0%（非課税）</option></select></label><button type="submit" disabled={pendingUnknownProduct.saving || !pendingUnknownProduct.priceInput}>{pendingUnknownProduct.saving ? "追加中…" : "仮登録して会計に追加"}</button><button type="button" onClick={() => setPendingUnknownProduct(null)}>読み取りを取り消す</button></form></div>}
     {showSignIn && <div className="modal-backdrop"><form className="modal sign-in" onSubmit={(event) => { event.preventDefault(); signIn(); }}><h2>■■ サインオン（責任者入力） ■■</h2><p>責任者番号を入力後、【サインオン】をタッチまたは Enter</p><input aria-label="責任者番号" inputMode="numeric" maxLength={3} placeholder="責任者番号" value={responsibleNumber} onChange={(event) => setResponsibleNumber(event.target.value.replace(/\D/g, "").slice(0, 3))} /><button type="submit">サインオン</button></form></div>}
-    {ageProduct && <div className="modal-backdrop"><div className="modal age-modal"><h2>🔞 年齢確認</h2><p>{ageProduct.name}<br />身分証を目視し、{ageRequirement(ageProduct)}歳以上であることを確認してください。</p><div className="age-cutoff">今日{ageRequirement(ageProduct)}歳になる生年月日<br /><strong>西暦 {formatDateJa(twentiethBirthday)}</strong><br /><strong>和暦 {formatDateWareki(twentiethBirthday)}</strong><br /><small>この日以前の生年月日なら{ageRequirement(ageProduct)}歳以上です</small></div>{ageFlowState === "staff_pending" && <><button onPointerUp={confirmAge}>確認できた</button><button onPointerUp={() => { if (ageConfirmationRequest) void checkoutApi.cancelAgeConfirmationRequest(registerId, ageConfirmationRequest.requestId); setAgeFlowState("idle"); setAgeConfirmationRequest(null); setAgeProduct(null); }}>確認できない</button></>}{ageFlowState === "customer_pending" && <><p className="age-skip-status">{ageCustomerSkipAvailable ? (customerDisplayAvailable ? "客側確認をスキップできます" : "顧客画面が未接続のため、すぐにスキップできます") : `客側スキップまで 残り${ageCountdownSeconds}秒`}</p><button className="customer-age-skip" disabled={!ageCustomerSkipAvailable} onPointerUp={() => { if (ageCustomerSkipAvailable) confirmAge(); }}>客側スキップ</button></>}</div></div>}
+    {ageProduct && <div className="modal-backdrop"><div className="modal age-modal"><h2>🔞 年齢確認</h2><p>{ageProduct.name}<br />身分証を目視し、{ageRequirement(ageProduct)}歳以上であることを確認してください。</p><div className="age-cutoff">今日{ageRequirement(ageProduct)}歳になる生年月日<br /><strong>西暦 {formatDateJa(twentiethBirthday)}</strong><br /><strong>和暦 {formatDateWareki(twentiethBirthday)}</strong><br /><small>この日以前の生年月日なら{ageRequirement(ageProduct)}歳以上です</small></div><AgeConfirmationActions state={ageFlowState} setState={setAgeFlowState} onConfirm={confirmAge} onReject={closeAgeConfirmation} /></div></div>}
     {errorModal && <ErrorDialog error={errorModal} onConfirm={() => { stopOperationSound(); setErrorModal(null); }} onStop={stopOperationSound} onCreateReport={(error) => { const mailto = createErrorReportMailto(error); if (mailto) window.location.href = mailto; }} />}
     {cancelConfirm && <div className="modal-backdrop error-layer"><section className="error-modal cancel-confirm"><h2>登録中止</h2><p>次の明細をすべて取り消して、登録を中止しますか？</p><div className="delete-line-list">{activeCart.map((line, index) => <div key={`${line.product.productCode}-${index}`}><span>No. {index + 1}</span><strong>{line.product.name}</strong><span>{line.quantity}点</span><strong>{(serverDraft?.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? line.product.priceInclTax * line.quantity).toLocaleString()}円</strong></div>)}</div><button ref={cancelConfirmButtonRef} className="danger-action" onClick={() => { cancelRegistration(); setCancelConfirm(false); }}>中止する</button><button className="secondary-action" onClick={() => setCancelConfirm(false)}>戻る</button></section></div>}
     {supplementalUi}
