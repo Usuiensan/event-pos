@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
+import type { SaleDraftDto } from "./checkout-store.js";
 import { openDatabase } from "./db.js";
+import { RealtimeHub } from "./realtime.js";
 import { openRegisterForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
@@ -11,8 +13,8 @@ const catalog = { eventId: "feature-event", event: { name: "機能試験イベ�
   { productCode: "00000002", name: "無管理商品", priceInclTax: 100, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", inventory: { openingQuantity: null } },
 ], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }] };
 
-async function setup(): Promise<{ app: FastifyInstance; db: ReturnType<typeof openDatabase> }> {
-  const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+async function setup(realtimeHub?: RealtimeHub): Promise<{ app: FastifyInstance; db: ReturnType<typeof openDatabase> }> {
+  const db = openDatabase(); const app = buildApp({ database: db, ...(realtimeHub ? { realtimeHub } : {}) }); apps.push(app);
   expect((await app.inject({ method: "PUT", url: "/api/v1/events/feature-event/catalog", payload: catalog })).statusCode).toBe(200);
   await openRegisterForTest(app, "feature-event", "2026-08-02", "register-1");
   return { app, db };
@@ -71,6 +73,75 @@ describe("在庫残数・領収書・会計保留", () => {
     expect(canonicalIr).not.toContain("山田");
     expect(canonicalIr).not.toContain("商品代");
     expect((await app.inject({ method: "POST", url: "/api/v1/transactions/not-found/official-receipts", payload: input })).statusCode).toBe(404);
+  });
+});
+
+describe("保留・呼戻しと顧客画面", () => {
+  const registerId = "register-1";
+  const displayUrl = `/api/v1/customer-displays/customer-1?registerId=${registerId}`;
+  const startDraft = (app: FastifyInstance) => app.inject({
+    method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`,
+    payload: { eventId: catalog.eventId, staffId: "001", terminalId: registerId, businessDate: catalog.event.businessDate },
+  });
+
+  async function setupDraftWithLine() {
+    const hub = new RealtimeHub();
+    const { app } = await setup(hub);
+    const started = await startDraft(app);
+    expect(started.statusCode).toBe(201);
+    const draft = started.json<SaleDraftDto>();
+    const added = await app.inject({
+      method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`,
+      headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" },
+    });
+    expect(added.statusCode).toBe(201);
+    return { app, draft: added.json<SaleDraftDto>(), notify: vi.spyOn(hub, "notify") };
+  }
+
+  it("保留すると顧客画面の状態とバージョンを更新して通知する", async () => {
+    const { app, draft, notify } = await setupDraftWithLine();
+    const before = (await app.inject(displayUrl)).json();
+    const parked = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/park`, payload: { terminalId: registerId } });
+    expect(parked.statusCode).toBe(201);
+
+    const after = (await app.inject(displayUrl)).json();
+    expect(after).toMatchObject({ draftId: draft.draftId, state: "parked", draftVersion: draft.version + 1 });
+    expect(after.version).toBeGreaterThan(before.version);
+    expect(notify.mock.calls).toEqual([
+      [{ type: "sale-draft.changed", registerId, version: after.draftVersion }],
+      [{ type: "customer-display.changed", registerId, version: after.version }],
+    ]);
+  });
+
+  it("空の会計から呼び戻すと顧客画面に復元した明細と合計を表示して通知する", async () => {
+    const { app, draft, notify } = await setupDraftWithLine();
+    const parked = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/park`, payload: { terminalId: registerId } });
+    expect(parked.statusCode).toBe(201);
+    const empty = await startDraft(app);
+    expect(empty.statusCode).toBe(201);
+    const before = (await app.inject(displayUrl)).json();
+    expect(before).toMatchObject({ draftId: empty.json<SaleDraftDto>().draftId, lines: [], totals: { totalYen: 0 } });
+
+    notify.mockClear();
+    const resumed = await app.inject({
+      method: "POST", url: `/api/v1/registers/${registerId}/parked-drafts/resume`,
+      payload: { parkReference: parked.json<{ parkReference: string }>().parkReference, terminalId: registerId },
+    });
+    expect(resumed.statusCode).toBe(200);
+    const restored = resumed.json<SaleDraftDto>();
+    expect(restored.draftId).toBe(draft.draftId);
+
+    const after = (await app.inject(displayUrl)).json();
+    expect(after).toMatchObject({
+      draftId: restored.draftId, draftVersion: restored.version, state: "editing",
+      lines: draft.lines.map(({ lineId, productCode, quantity }) => ({ lineId, productCode, quantity })),
+      totals: { totalYen: draft.calculation.totalYen },
+    });
+    expect(after.version).toBeGreaterThan(before.version);
+    expect(notify.mock.calls).toEqual([
+      [{ type: "sale-draft.changed", registerId, version: restored.version }],
+      [{ type: "customer-display.changed", registerId, version: after.version }],
+    ]);
   });
 });
 

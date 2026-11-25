@@ -159,7 +159,7 @@ function publicProjection(draft: SaleDraftDto, projectionVersion: number): Recor
   };
 }
 
-function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
+export function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
   const draft = getSaleDraft(db, draftId);
   const current = db.prepare("SELECT version FROM customer_display_states WHERE register_id=?").get(draft.registerId) as { version: number } | undefined;
   const projectionVersion = (current?.version ?? 0) + 1;

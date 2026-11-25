@@ -58,7 +58,7 @@ function hasOnlyKeys(value: unknown, allowed: readonly string[]): boolean {
   return !!value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).every((key) => allowed.includes(key));
 }
 
-function notifyDraft(options: CheckoutRouteOptions, draft: ReturnType<typeof getSaleDraft>): void {
+export function notifyDraft(options: Pick<CheckoutRouteOptions, "database" | "realtimeHub">, draft: ReturnType<typeof getSaleDraft>): void {
   options.realtimeHub?.notify({ type: "sale-draft.changed", registerId: draft.registerId, version: draft.version });
   const projectionVersion = getCustomerDisplayVersion(options.database, draft.registerId);
   if (projectionVersion !== undefined) options.realtimeHub?.notify({ type: "customer-display.changed", registerId: draft.registerId, version: projectionVersion });
