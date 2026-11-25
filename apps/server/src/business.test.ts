@@ -142,4 +142,59 @@ describe("営業状態と担当者session", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", headers: operator, payload: { eventId: catalog.eventId, staffId: "001", terminalId: "register-1", businessDate: "2026-08-03" } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${sessionId}/checks/closing`, headers: { ...manager, "idempotency-key": "empty-closing" }, payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000, terminalId: "register-1" } })).statusCode).toBe(201);
   });
+
+  it("受取会計は全明細を取り消しても登録中止までレジの精算と営業の閉局を妨げる", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const { eventId } = catalog;
+    const registerId = "register-1";
+    const businessDate = "2026-08-03";
+    const saved = await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: catalog });
+    expect(saved.statusCode).toBe(200);
+    const sessionId = await openRegisterForTest(app, eventId, businessDate, registerId);
+    const business = await app.inject({ url: `/api/v1/business-sessions/current?eventId=${eventId}` });
+    const { businessSessionId } = business.json().session;
+    const hold = await app.inject({
+      method: "POST", url: "/api/v1/holds",
+      payload: { eventId, registerId, terminalId: registerId, lines: [{ productCode: "00000001", quantity: 1 }] },
+    });
+    expect(hold.statusCode).toBe(201);
+    const { holdId } = hold.json();
+    const created = await app.inject({
+      method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`,
+      payload: { eventId, staffId: "001", terminalId: registerId, businessDate },
+    });
+    expect(created.statusCode).toBe(201);
+    const { draftId, version } = created.json();
+    const pickup = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/claim`, payload: { draftId, version } });
+    expect(pickup.statusCode).toBe(200);
+    const draftUrl = `/api/v1/sale-drafts/${draftId}`;
+    const canceledLine = await app.inject({
+      method: "DELETE", url: `${draftUrl}/lines/${pickup.json().lines[0].lineId}`,
+      headers: { "if-match": String(pickup.json().version) },
+    });
+    expect(canceledLine.statusCode).toBe(200);
+
+    const closeBusiness = () => app.inject({
+      method: "POST", url: `/api/v1/business-sessions/${businessSessionId}/close`, payload: { terminalId: registerId },
+    });
+    const closeCash = () => app.inject({
+      method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/closing`,
+      headers: { "idempotency-key": "pickup-closing" }, payload: { counted: [], carryoverYen: 0, terminalId: registerId },
+    });
+    const blockedBusiness = await closeBusiness();
+    const blockedCash = await closeCash();
+    expect([
+      [blockedBusiness.statusCode, blockedBusiness.json().error?.code],
+      [blockedCash.statusCode, blockedCash.json().error?.code],
+    ]).toEqual([[409, "ACTIVE_DRAFTS_EXIST"], [409, "ACTIVE_DRAFTS_EXIST"]]);
+
+    const canceled = await app.inject({
+      method: "DELETE", url: draftUrl, headers: { "if-match": String(canceledLine.json().version) },
+    });
+    expect(canceled.statusCode).toBe(200);
+    expect((await closeCash()).statusCode).toBe(201);
+    const released = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/release`, payload: { reason: "来場取消" } });
+    expect(released.statusCode).toBe(200);
+    expect((await closeBusiness()).statusCode).toBe(200);
+  });
 });
