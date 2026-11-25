@@ -497,8 +497,13 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
     const calculation = calculateDraft(db, String(row.event_id), lines, noCharge);
     const payments = validatedPayments(draftPayments, calculation);
     const age = requiredAge(db, lines);
+    if (age > 0) {
+      const latest = db.prepare(`SELECT result FROM draft_age_verifications
+        WHERE draft_id = ? AND minimum_age >= ? AND method IN ('appearance', 'id_visual') AND confirmer_id <> ''
+        ORDER BY rowid DESC LIMIT 1`).get(draftId, age) as { result: DraftAgeVerificationDto["result"] } | undefined;
+      if (latest?.result !== "passed") throw new CheckoutError(422, "AGE_VERIFICATION_REQUIRED", `${age}歳以上の担当者確認が必要です`, { minimumAge: age });
+    }
     const ageVerifications = readAgeVerifications(db, draftId);
-    if (age > 0 && !ageVerifications.some((item) => item.minimumAge >= age && item.result === "passed" && (item.method === "appearance" || item.method === "id_visual") && item.confirmerId)) throw new CheckoutError(422, "AGE_VERIFICATION_REQUIRED", `${age}歳以上の担当者確認が必要です`, { minimumAge: age });
     failureInjector?.("after_recalculation");
     const now = new Date().toISOString();
     const transactionId = uuidV7();
