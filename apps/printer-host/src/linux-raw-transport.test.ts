@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LinuxRawTransport } from "./linux-raw-transport.js";
 
 const dirs: string[] = [];
@@ -14,9 +14,36 @@ describe("LinuxRawTransport", () => {
     await writeFile(device, new Uint8Array());
     const transport = new LinuxRawTransport(device, async () => "ready");
     expect(await transport.getStatus()).toMatchObject({ reachable: { support: "supported", value: true }, online: { support: "supported", value: true } });
-    await transport.send(new TextEncoder().encode("test-bytes"));
+    await expect(transport.send(new TextEncoder().encode("test-bytes"))).resolves.toMatchObject({ acceptedBytes: 10 });
     await transport.close();
     expect(await readFile(device, "utf8")).toBe("test-bytes");
+  });
+
+  it.each([
+    { acceptedBytes: 0, closeFails: false },
+    { acceptedBytes: 2, closeFails: false },
+    { acceptedBytes: 2, closeFails: true },
+  ])("書き込みが途切れたら結果不明として返す ($acceptedBytes bytes, closeFails=$closeFails)", async ({ acceptedBytes, closeFails }) => {
+    const reportWrite = vi.fn();
+    const transport = new LinuxRawTransport("unused", undefined, reportWrite);
+    const write = vi.fn<() => Promise<{ bytesWritten: number }>>(async () => { throw Object.assign(new Error("USB切断"), { code: "ENODEV" }); });
+    if (acceptedBytes) write.mockResolvedValueOnce({ bytesWritten: acceptedBytes });
+    const close = vi.fn(async () => { if (closeFails) throw new Error("close failed"); });
+    Reflect.get(transport, "session").handle = { write, close };
+
+    await expect(transport.send(Uint8Array.of(1, 2, 3, 4))).rejects.toMatchObject({
+      message: "USB切断", acceptedBytes, notSentProven: false, retryable: false,
+    });
+    expect(reportWrite).toHaveBeenLastCalledWith(acceptedBytes, 0, "ENODEV");
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("デバイスを開けなかった場合は未送信として返す", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "event-pos-printer-")); dirs.push(dir);
+    const transport = new LinuxRawTransport(join(dir, "missing-device"));
+    await expect(transport.send(Uint8Array.of(1, 2))).rejects.toMatchObject({
+      acceptedBytes: 0, notSentProven: true, retryable: true,
+    });
   });
 
   it("converts status probe errors to unknown", async () => {
