@@ -98,7 +98,8 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   if (business.state === "closed") return business;
   const activeDraft = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.event_id=? AND d.state IN ('editing','payment','finalizing','parked')
     AND (EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
-      OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)) LIMIT 1`).get(business.eventId);
+      OR EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)
+      OR EXISTS (SELECT 1 FROM holds h WHERE h.claimed_draft_id=d.draft_id AND h.state='claimed')) LIMIT 1`).get(business.eventId);
   if (activeDraft) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "未確定の会計が残っています");
   const activeHold = db.prepare("SELECT hold_id FROM holds WHERE business_session_id=? AND state='active' LIMIT 1").get(businessSessionId);
   if (activeHold) throw new CheckoutError(409, "ACTIVE_HOLDS_EXIST", "未解決の取り置きが残っています。解除または翌営業へ繰越してください");

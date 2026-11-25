@@ -1,7 +1,15 @@
-import type { CheckoutDraft, CustomerProjection } from "./checkout-api.js";
+import type { BusinessSessionDto, CheckoutDraft, CustomerProjection } from "./checkout-api.js";
 
 export function isActiveDraft(state: CheckoutDraft["state"]): boolean {
   return state === "editing" || state === "payment" || state === "finalizing";
+}
+
+export function draftMatchesBusiness(
+  draft: Pick<CheckoutDraft, "eventId" | "businessDate" | "sessionNo">,
+  business: Pick<BusinessSessionDto, "eventId" | "businessDate" | "sessionNo" | "state"> | null,
+): boolean {
+  return business?.state === "open" && draft.eventId === business.eventId
+    && draft.businessDate === business.businessDate && draft.sessionNo === business.sessionNo;
 }
 
 export function shouldApplyDraft(current: CheckoutDraft | null, incoming: CheckoutDraft): boolean {

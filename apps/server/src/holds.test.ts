@@ -39,7 +39,7 @@ async function preparePickup() {
   const claimed = await claim(holdId, await startDraft());
   expect(claimed.statusCode).toBe(200);
   const balance = () => db.prepare("SELECT on_hand, reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(eventId, `${eventId}:${productCode}`);
-  expect(balance()).toEqual({ on_hand: 10, reserved: 0 });
+  expect(balance()).toEqual({ on_hand: 10, reserved: 3 });
   return { app, db, holdId, publicReference, draft: claimed.json<{ draftId: string; version: number }>(), startDraft, claim, balance };
 }
 
@@ -69,9 +69,9 @@ describe("取り置き",()=>{
     expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:2});
     const draft=(await app.inject({method:"POST",url:"/api/v1/registers/register-1/sale-drafts",headers:operator,payload:{eventId:catalog.eventId,staffId:"偽装",terminalId:"register-1",businessDate:"2026-08-03"}})).json();
     const claimed=await app.inject({method:"POST",url:`/api/v1/holds/${hold.json().holdId}/claim`,headers:operator,payload:{draftId:draft.draftId,version:draft.version}}); expect(claimed.statusCode).toBe(200); expect(claimed.json().lines[0].source).toBe("hold");
-    expect(db.prepare("SELECT state FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({state:"claimed"}); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:0});
+    expect(db.prepare("SELECT state FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({state:"claimed"}); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:2});
     const second=await app.inject({method:"POST",url:"/api/v1/holds",headers:operator,payload:{eventId:catalog.eventId,registerId:"register-1",terminalId:"register-1",lines:[{productCode:"00000001",quantity:1}]}}); expect(second.statusCode).toBe(201);
-    expect((await app.inject({method:"POST",url:`/api/v1/holds/${second.json().holdId}/release`,headers:operator,payload:{reason:"来場取消"}})).statusCode).toBe(200); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:0});
+    expect((await app.inject({method:"POST",url:`/api/v1/holds/${second.json().holdId}/release`,headers:operator,payload:{reason:"来場取消"}})).statusCode).toBe(200); expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId,productId)).toMatchObject({reserved:2});
   });
   it("取り置き票は保存済み描画バイトで印刷され、初回と再印刷の両方が完了する", async () => {
     const db = openDatabase();
@@ -101,7 +101,64 @@ describe("取り置き",()=>{
       expect(db.prepare("SELECT COUNT(*) AS count FROM print_attempts WHERE job_id=? AND phase='postcheck_completed' AND accepted_bytes>0").get(jobId)).toEqual({ count: 1 });
     }
   });
-  it.each(["editing", "parked"])("受取会計（%s）を中止すると引当が一度だけ戻り、同じ受付番号で再受取できる", async (state) => {
+
+  it.each(["editing", "parked"])("最後の1点は受取会計（%s）中も引当済みで、追加の取り置きには明示続行が必要", async (state) => {
+    const db = openDatabase();
+    const app = buildApp({ database: db }); apps.push(app);
+    const { eventId } = catalog;
+    const registerId = "register-1";
+    const businessDate = "2026-08-03";
+    const [product] = catalog.products;
+    const lines = [{ productCode: product!.productCode, quantity: 1 }];
+    const saved = await app.inject({
+      method: "PUT", url: `/api/v1/events/${eventId}/catalog`,
+      payload: { ...catalog, products: [{ ...product, inventory: { openingQuantity: 1 } }] },
+    });
+    expect(saved.statusCode).toBe(200);
+    await openRegisterForTest(app, eventId, businessDate, registerId);
+    const createHold = (allowShortage = false) => app.inject({
+      method: "POST", url: "/api/v1/holds",
+      payload: { eventId, registerId, terminalId: registerId, lines, allowShortage },
+    });
+    const original = await createHold();
+    expect(original.statusCode).toBe(201);
+    const { holdId } = original.json();
+    const created = await app.inject({
+      method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`,
+      payload: { eventId, staffId: "001", terminalId: registerId, businessDate },
+    });
+    expect(created.statusCode).toBe(201);
+    const { draftId, version } = created.json();
+    const pickup = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/claim`, payload: { draftId, version } });
+    expect(pickup.statusCode).toBe(200);
+    const draftUrl = `/api/v1/sale-drafts/${draftId}`;
+    if (state === "parked") {
+      const parked = await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: registerId } });
+      expect(parked.statusCode).toBe(201);
+    }
+
+    const blocked = await createHold();
+    expect(blocked.statusCode).toBe(409);
+    expect(blocked.json().error.code).toBe("HOLD_STOCK_SHORTAGE");
+    const inventory = () => app.inject({ url: `/api/v1/events/${eventId}/inventory` });
+    expect((await inventory()).json().products).toMatchObject([{ remaining: 1, reserved: 1, available: 0 }]);
+    const allowed = await createHold(true);
+    expect(allowed.statusCode).toBe(201);
+    expect(allowed.json().lines).toMatchObject([{ shortage: 1 }]);
+    expect((await inventory()).json().products).toMatchObject([{ remaining: 1, reserved: 2, available: -1 }]);
+    const released = await app.inject({
+      method: "POST", url: `/api/v1/holds/${allowed.json().holdId}/release`, payload: { reason: "来場取消" },
+    });
+    expect(released.statusCode).toBe(200);
+
+    const current = (await app.inject({ url: draftUrl })).json<SaleDraftDto>();
+    const canceled = await app.inject({ method: "DELETE", url: draftUrl, headers: { "if-match": String(current.version) } });
+    expect(canceled.statusCode).toBe(200);
+    expect(db.prepare("SELECT hold_id FROM holds WHERE state='active'").all()).toEqual([{ hold_id: holdId }]);
+    expect((await inventory()).json().products).toMatchObject([{ remaining: 1, reserved: 1, available: 0 }]);
+  });
+
+  it.each(["editing", "parked"])("受取会計（%s）を中止しても引当は増えず、同じ受付番号で再受取できる", async (state) => {
     const { app, db, holdId, publicReference, draft, startDraft, claim, balance } = await preparePickup();
     const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
     let version = draft.version;
@@ -134,7 +191,7 @@ describe("取り置き",()=>{
     expect(found.json()).toMatchObject({ holdId, publicReference, state: "active" });
     const retried = await claim(found.json().holdId, await startDraft());
     expect(retried.statusCode).toBe(200);
-    expect(balance()).toEqual({ on_hand: 1, reserved: 0 });
+    expect(balance()).toEqual({ on_hand: 1, reserved: 3 });
   });
 
   it("確定した受取会計の取消は拒否され、取り置きと売上が保持される", async () => {
@@ -167,10 +224,10 @@ describe("取り置き",()=>{
     expect(db.prepare("SELECT state FROM sale_drafts WHERE draft_id=?").get(empty.draftId)).toEqual({ state: "canceled" });
     expect(db.prepare("SELECT state, claimed_draft_id FROM holds WHERE hold_id=?").get(holdId))
       .toEqual({ state: "claimed", claimed_draft_id: draft.draftId });
-    expect(balance()).toEqual({ on_hand: 10, reserved: 0 });
+    expect(balance()).toEqual({ on_hand: 10, reserved: 3 });
   });
 
-  it("全明細を取り消した受取会計が呼び戻しで中止されると、取り置きの引当が戻り再受取できる", async () => {
+  it("全明細を取り消した受取会計が呼び戻しで中止されても引当を維持し、再受取できる", async () => {
     const { app, db, holdId, publicReference, draft, startDraft, claim, balance } = await preparePickup();
     const terminalId = "register-1";
     const park = async (draftId: string) => {
@@ -201,7 +258,7 @@ describe("取り置き",()=>{
       expect(canceled.statusCode).toBe(200);
       version = canceled.json<SaleDraftDto>().version;
     }
-    expect(balance()).toEqual({ on_hand: 10, reserved: 0 });
+    expect(balance()).toEqual({ on_hand: 10, reserved: 3 });
 
     const resumed = await resume(otherReference);
     expect(resumed.statusCode).toBe(200);
@@ -215,7 +272,7 @@ describe("取り置き",()=>{
     expect(balance()).toEqual({ on_hand: 10, reserved: 3 });
     const retried = await claim(found.json().holdId, resumed.json<SaleDraftDto>());
     expect(retried.statusCode).toBe(200);
-    expect(balance()).toEqual({ on_hand: 10, reserved: 0 });
+    expect(balance()).toEqual({ on_hand: 10, reserved: 3 });
   });
 
   it("繰越予約は閉局阻害を解消し、次営業でも同じ受付番号を有効化する", async () => {

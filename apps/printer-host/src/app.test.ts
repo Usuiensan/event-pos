@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrintJob } from "@event-pos/contracts";
 import { BUILTIN_FONT, bytesSha256, DEFAULT_FINISHING_POLICY, ESCPOS_RENDERER_VERSION, ESCPOS_RENDERER_VERSION_ROTATE180, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { buildPrinterHost } from "./app.js";
-import { FakeTransport, TransportSendError, renderEscPos } from "./transport.js";
+import { FakeTransport, TransportSendError, renderEscPos, statusObservation } from "./transport.js";
 
 const apps: ReturnType<typeof buildPrinterHost>[] = [];
 afterEach(async () => { for (const app of apps.splice(0)) await app.close(); });
@@ -96,6 +96,50 @@ describe("printer host", () => {
     }
   });
 
+  it("未送信のdevice faultを再確認し、復旧後の同時要求でも一回だけ送信する", async () => {
+    const transport = new FakeTransport();
+    let status = statusObservation("paper_out");
+    transport.getStatus = async () => status;
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 }); apps.push(app);
+    const submit = () => app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
+
+    const first = await submit();
+    expect(first.statusCode).toBe(409);
+    expect(first.json()).toMatchObject({ failure: { code: "PAPER_OUT" } });
+
+    status = { ...statusObservation("ready"), coverOpen: { support: "supported", value: true } };
+    const stillBlocked = await submit();
+    expect(stillBlocked.statusCode).toBe(409);
+    expect(stillBlocked.json()).toMatchObject({ failure: { code: "PRINTER_COVER_OPEN", acceptedBytes: 0, notSentProven: true, deviceFault: true } });
+    expect(transport.sent).toHaveLength(0);
+
+    status = statusObservation("ready");
+    const responses = await Promise.all([submit(), submit()]);
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 201]);
+    expect(responses.find((response) => response.statusCode === 200)?.json()).toMatchObject({ duplicate: true });
+    expect(transport.sent).toEqual([receiptBytes]);
+  });
+
+  it("hashのないジョブも、内容を変えて同じIDで再開できない", async () => {
+    const transport = new FakeTransport();
+    let status = statusObservation("paper_out");
+    transport.getStatus = async () => status;
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 }); apps.push(app);
+    const submit = (escposBase64: string) => app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: {
+      jobId: "raw-retry", transactionId: "tx-raw", printerId: "receipt-1", documentType: "disaster-notification",
+      source: "test", rendererVersion: "test-v1", payload: { escposBase64 },
+    } });
+
+    expect((await submit("G0A=")).json()).toMatchObject({ failure: { code: "PAPER_OUT" } });
+    status = statusObservation("ready");
+    const mismatch = await submit("G0o=");
+    expect(mismatch.statusCode).toBe(409);
+    expect(mismatch.json()).toMatchObject({ failure: { code: "JOB_ID_PAYLOAD_MISMATCH" } });
+    expect(transport.sent).toHaveLength(0);
+    expect((await submit("G0A=")).statusCode).toBe(201);
+    expect(transport.sent).toEqual([Uint8Array.of(0x1b, 0x40)]);
+  });
+
   it("short writeとdispatch後例外をunknownとして固定し、再送しない", async () => {
     const shortTransport = new FakeTransport(undefined, "ready", 1);
     const shortApp = buildPrinterHost({ transport: shortTransport }); apps.push(shortApp);
@@ -105,9 +149,14 @@ describe("printer host", () => {
     expect(duplicate.json()).toMatchObject({ failure: { code: "SHORT_WRITE" }, duplicate: true });
     expect(shortTransport.sent).toHaveLength(1);
 
-    const timeoutApp = buildPrinterHost({ transport: new FakeTransport(new TransportSendError("timeout", 12, false), "ready") }); apps.push(timeoutApp);
+    const timeoutTransport = new FakeTransport(new TransportSendError("timeout", 0, false), "ready");
+    const send = vi.spyOn(timeoutTransport, "send");
+    const timeoutApp = buildPrinterHost({ transport: timeoutTransport }); apps.push(timeoutApp);
     const timeout = await timeoutApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-timeout" } });
-    expect(timeout.json()).toMatchObject({ failure: { code: "TRANSPORT_ERROR", acceptedBytes: 12, notSentProven: false } });
+    const timeoutDuplicate = await timeoutApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-timeout" } });
+    expect(timeout.json()).toMatchObject({ failure: { code: "TRANSPORT_ERROR", acceptedBytes: 0, notSentProven: false } });
+    expect(timeoutDuplicate.json()).toEqual({ ...timeout.json(), duplicate: true });
+    expect(send).toHaveBeenCalledOnce();
   });
 
   it("承認済み外部rendererのESC/POS bytesだけを無変換で渡す", async () => {
