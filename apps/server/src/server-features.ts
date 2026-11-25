@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { createPrintJob } from "./db.js";
 import type { PosDatabase } from "./db.js";
-import { CheckoutError, allocatePublicReference, getSaleDraft } from "./checkout-store.js";
+import { CheckoutError, allocatePublicReference, getSaleDraft, restoreHoldsForCanceledDraft } from "./checkout-store.js";
 import { assertRegisterOpen } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { uuidV7 } from "./ids.js";
@@ -125,6 +125,20 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
   });
 
   app.post<{ Params: { registerId: string }; Body: { parkReference: string; terminalId: string } }>("/api/v1/registers/:registerId/parked-drafts/resume", async (request, reply) => {
-    try { requireAuthActor(options.database, request, "operator", options.authRequired); if (!request.body?.parkReference || !request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "parkReferenceとterminalIdが必要です"); const parked = options.database.prepare("SELECT * FROM sale_drafts WHERE register_id=? AND park_reference=? AND state='parked'").get(request.params.registerId, request.body.parkReference) as Record<string, unknown> | undefined; if (!parked) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const session = assertRegisterOpen(options.database, String(parked.event_id), request.params.registerId); if (parked.cash_session_id !== session.cashSessionId) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const active = options.database.prepare("SELECT d.* FROM sale_drafts d WHERE d.register_id=? AND d.cash_session_id=? AND d.state IN ('editing','payment','finalizing') LIMIT 1").get(request.params.registerId, session.cashSessionId) as Record<string, unknown> | undefined; if (active && (options.database.prepare("SELECT 1 FROM sale_draft_lines WHERE draft_id=? AND status='active' LIMIT 1").get(String(active.draft_id)) || options.database.prepare("SELECT 1 FROM draft_payments WHERE draft_id=? LIMIT 1").get(String(active.draft_id)))) throw new CheckoutError(409, "PARK_RESUME_BLOCKED", "現在の会計に明細または支払いがあるため呼び戻せません"); const now = new Date().toISOString(); options.database.exec("BEGIN IMMEDIATE"); try { if (active) options.database.prepare("UPDATE sale_drafts SET state='canceled',version=version+1,updated_at=? WHERE draft_id=?").run(now, String(active.draft_id)); options.database.prepare("UPDATE sale_drafts SET state='editing',park_reference=NULL,parked_at=NULL,version=version+1,updated_at=? WHERE draft_id=?").run(now, String(parked.draft_id)); options.database.exec("COMMIT"); } catch (e) { options.database.exec("ROLLBACK"); throw e; } return getSaleDraft(options.database, String(parked.draft_id)); } catch (e) { return error(reply, e); }
+    try {
+      requireAuthActor(options.database, request, "operator", options.authRequired); if (!request.body?.parkReference || !request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "parkReferenceとterminalIdが必要です"); const parked = options.database.prepare("SELECT * FROM sale_drafts WHERE register_id=? AND park_reference=? AND state='parked'").get(request.params.registerId, request.body.parkReference) as Record<string, unknown> | undefined; if (!parked) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const session = assertRegisterOpen(options.database, String(parked.event_id), request.params.registerId); if (parked.cash_session_id !== session.cashSessionId) throw new CheckoutError(404, "PARK_NOT_FOUND", "保留会計が見つかりません"); const active = options.database.prepare("SELECT d.* FROM sale_drafts d WHERE d.register_id=? AND d.cash_session_id=? AND d.state IN ('editing','payment','finalizing') LIMIT 1").get(request.params.registerId, session.cashSessionId) as Record<string, unknown> | undefined; if (active && (options.database.prepare("SELECT 1 FROM sale_draft_lines WHERE draft_id=? AND status='active' LIMIT 1").get(String(active.draft_id)) || options.database.prepare("SELECT 1 FROM draft_payments WHERE draft_id=? LIMIT 1").get(String(active.draft_id)))) throw new CheckoutError(409, "PARK_RESUME_BLOCKED", "現在の会計に明細または支払いがあるため呼び戻せません");
+      const now = new Date().toISOString();
+      options.database.exec("BEGIN IMMEDIATE");
+      try {
+        if (active) {
+          const draftId = String(active.draft_id);
+          options.database.prepare("UPDATE sale_drafts SET state='canceled',version=version+1,updated_at=? WHERE draft_id=?").run(now, draftId);
+          restoreHoldsForCanceledDraft(options.database, draftId, String(active.event_id));
+        }
+        options.database.prepare("UPDATE sale_drafts SET state='editing',park_reference=NULL,parked_at=NULL,version=version+1,updated_at=? WHERE draft_id=?").run(now, String(parked.draft_id));
+        options.database.exec("COMMIT");
+      } catch (e) { options.database.exec("ROLLBACK"); throw e; }
+      return getSaleDraft(options.database, String(parked.draft_id));
+    } catch (e) { return error(reply, e); }
   });
 }

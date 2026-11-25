@@ -21,6 +21,7 @@ export function createHold(db: PosDatabase, input: HoldInput) {
   try {
     const holdId = uuidV7(); const now = new Date().toISOString(); const reference = allocatePublicReference(db, input.eventId, input.businessDate, input.sessionNo);
     const stored: Array<{ productId: string; productCode: string; name: string; quantity: number; shortage: number }> = [];
+    const claimedInCall = new Map<string, number>();
     for (const requested of input.lines) {
       if (!Number.isSafeInteger(requested.quantity) || requested.quantity < 1) throw new CheckoutError(400, "HOLD_QUANTITY_INVALID", "取り置き数は1以上の整数です");
       const product = db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, requested.productCode) as { product_id: string; product_code: string; name: string } | undefined;
@@ -32,8 +33,10 @@ export function createHold(db: PosDatabase, input: HoldInput) {
         LEFT JOIN inventory_balances b ON b.event_id=c.event_id AND b.product_id=?
         WHERE c.event_id=? AND json_extract(p.value,'$.productCode')=?`).get(input.eventId, product.product_id, product.product_id, input.eventId, product.product_code) as { opening_quantity: number | null; quantity_delta: number; reserved: number } | undefined;
       const remaining = inventory?.opening_quantity === null || inventory === undefined ? null : Number(inventory.opening_quantity) + Number(inventory.quantity_delta);
-      const shortage = remaining === null ? 0 : Math.max(0, requested.quantity - (remaining - Number(inventory?.reserved ?? 0)));
+      const alreadyClaimed = claimedInCall.get(product.product_id) ?? 0;
+      const shortage = remaining === null ? 0 : Math.max(0, alreadyClaimed + requested.quantity - (remaining - Number(inventory?.reserved ?? 0)));
       if (shortage && !input.allowShortage) throw new CheckoutError(409, "HOLD_STOCK_SHORTAGE", "在庫不足のため明示続行が必要です", { productCode: requested.productCode, shortage });
+      claimedInCall.set(product.product_id, alreadyClaimed + requested.quantity);
       stored.push({ productId: product.product_id, productCode: product.product_code, name: product.name, quantity: requested.quantity, shortage });
     }
     db.prepare("INSERT INTO holds(hold_id,event_id,business_session_id,business_date,session_no,public_reference,public_reference_display,state,created_by,terminal_id,created_at) VALUES (?,?,?,?,?,?,?,'active',?,?,?)").run(holdId,input.eventId,input.businessSessionId ?? null,input.businessDate,input.sessionNo,reference.raw,reference.display,input.actorId,input.terminalId,now);

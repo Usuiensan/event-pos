@@ -403,6 +403,19 @@ export function addAgeVerification(db: PosDatabase, draftId: string, version: nu
   });
 }
 
+// 下書きを中止するトランザクション内で呼び出す。
+export function restoreHoldsForCanceledDraft(db: PosDatabase, draftId: string, eventId: string): void {
+  const restoredHolds = db.prepare(`UPDATE holds
+    SET state='active', claimed_draft_id=NULL, claimed_at=NULL
+    WHERE event_id=? AND claimed_draft_id=? AND state='claimed'
+    RETURNING hold_id`).all(eventId, draftId) as Array<{ hold_id: string }>;
+  for (const hold of restoredHolds) {
+    const lines = db.prepare("SELECT product_id,quantity FROM hold_lines WHERE hold_id=?").all(hold.hold_id) as Array<{ product_id: string; quantity: number }>;
+    const restoreReservation = db.prepare("UPDATE inventory_balances SET reserved=reserved+?,version=version+1 WHERE event_id=? AND product_id=?");
+    for (const line of lines) restoreReservation.run(line.quantity, eventId, line.product_id);
+  }
+}
+
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
     const row = draftRow(db, draftId);
@@ -410,6 +423,7 @@ export function cancelSaleDraft(db: PosDatabase, draftId: string, version: numbe
     else if (Number(row.version) !== version) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
     bump(db, draftId, version);
     db.prepare("UPDATE sale_drafts SET state='canceled' WHERE draft_id=?").run(draftId);
+    restoreHoldsForCanceledDraft(db, draftId, String(row.event_id));
     return updateProjection(db, draftId);
   });
 }
