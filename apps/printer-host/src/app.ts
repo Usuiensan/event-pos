@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { timingSafeEqual } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { PrinterDispatchFailure, PrinterDispatchResult, PrintJob, PrintJobState, PrintJobStateUpdate } from "@event-pos/contracts";
 import { bytesSha256 } from "@event-pos/escpos";
 import { renderEscPos, TransportSendError, type PrinterTransport } from "./transport.js";
@@ -11,12 +12,16 @@ export type PrinterHostOptions = { transport: PrinterTransport; stateSink?: Stat
 type JobRecord = { job: PrintJob; result?: PrinterDispatchResult; failure?: PrinterDispatchFailure };
 
 function sameDispatchPayload(left: PrintJob, right: PrintJob): boolean {
-  // The hash and length name the immutable bytes accepted by this Host.  Do not
-  // treat a reused jobId carrying different bytes as an idempotent retry.
+  // Some jobs omit the hash, so also compare the inputs that determine the bytes.
   return left.bytesSha256 === right.bytesSha256
     && left.expectedBytesLength === right.expectedBytesLength
     && left.documentType === right.documentType
-    && left.printerId === right.printerId;
+    && left.printerId === right.printerId
+    && left.transactionId === right.transactionId
+    && left.rendererVersion === right.rendererVersion
+    && left.canonicalIr === right.canonicalIr
+    && isDeepStrictEqual(left.assets, right.assets)
+    && isDeepStrictEqual(left.payload, right.payload);
 }
 
 export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
@@ -30,15 +35,17 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   const statusPollIntervalMs = options.statusPollIntervalMs ?? 5_000;
   let latestStatus: { observation: import("@event-pos/contracts").PrinterStatusObservation; checkedAt: number } | undefined;
   let refreshingStatus: Promise<import("@event-pos/contracts").PrinterStatusObservation> | undefined;
+  const readStatus = async () => {
+    const observation = await options.transport.getStatus();
+    latestStatus = { observation, checkedAt: Date.now() };
+    return observation;
+  };
   const refreshStatus = () => {
     if (refreshingStatus) return refreshingStatus;
-    const read = async () => {
-      const observation = await options.transport.getStatus(); latestStatus = { observation, checkedAt: Date.now() }; return observation;
-    };
-    refreshingStatus = (options.transport.statusPollingSharesTransport === false ? read() : printerMutex.runExclusive(read)).finally(() => { refreshingStatus = undefined; });
+    refreshingStatus = (options.transport.statusPollingSharesTransport === false ? readStatus() : printerMutex.runExclusive(readStatus)).finally(() => { refreshingStatus = undefined; });
     return refreshingStatus;
   };
-  const currentStatus = async () => latestStatus && Date.now() - latestStatus.checkedAt <= statusPollIntervalMs + 2_000 ? latestStatus.observation : await refreshStatus();
+  const cachedStatus = () => latestStatus && Date.now() - latestStatus.checkedAt <= statusPollIntervalMs + 2_000 ? latestStatus.observation : undefined;
   void refreshStatus().catch(() => undefined);
   const statusTimer = setInterval(() => { void refreshStatus().catch(() => undefined); }, statusPollIntervalMs); statusTimer.unref?.();
   const setState = async (job: PrintJob, state: PrintJobState, errorMessage?: string): Promise<PrintJob> => {
@@ -54,7 +61,7 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
   };
   app.addHook("onClose", async () => { clearInterval(statusTimer); await options.transport.close(); });
   app.get("/health/live", async () => ({ status: "ok" }));
-  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: await currentStatus() }));
+  app.get("/api/v1/printer/status", async () => ({ printerId: "receipt-1", observation: cachedStatus() ?? await refreshStatus() }));
   app.get<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId", async (request, reply) => jobs.get(request.params.jobId)?.job ?? reply.code(404).send({ error: "not_found" }));
   app.post<{ Body: PrintJob }>("/api/v1/print-jobs", async (request, reply) => {
     const input = request.body;
@@ -62,18 +69,21 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
     return printerMutex.runExclusive(async () => {
       const existing = jobs.get(input.jobId);
       if (existing) {
-        if (!sameDispatchPayload(existing.job, input)) return reply.code(409).send({ failure: { code: "JOB_ID_PAYLOAD_MISMATCH", message: "同じjobIdに異なるpayload hashまたは長さは指定できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false } });
+        if (!sameDispatchPayload(existing.job, input)) return reply.code(409).send({ failure: { code: "JOB_ID_PAYLOAD_MISMATCH", message: "同じjobIdに異なる印刷内容は指定できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false } });
         if (existing.result) {
           log({ level: "info", event: "duplicate_completed", message: "同一jobIdの完了結果を再返却しました", jobId: input.jobId, bytesSha256: input.bytesSha256, acceptedBytes: existing.result.acceptedBytes });
           return reply.code(200).send({ ...existing.result, duplicate: true });
         }
-        if (existing.failure) return reply.code(409).send({ failure: existing.failure, duplicate: true });
+        const failure = existing.failure;
+        if (failure && !(failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0)) {
+          return reply.code(409).send({ failure, duplicate: true });
+        }
       }
       let job: PrintJob = { ...input, state: "pending", updatedAt: new Date().toISOString() }; jobs.set(job.jobId, { job });
       let bytes: Uint8Array;
       try { bytes = renderEscPos(job); } catch (error) { return reject(reply, job, { code: "RENDER_FAILED", message: error instanceof Error ? error.message : "render failed", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: false }); }
       const hash = bytesSha256(bytes);
-      const status = await currentStatus();
+      const status = (existing ? undefined : cachedStatus()) ?? await readStatus();
       const reachable = status.reachable.support === "supported" && status.reachable.value;
       const explicitlyOffline = status.online.support === "supported" && !status.online.value;
       const coverOpen = status.coverOpen.support === "supported" && status.coverOpen.value;

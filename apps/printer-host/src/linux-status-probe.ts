@@ -68,8 +68,22 @@ export class LinuxDleEotSession {
     }
     return observations;
   }
-  async write(bytes: Uint8Array, onWrite?: (offset: number, bytesWritten: number) => void): Promise<number> { const handle = await this.ensureOpen(); let offset = 0; while (offset < bytes.byteLength) { const result = await handle.write(bytes, offset, bytes.byteLength - offset); onWrite?.(offset, result.bytesWritten); if (result.bytesWritten <= 0) throw new Error("printer write made no progress"); offset += result.bytesWritten; } return offset; }
-  async close(): Promise<void> { await this.handle?.close(); this.handle = undefined; }
+  async write(bytes: Uint8Array, onWrite: (offset: number, bytesWritten: number) => void, onWriteStart: () => void): Promise<void> {
+    const handle = await this.ensureOpen();
+    let offset = 0;
+    while (offset < bytes.byteLength) {
+      onWriteStart();
+      const { bytesWritten } = await handle.write(bytes, offset, bytes.byteLength - offset);
+      onWrite(offset, bytesWritten);
+      if (bytesWritten <= 0) throw new Error("printer write made no progress");
+      offset += bytesWritten;
+    }
+  }
+  async close(): Promise<void> {
+    const handle = this.handle;
+    this.handle = undefined;
+    await handle?.close();
+  }
 }
 
 /**
