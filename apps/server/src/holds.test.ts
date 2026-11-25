@@ -204,6 +204,33 @@ describe("取り置き",()=>{
     expect(carried.statusCode).toBe(200); expect(carried.json()).toMatchObject({ state: "active" });
     expect(db.prepare("SELECT public_reference AS reference,business_session_id AS businessSessionId FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({ reference: hold.json().publicReference, businessSessionId: next.json().businessSessionId });
   });
+  it("繰越済みの取り置きへの再度の繰越予約は409で拒否され、受付番号・在庫引当・予約履歴を維持する", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: catalog });
+    const firstCashSessionId = await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    db.prepare("UPDATE inventory_balances SET on_hand=1 WHERE event_id=? AND product_id=?").run(catalog.eventId, "hold-event:00000001");
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const firstBusiness = (await app.inject({ method: "GET", url: `/api/v1/business-sessions/current?eventId=${catalog.eventId}` })).json().session.businessSessionId;
+    const firstCarry = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry-request`, payload: { terminalId: "register-1" } });
+    expect(firstCarry.statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${firstCashSessionId}/checks/closing`, payload: { counted: [], terminalId: "register-1" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `/api/v1/business-sessions/${firstBusiness}/close`, payload: { terminalId: "register-1" } })).statusCode).toBe(200);
+    const next = await app.inject({ method: "POST", url: "/api/v1/business-sessions", payload: { eventId: catalog.eventId, businessDate: "2026-08-04", terminalId: "register-1" } });
+    expect(next.statusCode).toBe(201);
+    const carried = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry`, payload: { businessSessionId: next.json().businessSessionId, terminalId: "register-1" } });
+    expect(carried.statusCode).toBe(200); expect(carried.json()).toMatchObject({ state: "active" });
+    const secondCarry = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry-request`, payload: { terminalId: "register-1" } });
+    expect(secondCarry.statusCode).toBe(409); expect(secondCarry.json().error.code).toBe("HOLD_NOT_CARRYABLE");
+    expect(db.prepare("SELECT public_reference AS reference,state FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({ reference: hold.json().publicReference, state: "active" });
+    expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId, "hold-event:00000001")).toMatchObject({ reserved: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM hold_carry_requests WHERE hold_id=?").get(hold.json().holdId)).toEqual({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE entity_id=? AND action='hold_carry_requested'").get(hold.json().holdId)).toEqual({ count: 1 });
+    const nextCashSessionId = await openRegisterForTest(app, catalog.eventId, "2026-08-04", "register-1");
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${nextCashSessionId}/checks/closing`, payload: { counted: [], terminalId: "register-1" } })).statusCode).toBe(201);
+    const nextClose = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${next.json().businessSessionId}/close`, payload: { terminalId: "register-1" } });
+    expect(nextClose.statusCode).toBe(409); expect(nextClose.json().error.code).toBe("ACTIVE_HOLDS_EXIST");
+  });
   it("同じ商品を複数明細に分けても、在庫不足の判定は同一商品で合算される（F-036）", async () => {
     const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
     const limitedCatalog = { ...catalog, products: [{ ...catalog.products[0], inventory: { openingQuantity: 3 } }] };

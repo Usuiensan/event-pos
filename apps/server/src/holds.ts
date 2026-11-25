@@ -53,6 +53,8 @@ export function requestHoldCarryover(db: PosDatabase, holdId: string, actorId: s
     const hold = db.prepare("SELECT event_id,state,business_session_id FROM holds WHERE hold_id=?").get(holdId) as { event_id: string; state: string; business_session_id: string | null } | undefined;
     if (!hold) throw new CheckoutError(404, "HOLD_NOT_FOUND", "取り置きが見つかりません");
     if (hold.state !== "active") throw new CheckoutError(409, "HOLD_NOT_CARRYABLE", "この取り置きは繰越予約できません");
+    const existingRequest = db.prepare("SELECT hold_id FROM hold_carry_requests WHERE hold_id=?").get(holdId) as { hold_id: string } | undefined;
+    if (existingRequest) throw new CheckoutError(409, "HOLD_NOT_CARRYABLE", "この取り置きはすでに翌営業への繰越予約があります。受取または解除をしてください");
     const now = new Date().toISOString();
     db.prepare("INSERT INTO hold_carry_requests(hold_id,from_business_session_id,requested_by,terminal_id,requested_at) VALUES (?,?,?,?,?)").run(holdId, hold.business_session_id, actorId, terminalId, now);
     db.prepare("UPDATE holds SET state='carried' WHERE hold_id=?").run(holdId);
