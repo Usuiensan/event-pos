@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { rmSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import { createPublicReference } from "@event-pos/contracts";
@@ -349,6 +349,61 @@ describe("durable checkout API", () => {
     draft = verified20.json(); expect((await finalize(app, draft, "age-20")).statusCode).toBe(201);
     expect(JSON.stringify(db.prepare("SELECT * FROM draft_age_verifications").all())).not.toContain(canary);
     expect(JSON.stringify(db.prepare("SELECT * FROM age_verifications").all())).not.toContain(canary);
+  });
+
+  it.each([
+    {
+      title: "合格の後に同じ年齢で不合格を登録すると確定を拒否する",
+      ageCheck: "20",
+      checks: [
+        { minimumAge: 20, method: "appearance", result: "passed" },
+        { minimumAge: 20, method: "id_visual", result: "failed" },
+      ],
+      status: 422,
+    },
+    {
+      title: "不合格の後に同じ年齢で合格を登録すると確定できる",
+      ageCheck: "20",
+      checks: [
+        { minimumAge: 20, method: "appearance", result: "failed" },
+        { minimumAge: 20, method: "id_visual", result: "passed" },
+      ],
+      status: 201,
+    },
+    {
+      title: "20歳の合格で18歳の年齢要件を満たす",
+      ageCheck: "18",
+      checks: [{ minimumAge: 20, method: "id_visual", result: "passed" }],
+      status: 201,
+    },
+  ])("$title", async ({ ageCheck, checks, status }) => {
+    const { app, db } = makeApp();
+    const products = catalog.products.map((product) => product.productCode === "00000003" && product.ageCheck ? { ...product, ageCheck } : product);
+    await installCatalog(app, { ...catalog, products });
+    let draft = await startDraft(app);
+    draft = await addLine(app, draft, "00000003");
+    draft = await addPayment(app, draft, "credit", 220);
+    try {
+      for (const [index, check] of checks.entries()) {
+        // 時計が戻っても登録順で判定する。
+        vi.setSystemTime(Date.UTC(2026, 7, 2, 0, 0, 10 - index));
+        const response = await app.inject({
+          method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/age-verifications`,
+          headers: { "if-match": String(draft.version) },
+          payload: { ...check, confirmerId: "staff-1", terminalId: "register-1" },
+        });
+        expect(response.statusCode).toBe(201);
+        draft = response.json();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+    const response = await finalize(app, draft, "latest-age-verification");
+    expect(response.statusCode).toBe(status);
+    if (status === 422) {
+      expect(response.json().error).toMatchObject({ code: "AGE_VERIFICATION_REQUIRED", details: { minimumAge: 20 } });
+      expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 0 });
+    }
   });
 
   it("returns the same result for an identical idempotency retry and rejects payload reuse", async () => {
