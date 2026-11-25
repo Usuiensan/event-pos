@@ -149,6 +149,18 @@ export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
 
 function publicProjection(draft: SaleDraftDto, projectionVersion: number): Record<string, unknown> {
   const cashPayment = draft.payments.find((payment) => payment.kind === "cash");
+  // 中止した会計は顧客画面に表示しない。レジ画面は中止直後にカートを空にするため、
+  // 射影が中止前の明細・合計を写したままだと客側だけに存在しない会計が残る（F-040）。
+  // completed は会計済み表示のため明細・合計・支払情報を残す。
+  if (draft.state === "canceled") {
+    return {
+      registerId: draft.registerId, draftId: draft.draftId, version: projectionVersion, draftVersion: draft.version, state: draft.state,
+      lines: [],
+      discounts: [],
+      totals: { subtotalYen: 0, discountYen: 0, taxYen: 0, totalYen: 0 },
+      payment: { state: "waiting", kinds: [] },
+    };
+  }
   return {
     registerId: draft.registerId, draftId: draft.draftId, version: projectionVersion, draftVersion: draft.version, state: draft.state,
     lines: draft.lines.filter((line) => line.status === "active").map((line) => ({ lineId: line.lineId, productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, taxCategory: line.taxCategory, netYen: draft.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? 0 })),

@@ -92,4 +92,22 @@ describe("顧客画面realtime境界", () => {
     expect(second.version).toBeGreaterThan(first.version);
     expect(second.draftId).toBe(next.draftId);
   });
+
+  it("登録中止した会計の顧客projectionは空になる（F-040）", async () => {
+    const { app, draft } = await setup();
+    const added = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(added.statusCode).toBe(201);
+    const before = (await app.inject({ method: "GET", url: "/api/v1/customer-displays/customer-1?registerId=register-1" })).json();
+    expect(before.lines).toHaveLength(1);
+    expect(before.totals.totalYen).toBe(100);
+    const canceled = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}`, headers: { "if-match": String(added.json().version) } });
+    expect(canceled.statusCode).toBe(200);
+    const after = (await app.inject({ method: "GET", url: "/api/v1/customer-displays/customer-1?registerId=register-1" })).json();
+    expect(after).toMatchObject({ draftId: draft.draftId, state: "canceled", lines: [], discounts: [], totals: { subtotalYen: 0, discountYen: 0, taxYen: 0, totalYen: 0 }, payment: { state: "waiting", kinds: [] } });
+    expect(after.version).toBeGreaterThan(before.version);
+    // 中止した下書き自体の明細は残る（空になるのは顧客画面への射影だけ）
+    const kept = (await app.inject({ method: "GET", url: `/api/v1/sale-drafts/${draft.draftId}` })).json();
+    expect(kept.state).toBe("canceled");
+    expect(kept.lines.filter((line: { status: string }) => line.status === "active")).toHaveLength(1);
+  });
 });
