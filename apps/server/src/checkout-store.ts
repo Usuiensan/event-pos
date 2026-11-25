@@ -114,16 +114,26 @@ function readLines(db: PosDatabase, draftId: string): DraftLineDto[] {
   return rows.map((row) => ({
     lineId: String(row.line_id), lineNo: Number(row.line_no), productId: String(row.product_id), productCode: String(row.product_code), name: String(row.name),
     priceInclTax: Number(row.unit_price_incl_tax ?? row.current_price_incl_tax), taxRate: Number(row.tax_rate_bps ?? row.current_tax_rate_bps) / 100, taxCategory: (row.tax_category ?? row.current_tax_category) as DraftLineDto["taxCategory"], quantity: Number(row.quantity),
-    status: row.status as DraftLineDto["status"], source: row.source as DraftLineDto["source"],
+    status: row.status as DraftLineDto["status"], ...draftLineOptions(row),
+  }));
+}
+
+function draftLineOptions(row: Record<string, unknown>): Pick<DraftLineDto, "source" | "bundleInstanceId" | "productOptions" | "manualDiscount"> {
+  return {
+    source: row.source as DraftLineDto["source"],
     ...(row.bundle_instance_id ? { bundleInstanceId: String(row.bundle_instance_id) } : {}),
     ...(row.product_options_json && row.product_options_json !== "{}" ? { productOptions: parseProductOptions(row.product_options_json) } : {}),
     ...(row.manual_discount_kind ? { manualDiscount: { kind: row.manual_discount_kind as ManualDiscountInput["kind"], value: Number(row.manual_discount_value) } } : {}),
-  }));
+  };
 }
 
 function readPayments(db: PosDatabase, draftId: string): DraftPaymentDto[] {
   const rows = db.prepare("SELECT * FROM draft_payments WHERE draft_id = ? ORDER BY sequence").all(draftId) as Array<Record<string, unknown>>;
-  return rows.map((row) => ({ paymentId: String(row.payment_id), sequence: Number(row.sequence), kind: row.kind as PaymentKind, amountYen: Number(row.amount_yen), ...(row.tendered_yen === null ? {} : { tenderedYen: Number(row.tendered_yen) }), ...(row.change_yen === null ? {} : { changeYen: Number(row.change_yen) }), ...(row.reference_note ? { referenceNote: String(row.reference_note) } : {}) }));
+  return rows.map(draftPaymentFromRow);
+}
+
+function draftPaymentFromRow(row: Record<string, unknown>): DraftPaymentDto {
+  return { paymentId: String(row.payment_id), sequence: Number(row.sequence), kind: row.kind as PaymentKind, amountYen: Number(row.amount_yen), ...(row.tendered_yen === null ? {} : { tenderedYen: Number(row.tendered_yen) }), ...(row.change_yen === null ? {} : { changeYen: Number(row.change_yen) }), ...(row.reference_note ? { referenceNote: String(row.reference_note) } : {}) };
 }
 
 function readAgeVerifications(db: PosDatabase, draftId: string): DraftAgeVerificationDto[] {
@@ -138,13 +148,17 @@ function calculateDraft(db: PosDatabase, eventId: string, lines: DraftLineDto[],
 
 export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
   const row = draftRow(db, draftId);
+  const draft = {
+    draftId: String(row.draft_id), eventId: String(row.event_id), registerId: String(row.register_id), staffId: String(row.staff_id), terminalId: String(row.terminal_id), businessDate: String(row.business_date), sessionNo: Number(row.session_no), version: Number(row.version), state: row.state as DraftState,
+    ageVerifications: readAgeVerifications(db, draftId), createdAt: String(row.created_at), updatedAt: String(row.updated_at),
+  };
+  if (draft.state === "completed") {
+    const completedTransactionId = String(row.completed_transaction_id);
+    return { ...draft, completedTransactionId, ...readCompletedSale(db, completedTransactionId) };
+  }
   const lines = readLines(db, draftId);
   const payments = readPayments(db, draftId);
-  return {
-    draftId: String(row.draft_id), eventId: String(row.event_id), registerId: String(row.register_id), staffId: String(row.staff_id), terminalId: String(row.terminal_id), businessDate: String(row.business_date), sessionNo: Number(row.session_no), version: Number(row.version), state: row.state as DraftState,
-    ...(row.completed_transaction_id ? { completedTransactionId: String(row.completed_transaction_id) } : {}), lines, payments, ageVerifications: readAgeVerifications(db, draftId),
-    calculation: calculateDraft(db, String(row.event_id), lines, payments.some((payment) => payment.kind === "no_charge")), createdAt: String(row.created_at), updatedAt: String(row.updated_at),
-  };
+  return { ...draft, lines, payments, calculation: calculateDraft(db, draft.eventId, lines, payments.some((payment) => payment.kind === "no_charge")) };
 }
 
 function publicProjection(draft: SaleDraftDto, projectionVersion: number): Record<string, unknown> {
@@ -185,10 +199,23 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
   if (!input.eventId || !input.registerId || !input.staffId || !input.terminalId || !/^\d{4}-\d{2}-\d{2}$/.test(input.businessDate)) throw new CheckoutError(400, "INVALID_DRAFT", "ドラフト開始情報が不正です");
   catalogFor(db, input.eventId);
   return immediate(db, () => {
-    const existing = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id = ? AND state IN ('editing','payment','finalizing')").get(input.registerId) as { draft_id: string } | undefined;
-    if (existing) return getSaleDraft(db, existing.draft_id);
     const register = assertRegisterOpen(db, input.eventId, input.registerId);
+    const existing = db.prepare("SELECT draft_id,cash_session_id FROM sale_drafts WHERE register_id=? AND state IN ('editing','payment','finalizing')")
+      .get(input.registerId) as { draft_id: string; cash_session_id: string } | undefined;
+    if (existing?.cash_session_id === register.cashSessionId) return getSaleDraft(db, existing.draft_id);
     const now = new Date().toISOString();
+    if (existing) {
+      const canceled = db.prepare(`UPDATE sale_drafts AS d SET state='canceled',version=version+1,updated_at=?
+        WHERE d.draft_id=? AND d.state='editing'
+          AND EXISTS (SELECT 1 FROM cash_sessions c JOIN business_sessions b ON b.business_session_id=c.business_session_id
+            WHERE c.session_id=d.cash_session_id AND b.state='closed')
+          AND NOT EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
+          AND NOT EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)
+          AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.claimed_draft_id=d.draft_id AND h.state='claimed')`).run(now, existing.draft_id);
+      if (Number(canceled.changes) !== 1) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "別の営業の未確定の会計が残っています");
+      db.prepare("UPDATE age_confirmation_requests SET state='canceled',responded_at=? WHERE draft_id=? AND state IN ('requested','acknowledged')")
+        .run(now, existing.draft_id);
+    }
     const draftId = uuidV7();
     db.prepare(`INSERT INTO sale_drafts (draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,?,1,'editing',?,?)`).run(draftId, input.eventId, input.registerId, input.staffId, input.terminalId, register.businessDate, register.sessionNo, register.cashSessionId, now, now);
@@ -197,7 +224,13 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
 }
 
 export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleDraftDto | undefined {
-  const row = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id = ? ORDER BY CASE WHEN state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, created_at DESC LIMIT 1").get(registerId) as { draft_id: string } | undefined;
+  const row = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.register_id=?
+    AND (d.state NOT IN ('editing','payment','finalizing')
+      OR EXISTS (SELECT 1 FROM cash_sessions c JOIN business_sessions b ON b.business_session_id=c.business_session_id
+        WHERE c.session_id=d.cash_session_id AND c.cashbox_id=d.register_id AND b.event_id=d.event_id
+          AND c.state='open' AND c.opening_yen IS NOT NULL AND b.state='open'))
+    ORDER BY CASE WHEN d.state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, d.created_at DESC, d.rowid DESC LIMIT 1`)
+    .get(registerId) as { draft_id: string } | undefined;
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
 
@@ -591,16 +624,80 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
   });
 }
 
+function transactionRow(db: PosDatabase, transactionId: string): Record<string, unknown> | undefined {
+  return db.prepare("SELECT * FROM transactions WHERE transaction_id=?").get(transactionId) as Record<string, unknown> | undefined;
+}
+
+function transactionTotals(row: Record<string, unknown>) {
+  return { subtotalYen: Number(row.subtotal_yen), discountTotalYen: Number(row.discount_total_yen), taxTotalYen: Number(row.tax_total_yen), totalYen: Number(row.total_yen) };
+}
+
+function transactionLineAmounts(row: Record<string, unknown>) {
+  return {
+    productCode: String(row.product_code), name: String(row.product_name), priceInclTax: Number(row.price_incl_tax), taxRateBps: Number(row.tax_rate_bps),
+    taxCategory: row.tax_category as DraftLineDto["taxCategory"], quantity: Number(row.quantity), grossYen: Number(row.gross_yen),
+    discountYen: Number(row.discount_yen), taxYen: Number(row.tax_yen), netYen: Number(row.net_yen),
+  };
+}
+
+function readTransactionDiscounts(db: PosDatabase, transactionId: string) {
+  const rows = db.prepare("SELECT * FROM applied_discounts WHERE transaction_id=? ORDER BY application_no").all(transactionId);
+  return rows.map((row) => ({
+    id: String(row.source_key), appliedDiscountId: String(row.applied_discount_id), label: String(row.label_snapshot),
+    kind: row.kind as SaleCalculation["discounts"][number]["kind"], valueKind: row.value_kind as ManualDiscountInput["kind"],
+    value: Number(row.value), amountYen: Number(row.amount_yen),
+  }));
+}
+
+function readTransactionPayments(db: PosDatabase, transactionId: string) {
+  return db.prepare("SELECT * FROM payments WHERE transaction_id=? ORDER BY sequence").all(transactionId);
+}
+
+function readTransactionTaxes(db: PosDatabase, transactionId: string): SaleCalculation["taxSummaries"] {
+  return db.prepare("SELECT tax_rate_bps AS taxRateBps,taxable_gross_yen AS taxableGrossYen,discount_allocated_yen AS discountAllocatedYen,taxable_net_yen AS taxableNetYen,tax_amount_yen AS taxAmountYen,rounding_mode AS roundingMode FROM tax_summaries WHERE transaction_id=? ORDER BY tax_rate_bps DESC").all(transactionId) as SaleCalculation["taxSummaries"];
+}
+
+function readCompletedSale(db: PosDatabase, transactionId: string): Pick<SaleDraftDto, "lines" | "payments" | "calculation"> {
+  const transaction = transactionRow(db, transactionId);
+  if (!transaction) throw new Error("確定済み会計の取引記録が見つかりません");
+  const rows = db.prepare(`SELECT t.*,l.source,l.bundle_instance_id,l.product_options_json,l.manual_discount_kind,l.manual_discount_value
+    FROM transaction_lines t JOIN sale_draft_lines l ON l.line_id=t.source_draft_line_id
+    WHERE t.transaction_id=? ORDER BY t.line_no`).all(transactionId);
+  const lines: DraftLineDto[] = [];
+  const calculatedLines: SaleCalculation["lines"] = [];
+  for (const row of rows) {
+    const { taxRateBps, grossYen, discountYen, taxYen, netYen, ...product } = transactionLineAmounts(row);
+    const { source, bundleInstanceId, productOptions, manualDiscount } = draftLineOptions(row);
+    const line = {
+      ...product, lineId: String(row.source_draft_line_id), lineNo: Number(row.line_no),
+      taxRate: taxRateBps / 100, status: "active" as const, ...(manualDiscount ? { manualDiscount } : {}),
+    };
+    lines.push({ ...line, productId: String(row.product_id), source, ...(bundleInstanceId ? { bundleInstanceId } : {}), ...(productOptions ? { productOptions } : {}) });
+    calculatedLines.push({ ...line, grossYen, discountYen, taxYen, netYen });
+  }
+  const readAllocations = db.prepare(`SELECT t.source_draft_line_id AS lineId,a.quantity,a.allocated_amount_yen AS amountYen
+    FROM applied_discount_lines a JOIN transaction_lines t ON t.transaction_line_id=a.transaction_line_id
+    WHERE a.applied_discount_id=? ORDER BY a.rowid`);
+  const discounts = readTransactionDiscounts(db, transactionId).map(({ appliedDiscountId, ...discount }) => ({
+    ...discount, allocations: readAllocations.all(appliedDiscountId) as SaleCalculation["discounts"][number]["allocations"],
+  }));
+  return {
+    lines,
+    payments: readTransactionPayments(db, transactionId).map(draftPaymentFromRow),
+    calculation: { ...transactionTotals(transaction), lines: calculatedLines, discounts, taxSummaries: readTransactionTaxes(db, transactionId) },
+  };
+}
+
 export function getTransactionSnapshot(db: PosDatabase, transactionId: string): Record<string, unknown> | undefined {
-  const transaction = db.prepare("SELECT * FROM transactions WHERE transaction_id=?").get(transactionId) as Record<string, unknown> | undefined;
+  const transaction = transactionRow(db, transactionId);
   if (!transaction) return undefined;
   return {
     transactionId: String(transaction.transaction_id), eventId: transaction.event_id, publicReference: transaction.public_reference, publicReferenceDisplay: transaction.public_reference_display, registerId: transaction.register_id, staffId: transaction.staff_id,
-    subtotalYen: Number(transaction.subtotal_yen), discountTotalYen: Number(transaction.discount_total_yen), taxTotalYen: Number(transaction.tax_total_yen), totalYen: Number(transaction.total_yen), paymentKind: transaction.payment_kind, createdAt: transaction.created_at,
-    lines: db.prepare("SELECT product_code AS productCode,product_name AS name,price_incl_tax AS priceInclTax,tax_rate_bps AS taxRateBps,tax_category AS taxCategory,quantity,gross_yen AS grossYen,discount_yen AS discountYen,tax_yen AS taxYen,net_yen AS netYen FROM transaction_lines WHERE transaction_id=? ORDER BY line_no").all(transactionId),
-    discounts: db.prepare("SELECT label_snapshot AS label,kind,value_kind AS valueKind,value,amount_yen AS amountYen FROM applied_discounts WHERE transaction_id=? ORDER BY application_no").all(transactionId),
-    payments: db.prepare("SELECT sequence,kind,method_name_snapshot AS methodName,amount_yen AS amountYen,tendered_yen AS tenderedYen,change_yen AS changeYen,external_result AS externalResult FROM payments WHERE transaction_id=? ORDER BY sequence").all(transactionId),
-    taxSummaries: db.prepare("SELECT tax_rate_bps AS taxRateBps,taxable_gross_yen AS taxableGrossYen,discount_allocated_yen AS discountAllocatedYen,taxable_net_yen AS taxableNetYen,tax_amount_yen AS taxAmountYen,rounding_mode AS roundingMode FROM tax_summaries WHERE transaction_id=? ORDER BY tax_rate_bps DESC").all(transactionId),
+    ...transactionTotals(transaction), paymentKind: transaction.payment_kind, createdAt: transaction.created_at,
+    lines: db.prepare("SELECT * FROM transaction_lines WHERE transaction_id=? ORDER BY line_no").all(transactionId).map(transactionLineAmounts),
+    discounts: readTransactionDiscounts(db, transactionId).map(({ label, kind, valueKind, value, amountYen }) => ({ label, kind, valueKind, value, amountYen })),
+    payments: readTransactionPayments(db, transactionId).map((row) => ({ sequence: row.sequence, kind: row.kind, methodName: row.method_name_snapshot, amountYen: row.amount_yen, tenderedYen: row.tendered_yen, changeYen: row.change_yen, externalResult: row.external_result })),
+    taxSummaries: readTransactionTaxes(db, transactionId),
     ageVerifications: db.prepare("SELECT minimum_age AS minimumAge,method,result,confirmer_id AS confirmerId,terminal_id AS terminalId,verified_at AS verifiedAt FROM age_verifications WHERE transaction_id=?").all(transactionId),
     printJob: db.prepare("SELECT job_id AS jobId,state,created_at AS createdAt FROM print_jobs WHERE transaction_id=? AND document_type='receipt'").get(transactionId),
   };

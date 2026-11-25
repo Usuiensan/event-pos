@@ -61,6 +61,46 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
 }
 
 describe("durable checkout API", () => {
+  it.each([
+    { kind: "cash", totalYen: 180, discountYen: 20, tenderedYen: 500, changeYen: 320 },
+    { kind: "credit", totalYen: 180, discountYen: 20 },
+    { kind: "no_charge", totalYen: 0, discountYen: 200 },
+  ] as const)("確定済みの明細・値引き配賦・税・支払を設定変更後も返す ($kind)", async ({ kind, totalYen, discountYen, ...cash }) => {
+    const { app } = makeApp();
+    const product = { ...catalog.products[0]!, priceInclTax: 100 };
+    const originalCatalog = { ...catalog, products: [product, ...catalog.products.slice(1)] };
+    await installCatalog(app, originalCatalog);
+    let draft = await addLine(app, await startDraft(app), product.productCode, 2);
+    const lineId = draft.lines[0].lineId;
+    const url = `/api/v1/sale-drafts/${draft.draftId}`;
+    const parked = await app.inject({ method: "POST", url: `${url}/park`, payload: { terminalId: "register-1" } });
+    expect(parked.statusCode).toBe(201);
+    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { terminalId: "register-1", parkReference: parked.json().parkReference } });
+    expect(resumed.statusCode).toBe(200);
+    draft = await addPayment(app, resumed.json(), kind, totalYen, "tenderedYen" in cash ? cash.tenderedYen : undefined);
+    const finalized = await finalize(app, draft, `snapshot-${kind}`);
+    expect(finalized.statusCode).toBe(201);
+
+    await installCatalog(app, { ...originalCatalog, products: [{ ...product, name: "改名済み商品", priceInclTax: 250 }, ...catalog.products.slice(1)], autoDiscountRules: [] });
+    for (const endpoint of [url, "/api/v1/registers/register-1/sale-draft"]) {
+      const response = await app.inject(endpoint);
+      expect(response.statusCode).toBe(200);
+      const completed = response.json();
+      expect(completed).toMatchObject({
+        state: "completed", completedTransactionId: finalized.json().transactionId,
+        lines: [{ lineId, name: product.name, priceInclTax: 100, quantity: 2 }],
+        calculation: {
+          subtotalYen: 200, discountTotalYen: discountYen, totalYen, taxTotalYen: Math.floor(totalYen / 11),
+          lines: [{ lineId, name: product.name, grossYen: 200, discountYen, netYen: totalYen }],
+          discounts: expect.arrayContaining([{ id: "auto:pair", kind: "auto", label: "2個で20円引き", valueKind: "amount", value: 20, amountYen: 20, allocations: [{ lineId, quantity: 2, amountYen: 20 }] }]),
+          taxSummaries: [{ taxRateBps: 1000, taxableGrossYen: 200, discountAllocatedYen: discountYen, taxableNetYen: totalYen, taxAmountYen: Math.floor(totalYen / 11), roundingMode: "floor" }],
+        },
+        payments: [{ kind, amountYen: totalYen, ...cash }],
+      });
+      if (kind !== "cash") expect(completed.payments[0]).not.toHaveProperty("changeYen");
+    }
+  });
+
   it("返品対象検索は認証必須でイベントを越えて検索できない", async () => {
     const database = openDatabase();
     const app = buildApp({ database, requireAuth: true }); apps.push(app);
@@ -490,17 +530,27 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='receipt'").get()).toMatchObject({ count: 1 });
   });
 
-  it("restores the completed transaction and public projection after a database reopen", async () => {
+  it("DB再起動後も確定時の値引き・支払と顧客表示を復元する", async () => {
     const path = "./.checkout-reopen-test.sqlite";
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
-    const first = makeApp(openDatabase(path)); await installCatalog(first.app);
-    let draft = await startDraft(first.app); draft = await addLine(first.app, draft); draft = await addPayment(first.app, draft, "credit", 110);
+    const product = { ...catalog.products[0]!, priceInclTax: 100 };
+    const originalCatalog = { ...catalog, products: [product, ...catalog.products.slice(1)] };
+    const first = makeApp(openDatabase(path)); await installCatalog(first.app, originalCatalog);
+    let draft = await addLine(first.app, await startDraft(first.app), "00000001", 2);
+    draft = await addPayment(first.app, draft, "cash", 180, 500);
     const result = (await finalize(first.app, draft, "persist-key")).json();
+    await installCatalog(first.app, { ...originalCatalog, autoDiscountRules: [] });
     await first.app.close(); apps.splice(apps.indexOf(first.app), 1);
     const reopened = makeApp(openDatabase(path));
     expect((await reopened.app.inject({ method: "GET", url: `/api/v1/transactions/${result.transactionId}` })).statusCode).toBe(200);
-    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/registers/register-1/sale-draft" })).json()).toMatchObject({ state: "completed", completedTransactionId: result.transactionId });
-    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/customer-displays/register-1" })).json()).toMatchObject({ state: "completed", transactionId: result.transactionId, payment: { state: "completed", kinds: ["credit"] } });
+    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/registers/register-1/sale-draft" })).json()).toMatchObject({
+      state: "completed", completedTransactionId: result.transactionId, calculation: { totalYen: 180, discountTotalYen: 20 },
+      payments: [{ kind: "cash", tenderedYen: 500, changeYen: 320 }],
+    });
+    expect((await reopened.app.inject({ method: "GET", url: "/api/v1/customer-displays/register-1" })).json()).toMatchObject({
+      state: "completed", transactionId: result.transactionId, totals: { totalYen: 180, discountYen: 20 },
+      payment: { state: "completed", kinds: ["cash"], tenderedYen: 500, changeYen: 320 },
+    });
     await reopened.app.close(); apps.splice(apps.indexOf(reopened.app), 1);
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
   });

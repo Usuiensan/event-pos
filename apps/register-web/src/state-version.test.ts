@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { CheckoutDraft } from "./checkout-api.js";
-import { shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
+import { draftMatchesBusiness, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 
 describe("REST状態の巻き戻り防止", () => {
+  it("開局中の同じイベント・営業日・セッション番号の下書きだけを引き継ぐ", () => {
+    const draft = { eventId: "event", businessDate: "2026-08-03", sessionNo: 1 };
+    const business = { ...draft, state: "open" } as const;
+    expect(draftMatchesBusiness(draft, business)).toBe(true);
+    for (const change of [{ eventId: "other" }, { businessDate: "2026-08-04" }, { sessionNo: 2 }, { state: "closed" }] as const) {
+      expect(draftMatchesBusiness(draft, { ...business, ...change })).toBe(false);
+    }
+    expect(draftMatchesBusiness(draft, null)).toBe(false);
+  });
   it("終端状態から古いアクティブdraftへの呼戻しを適用する", () => {
     const current = { draftId: "draft-current", state: "canceled", createdAt: "2026-08-03T00:00:00.000Z" } as never;
     const incoming = { draftId: "draft-parked", state: "editing", createdAt: "2026-08-02T00:00:00.000Z" } as never;
