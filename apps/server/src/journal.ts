@@ -22,8 +22,8 @@ export function registerJournalRoutes(app: FastifyInstance, options: Options): v
       const rows = options.database.prepare(`SELECT t.transaction_id AS transaction_id,t.public_reference_display AS public_reference_display,t.type,t.created_at,t.register_id,t.staff_id,t.total_yen,t.payment_kind,
         COUNT(tl.transaction_line_id) AS line_count,COALESCE(SUM(tl.quantity),0) AS item_count
         FROM transactions t LEFT JOIN transaction_lines tl ON tl.transaction_id=t.transaction_id
-        WHERE t.event_id=? AND t.business_day_id LIKE ? AND (?='' OR t.register_id=?) AND (?='' OR t.type=?)
-        GROUP BY t.transaction_id ORDER BY t.created_at ASC,t.transaction_id ASC`).all(request.params.eventId, prefix, request.query.registerId ?? "", request.query.registerId ?? "", request.query.type ?? "", request.query.type ?? "") as Array<Record<string, unknown>>;
+        WHERE t.event_id=? AND (t.business_day_id LIKE ? OR (t.business_day_id=? AND t.type='return')) AND (?='' OR t.register_id=?) AND (?='' OR t.type=?)
+        GROUP BY t.transaction_id ORDER BY t.created_at ASC,t.transaction_id ASC`).all(request.params.eventId, prefix, date, request.query.registerId ?? "", request.query.registerId ?? "", request.query.type ?? "", request.query.type ?? "") as Array<Record<string, unknown>>;
       return { date, transactions: rows.map((row) => ({ transactionId: String(row.transaction_id), publicReference: String(row.public_reference_display ?? ""), type: String(row.type), createdAt: String(row.created_at), registerId: String(row.register_id ?? ""), staffId: String(row.staff_id ?? ""), lineCount: Number(row.line_count), itemCount: Number(row.item_count), totalYen: Number(row.total_yen), paymentKind: row.payment_kind })) };
     } catch (error) { return fail(reply, error); }
   });
