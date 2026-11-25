@@ -46,4 +46,28 @@ describe("責任者運用ダッシュボード", () => {
     expect(response.json()).toMatchObject({ database: { state: "ready" }, printerHost: { connected: null }, printJobs: { pending: 0, failed: 0, unknown: 0, lastSuccessfulAt: null }, storage: { database: { state: "unknown" }, artifacts: { state: "unknown" } }, lastBackup: null, registers: [{ registerId: "register-1", connected: true, terminalId: "register-1", customerDisplay: { available: false } }] });
     ws.terminate();
   });
+  it("翌営業へ繰り越した取り置きは、繰越先の当日一覧に閉局阻害として出る（F-039）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    const catalog = { eventId: "dashboard-carry-event", products: [{ productCode: "00000001", name: "予約商品", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "担当", role: "operator" }, { responsibleNumber: "002", displayName: "責任者", role: "manager" }] };
+    await app.inject({ method: "PUT", url: "/api/v1/events/dashboard-carry-event/catalog", payload: catalog });
+    await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    const headers = { "x-pos-role": "manager", "x-pos-actor-id": "002" };
+    const dashboard = async (date: string) => (await app.inject({ method: "GET", url: `/api/v1/operations/dashboard?eventId=${catalog.eventId}&businessDate=${date}`, headers })).json();
+    const blockerIds = async (date: string) => (await dashboard(date)).holds.closingBlockers.map((item: { holdId: string }) => item.holdId);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    expect(await blockerIds("2026-08-03")).toContain(hold.json().holdId);
+    const requested = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry-request`, payload: { terminalId: "register-1" } });
+    expect(requested.statusCode).toBe(200);
+    const oldBusiness = (await app.inject({ method: "GET", url: `/api/v1/business-sessions/current?eventId=${catalog.eventId}` })).json().session.businessSessionId;
+    db.prepare("UPDATE business_sessions SET state='closed' WHERE business_session_id=?").run(oldBusiness);
+    const next = await app.inject({ method: "POST", url: "/api/v1/business-sessions", payload: { eventId: catalog.eventId, businessDate: "2026-08-04", terminalId: "register-1" } });
+    expect(next.statusCode).toBe(201);
+    const carried = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry`, payload: { businessSessionId: next.json().businessSessionId, terminalId: "register-1" } });
+    expect(carried.statusCode).toBe(200);
+    expect(await blockerIds("2026-08-04")).toContain(hold.json().holdId);
+    expect(await blockerIds("2026-08-03")).not.toContain(hold.json().holdId);
+    const close = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${next.json().businessSessionId}/close`, payload: { terminalId: "register-1" } });
+    expect(close.statusCode).toBe(409); expect(close.json().error.code).toBe("ACTIVE_HOLDS_EXIST");
+  });
 });
