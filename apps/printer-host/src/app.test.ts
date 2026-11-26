@@ -149,12 +149,12 @@ describe("printer host", () => {
     expect(duplicate.json()).toMatchObject({ failure: { code: "SHORT_WRITE" }, duplicate: true });
     expect(shortTransport.sent).toHaveLength(1);
 
-    const timeoutTransport = new FakeTransport(new TransportSendError("timeout", 0, false), "ready");
+    const timeoutTransport = new FakeTransport(new TransportSendError("timeout", 0, false, true), "ready");
     const send = vi.spyOn(timeoutTransport, "send");
     const timeoutApp = buildPrinterHost({ transport: timeoutTransport }); apps.push(timeoutApp);
     const timeout = await timeoutApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-timeout" } });
     const timeoutDuplicate = await timeoutApp.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-timeout" } });
-    expect(timeout.json()).toMatchObject({ failure: { code: "TRANSPORT_ERROR", acceptedBytes: 0, notSentProven: false } });
+    expect(timeout.json()).toMatchObject({ failure: { code: "TRANSPORT_ERROR", acceptedBytes: 0, notSentProven: false, retryable: true } });
     expect(timeoutDuplicate.json()).toEqual({ ...timeout.json(), duplicate: true });
     expect(send).toHaveBeenCalledOnce();
   });
