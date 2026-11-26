@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 "%~dp0runtime\node.exe" "%~dp0server\dist\start.mjs"
 set "RC=%ERRORLEVEL%"
 if %RC% NEQ 0 pause
