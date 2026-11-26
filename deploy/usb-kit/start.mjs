@@ -1,5 +1,5 @@
 import { execFile, execFileSync, spawn } from "node:child_process";
-import { createWriteStream, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, parse, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -75,8 +75,12 @@ async function initialize(dbPath, signal) {
 }
 
 function readPrinterEnv() {
+  // 兼用キットでは macOS 用のプリンター設定を別ファイルに分ける（Windows用は printer-host.env）。
+  const envPath = !windows && existsSync(join(kit, "printer-host-macos.env"))
+    ? join(kit, "printer-host-macos.env")
+    : join(kit, "printer-host.env");
   const result = {};
-  for (const line of readFileSync(join(kit, "printer-host.env"), "utf8").split(/\r?\n/)) {
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const text = line.trim();
     if (!text || text.startsWith("#")) continue;
     const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(text);

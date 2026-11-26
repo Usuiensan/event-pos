@@ -5,7 +5,8 @@ param(
   [string]$Commit = '',
   [string]$Token = $env:GITHUB_TOKEN,
   [switch]$PrepareOnly,
-  [switch]$SkipUpdaterCompatCheck
+  [switch]$SkipUpdaterCompatCheck,
+  [switch]$Universal
 )
 
 $ErrorActionPreference = 'Stop'
@@ -113,7 +114,9 @@ try {
   # ビルドは別プロセス（PowerShell 5.1 の stderr 誤判定を避ける。update-usb-kit.ps1 と同じ理由）
   $buildOut = Join-Path $work 'build-out.log'
   $buildErr = Join-Path $work 'build-err.log'
-  $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$buildScript`"", '-OutputDirectory', "`"$stage`"") -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $buildOut -RedirectStandardError $buildErr
+  $buildArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$buildScript`"", '-OutputDirectory', "`"$stage`"")
+  if ($Universal) { $buildArgs += '-Universal'; Write-Host '兼用キット（Windows / Mac）としてビルドします。' }
+  $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList $buildArgs -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $buildOut -RedirectStandardError $buildErr
   if ($proc.ExitCode -ne 0) {
     if (Test-Path $buildOut) { Get-Content $buildOut -Tail 15 | ForEach-Object { Write-Host $_ } }
     if (Test-Path $buildErr) { Get-Content $buildErr -Tail 15 | ForEach-Object { Write-Host $_ } }

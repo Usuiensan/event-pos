@@ -9,6 +9,12 @@ pnpm install --frozen-lockfile
 .\deploy\windows\build-usb-kit.ps1 -OutputDirectory E:\event-pos-usb-kit
 ```
 
+Windows / Mac 兼用キットにする場合は `-Universal` を付けます。両OSのNodeランタイム（Windows x64、Mac arm64 / x64）と起動ファイルが同梱され、Mac側の初回準備はキットを挿して `Start-USB-Kit.command` をダブルクリックするだけになります（Macでの開発環境構築は不要）。配布リリースも兼用にする場合は `publish-kit-release.ps1 -Universal` を使います。
+
+```powershell
+.\deploy\windows\build-usb-kit.ps1 -OutputDirectory E:\event-pos-usb-kit -Universal
+```
+
 空のキットにはSQLite DBを含めません。`Start-USB-Kit.bat` の初回起動でイベントをセットアップできます。既存のイベントDBを使う場合は、DBと対応するイベント設定をセットで移してください。プリンター設定、終了・復旧手順は同梱`README.md`を参照してください。バンドル済みNode実行ファイルを使うため、Surface側でNode.jsやDockerを導入しません。
 
 配布物を作成した後の起動確認は次で行います。実機プリンターへは接続せず、HTTP healthとWeb資産を確認します。
