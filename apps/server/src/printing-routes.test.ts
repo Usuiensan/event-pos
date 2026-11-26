@@ -4,7 +4,7 @@ import { DEFAULT_RECEIPT_TEMPLATE, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, validateR
 import { buildApp } from "./app.js";
 import { openDatabase, type PosDatabase } from "./db.js";
 import { ensureDefaultReceiptTemplate, renderReceipt } from "./receipt-store.js";
-import { openRegisterForTest } from "./test-support.js";
+import { openRegisterForTest, signInForTest } from "./test-support.js";
 import { PrinterHostFailure } from "./print-queue.js";
 
 const apps: FastifyInstance[] = [];
@@ -212,6 +212,75 @@ describe("print job cancel kicks the queue (F-037)", () => {
     expect(cancel.json().state).toBe("canceled");
     expect(await waitState("next", "completed")).toBe("completed");
     expect(sent).toEqual(["head", "next"]);
+  });
+});
+
+describe("印刷操作は認証必須時にセッション担当者を要求する (F-069)", () => {
+  const reachableStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported" as const, value: true }, online: { support: "unknown" as const, reason: "n/a" }, coverOpen: { support: "unknown" as const, reason: "n/a" }, drawerOpen: { support: "unknown" as const, reason: "n/a" }, paper: { support: "unknown" as const, reason: "n/a" }, error: { support: "unknown" as const, reason: "n/a" }, raw: null });
+  const acceptOk = async (job: { jobId: string; expectedBytesLength?: number | null; bytesSha256?: string | null }) => ({ jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!, bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted" as const, duplicate: false });
+
+  it("drawerは偽ヘッダーを拒否し、managerセッションだけを通す", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true, drawerEnabled: true, printerHost: { accept: acceptOk, getStatus: reachableStatus } }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: { "x-pos-role": "manager", "x-pos-actor-id": "999" } })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer" })).statusCode).toBe(401);
+    const manager = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "001", terminalId: "register-1" });
+    const ok = await app.inject({ method: "POST", url: "/api/v1/device-jobs/drawer", headers: manager });
+    expect(ok.statusCode, ok.body).toBe(201);
+    const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='drawer_open_request'").get() as { detail_json: string };
+    expect(JSON.parse(audit.detail_json).actorId).toBe("001");
+  });
+
+  it("再印刷は偽ヘッダーを拒否し、認証済み担当者で実行できる", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "001", terminalId: "register-1" });
+    const business = await app.inject({ method: "POST", url: "/api/v1/business-sessions", headers: admin, payload: { eventId: catalog.eventId, businessDate: "2026-08-02", terminalId: "register-1" } });
+    expect(business.statusCode, business.body).toBe(201);
+    const prepared = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.json().businessSessionId}/registers/register-1/prepare`, headers: admin, payload: { terminalId: "register-1" } });
+    expect(prepared.statusCode, prepared.body).toBe(201);
+    const opened = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(prepared.json().sessionId)}/checks/opening`, headers: { ...admin, "idempotency-key": "f069-opening" }, payload: { counted: [], terminalId: "register-1" } });
+    expect(opened.statusCode, opened.body).toBe(201);
+    let res = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", headers: admin, payload: { eventId: catalog.eventId, staffId: "staff-001", terminalId: "register-1", businessDate: "2026-08-02", sessionNo: 1 } });
+    expect(res.statusCode, res.body).toBe(201); let draft = res.json();
+    res = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { ...admin, "if-match": String(draft.version) }, payload: { productCode: "00000001", quantity: 1 } });
+    expect(res.statusCode, res.body).toBe(201); draft = res.json();
+    res = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { ...admin, "if-match": String(draft.version) }, payload: { kind: "cash", amountYen: 110, tenderedYen: 500 } });
+    expect(res.statusCode, res.body).toBe(201); draft = res.json();
+    res = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { ...admin, "idempotency-key": "f069-sale" }, payload: { version: draft.version } });
+    expect(res.statusCode, res.body).toBe(201);
+    const sale = res.json() as { transactionId: string; printJobId: string };
+    const url = `/api/v1/transactions/${sale.transactionId}/reprints`;
+    const body = { sourcePrintJobId: sale.printJobId, reason: "紛失", physicalOutcome: "not_printed", riskAccepted: false };
+    expect((await app.inject({ method: "POST", url, headers: { "x-pos-role": "manager", "x-pos-actor-id": "999" }, payload: body })).statusCode).toBe(401);
+    const ok = await app.inject({ method: "POST", url, headers: admin, payload: body });
+    expect(ok.statusCode, ok.body).toBe(201);
+  });
+
+  it("待機取消は無認証を拒否し、operatorセッションで実行できる", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    const operatorCatalog = { ...catalog, staffMembers: [...catalog.staffMembers, { staffId: "staff-003", responsibleNumber: "003", displayName: "担当者", receiptDisplay: "name", role: "operator" }] };
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: operatorCatalog })).statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId: "f069-cancel", transactionId: "f069-tx", printerId: "receipt-1", documentType: "receipt", payload: { escposBase64: "G0A=" }, createdAt: new Date().toISOString(), source: "test" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/print-jobs/f069-cancel/cancel" })).statusCode).toBe(401);
+    const operator = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "003", terminalId: "register-1" });
+    const ok = await app.inject({ method: "POST", url: "/api/v1/print-jobs/f069-cancel/cancel", headers: operator });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(ok.json().state).toBe("canceled");
+  });
+
+  it("キュー再開は無認証を拒否し、managerセッションで実行できる", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true, printerHost: { accept: async () => { throw new PrinterHostFailure({ code: "PAPER_OUT", message: "用紙切れ", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true }); }, getStatus: reachableStatus } }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId: "f069-block", transactionId: "f069-tx-block", printerId: "receipt-1", documentType: "receipt", payload: { escposBase64: "G0A=" }, createdAt: new Date().toISOString(), source: "test" } })).statusCode).toBe(201);
+    for (let i = 0; i < 40; i++) { const queue = (await app.inject({ method: "GET", url: "/api/v1/printer/status" })).json().queue; if (queue.blocked) break; await new Promise((resolve) => setTimeout(resolve, 50)); }
+    expect((await app.inject({ method: "POST", url: "/api/v1/printer/resume", payload: { actorId: "attacker" } })).statusCode).toBe(401);
+    const manager = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "001", terminalId: "register-1" });
+    const ok = await app.inject({ method: "POST", url: "/api/v1/printer/resume", headers: manager, payload: {} });
+    expect(ok.statusCode, ok.body).toBe(200);
+    expect(ok.json()).toEqual({ resumed: true });
+    const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='printer_resume'").get() as { detail_json: string };
+    expect(JSON.parse(audit.detail_json).actorId).toBe("001");
   });
 });
 

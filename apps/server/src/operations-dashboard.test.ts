@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
 import { openDatabase } from "./db.js";
-import { openRegisterForTest } from "./test-support.js";
+import { openRegisterForTest, signInForTest } from "./test-support.js";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -46,6 +46,18 @@ describe("責任者運用ダッシュボード", () => {
     expect(response.json()).toMatchObject({ database: { state: "ready" }, printerHost: { connected: null }, printJobs: { pending: 0, failed: 0, unknown: 0, lastSuccessfulAt: null }, storage: { database: { state: "unknown" }, artifacts: { state: "unknown" } }, lastBackup: null, registers: [{ registerId: "register-1", connected: true, terminalId: "register-1", customerDisplay: { available: false } }] });
     ws.terminate();
   });
+  it("認証必須時は偽ヘッダーを拒否し、managerセッションだけを通す（F-069）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    const catalog = { eventId: "dashboard-auth-event", products: [], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "管理者", role: "admin" }, { responsibleNumber: "002", displayName: "責任者", role: "manager" }] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/dashboard-auth-event/catalog", payload: catalog })).statusCode).toBe(200);
+    const url = "/api/v1/operations/dashboard?eventId=dashboard-auth-event&businessDate=2026-08-03";
+    expect((await app.inject({ method: "GET", url, headers: { "x-pos-role": "manager", "x-pos-actor-id": "002" } })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url })).statusCode).toBe(401);
+    const manager = await signInForTest(app, { eventId: catalog.eventId, responsibleNumber: "002", terminalId: "register-1" });
+    const ok = await app.inject({ method: "GET", url, headers: manager });
+    expect(ok.statusCode, ok.body).toBe(200);
+  });
+
   it("翌営業へ繰り越した取り置きは、繰越先の当日一覧に閉局阻害として出る（F-039）", async () => {
     const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
     const catalog = { eventId: "dashboard-carry-event", products: [{ productCode: "00000001", name: "予約商品", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "担当", role: "operator" }, { responsibleNumber: "002", displayName: "責任者", role: "manager" }] };
