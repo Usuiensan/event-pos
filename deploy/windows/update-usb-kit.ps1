@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
   [ValidateSet('Auto', 'GitHub', 'Local')][string]$Mode = 'Auto',
   [string]$RepoRoot = $(if ($env:EVENT_POS_REPO) { $env:EVENT_POS_REPO } else { 'C:\private\event-pos' })
@@ -327,8 +327,11 @@ function Invoke-GitHubUpdate {
       foreach ($e in $entries) {
         $rel = ([string]$e.path).Replace('/', '\')
         $src = Join-Path $stage $rel
-        if ($e.class -eq 'self') {
-          Copy-Item -LiteralPath $src -Destination (Join-Path $kit 'update-usb-kit.ps1.new') -Force
+        # Update-USB-Kit.bat は実行中の自分自身のため、直接上書きすると cmd.exe の読み取り位置がずれて
+        # 行の断片を実行したり即終了したりする。アップデーター本体と同じく .new へ退避し、
+        # 次回起動時にバッチ冒頭で差し替える（差し替えは制御移譲で行い、実行中ファイルは読み直さない）。
+        if ($e.class -eq 'self' -or $rel -ieq 'Update-USB-Kit.bat') {
+          Copy-Item -LiteralPath $src -Destination (Join-Path $kit ($rel + '.new')) -Force
         } else {
           $dst = Join-Path $kit $rel
           New-Item -ItemType Directory -Path (Split-Path $dst -Parent) -Force | Out-Null
@@ -343,6 +346,7 @@ function Invoke-GitHubUpdate {
         if ($e.class -eq 'self') { continue }
         $rel = ([string]$e.path).Replace('/', '\')
         $dst = Join-Path $kit $rel
+        if ($rel -ieq 'Update-USB-Kit.bat') { $dst = Join-Path $kit ($rel + '.new') }
         if ((Get-FileDigest $dst).ToLower() -ne ([string]$e.sha256).ToLower()) { $problems += "適用後のハッシュが一致しません: $rel" }
       }
       $cmp = Compare-Protected $protectedBefore
@@ -363,7 +367,7 @@ function Invoke-GitHubUpdate {
     @{ source = 'github'; commit = $manifest.commit; tag = $release.tag_name; releaseId = $release.id; assetId = $asset.id; assetDigest = $assetDigest; zipSha256 = $zipHash; appliedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath $versionPath -Encoding UTF8
     Clear-State
     Write-Host "アップデートが完了しました（$($release.tag_name)）。Start-USB-Kit.bat から起動できます。"
-    Write-Host 'アップデーター自体に新版がある場合は、次回 Update-USB-Kit.bat の起動時に自動で差し替わります。'
+    Write-Host 'アップデーターや更新バッチ自体に新版がある場合は、次回 Update-USB-Kit.bat の起動時に自動で差し替わります。'
     Write-Host "更新前のプログラム一式はこのPCの $backup に残しています（不要なら削除して構いません）。"
   } finally {
     if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
