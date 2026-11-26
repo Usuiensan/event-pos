@@ -37,7 +37,7 @@ export type CheckoutDraft = {
 export type FinalizeResult = { transactionId: string; draftId: string; draftVersion: number; publicReference: string; publicReferenceDisplay: string; totalYen: number; paymentKind: string; printJobId: string; printState: "pending"; completedAt: string };
 export type PrintJobDto = { jobId: string; transactionId: string; state: "pending" | "sending" | "completed" | "failed" | "retry_wait" | "canceled"; deliveryCertainty?: "not_sent" | "accepted" | "unknown"; errorMessage?: string; reprintNo?: number };
 export type PrintQueueStatusDto = { blocked: boolean; blockReason: string | null; jobId: string | null; errorMessage: string | null; waitingJobs: number };
-export type PrinterStatusDto = { printerId: string; observation: PrinterStatusObservation; queue: PrintQueueStatusDto };
+export type PrinterStatusDto = { printerId: string; observation: PrinterStatusObservation; queue: PrintQueueStatusDto; drawerEnabled: boolean };
 export type TransactionDto = { transactionId: string; publicReferenceDisplay: string; printJob?: { jobId: string; state: string; createdAt: string } };
 export type BackupArtifactDto = {
   artifactId: string; eventId: string; businessDate: string; cashboxId: string; cashSessionId: string; sourceCashCheckId: number;

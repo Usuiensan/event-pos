@@ -130,7 +130,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
   });
   app.get("/api/v1/printer/status", async () => {
     const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, drawerOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
-    return { printerId: "receipt-1", observation, queue: getPrintQueueStatus(options.database) };
+    return { printerId: "receipt-1", observation, queue: getPrintQueueStatus(options.database), drawerEnabled: options.drawerEnabled ?? false };
   });
   app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => options.queue?.resumeDeviceFault(request.body?.actorId ?? "") ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"));
 }

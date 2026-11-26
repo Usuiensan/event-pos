@@ -236,3 +236,19 @@ describe("printer status route exposes the queue block (F-057)", () => {
     expect(queue).toEqual({ blocked: true, blockReason: "device_fault", jobId: "head", errorMessage: "用紙切れのため送信できません", waitingJobs: 2 });
   });
 });
+
+describe("printer status route exposes drawerEnabled (F-059)", () => {
+  it("drawerEnabled未指定（USBキット既定）は状態APIがfalseを返す", async () => {
+    const { app } = makeApp();
+    const response = await app.inject({ method: "GET", url: "/api/v1/printer/status" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().drawerEnabled).toBe(false);
+  });
+
+  it("drawerEnabled有効時は状態APIがtrueを返す", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, drawerEnabled: true }); apps.push(app);
+    const response = await app.inject({ method: "GET", url: "/api/v1/printer/status" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().drawerEnabled).toBe(true);
+  });
+});
