@@ -174,7 +174,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_candidate_confirm', 'cash_movement', ?, ?, ?)").run(String(request.body.candidateId), JSON.stringify({ sessionId: request.params.sessionId, note: request.body.note ?? "", actorId: auth.actorId ?? request.body.actorId, terminalId: request.body.terminalId }), now);
     return reply.code(201).send({ confirmed: true, candidateId: request.body.candidateId });
   });
-  app.get("/api/v1/events", async () => ({
+  app.get("/api/v1/event-catalogs", async () => ({
     events: listCatalogs(options.database).map(({ eventId, updatedAt }) => ({ eventId, updatedAt })),
   }));
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {

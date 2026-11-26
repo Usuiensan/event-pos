@@ -267,7 +267,7 @@ describe("event catalog listing", () => {
     expect((await put("real-event")).statusCode).toBe(200);
     database.prepare("UPDATE event_catalogs SET updated_at = ? WHERE event_id = ?").run("2026-01-01T00:00:00.000Z", "real-event");
     database.prepare("UPDATE event_catalogs SET updated_at = ? WHERE event_id = ?").run("2026-01-02T00:00:00.000Z", "demo-event-large");
-    const response = await app.inject({ method: "GET", url: "/api/v1/events" });
+    const response = await app.inject({ method: "GET", url: "/api/v1/event-catalogs" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ events: [
       { eventId: "demo-event-large", updatedAt: "2026-01-02T00:00:00.000Z" },
