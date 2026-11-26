@@ -422,10 +422,11 @@ export function addDraftPayment(db: PosDatabase, draftId: string, version: numbe
     const paid = existing.reduce((sum, payment) => sum + payment.amountYen, 0);
     const amountYen = input.kind === "no_charge" ? 0 : input.amountYen ?? Math.max(0, total - paid);
     if (!Number.isSafeInteger(amountYen) || amountYen < 0 || (input.tenderedYen !== undefined && (!Number.isSafeInteger(input.tenderedYen) || input.tenderedYen < 0))) throw new CheckoutError(400, "INVALID_PAYMENT", "支払金額が不正です");
+    if (input.kind !== "no_charge" && amountYen > total - paid) throw new CheckoutError(422, "PAYMENT_MISMATCH", `支払合計が会計金額を超えています（${paid + amountYen - total}円超過しています）`, { expectedYen: total, actualYen: paid + amountYen });
     const changeYen = input.kind === "cash" && input.tenderedYen !== undefined ? input.tenderedYen - amountYen : undefined;
-    if (input.kind === "cash" && input.tenderedYen !== undefined && input.tenderedYen < amountYen) throw new CheckoutError(422, "PAYMENT_INSUFFICIENT", "預り金が不足しています", { amountYen, tenderedYen: input.tenderedYen });
+    if (input.kind === "cash" && input.tenderedYen !== undefined && input.tenderedYen < amountYen) throw new CheckoutError(422, "PAYMENT_INSUFFICIENT", `預り金が不足しています（あと${amountYen - input.tenderedYen}円不足しています）`, { amountYen, tenderedYen: input.tenderedYen });
     if (changeYen !== undefined && changeYen >= 10_000) throw new CheckoutError(422, "CHANGE_LIMIT_EXCEEDED", "釣銭が10,000円以上になる支払は入力できません", { changeYen });
-    const sequence = existing.length + 1;
+    const sequence = existing.reduce((maximum, payment) => Math.max(maximum, payment.sequence), 0) + 1;
     db.prepare("INSERT INTO draft_payments (payment_id,draft_id,sequence,kind,amount_yen,tendered_yen,change_yen,reference_note,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(uuidV7(), draftId, sequence, input.kind, amountYen, input.tenderedYen ?? null, changeYen ?? null, input.referenceNote ?? null, new Date().toISOString());
     bump(db, draftId, version, "payment");
     return updateProjection(db, draftId);
@@ -485,10 +486,10 @@ function validatedPayments(payments: DraftPaymentDto[], calculation: SaleCalcula
   const noCharge = payments.some((payment) => payment.kind === "no_charge");
   if (noCharge && (payments.length !== 1 || calculation.totalYen !== 0 || payments[0]!.amountYen !== 0)) throw new CheckoutError(422, "PAYMENT_MISMATCH", "無配支払が会計金額と一致しません");
   const amount = payments.reduce((sum, payment) => sum + payment.amountYen, 0);
-  if (amount !== calculation.totalYen) throw new CheckoutError(422, "PAYMENT_MISMATCH", "支払合計が会計金額と一致しません", { expectedYen: calculation.totalYen, actualYen: amount });
+  if (amount !== calculation.totalYen) throw new CheckoutError(422, "PAYMENT_MISMATCH", amount < calculation.totalYen ? `支払合計が会計金額と一致しません（あと${calculation.totalYen - amount}円不足しています）` : `支払合計が会計金額と一致しません（${amount - calculation.totalYen}円超過しています）`, { expectedYen: calculation.totalYen, actualYen: amount });
   return payments.map((payment) => {
     if (payment.kind !== "cash") return payment;
-    if (payment.tenderedYen === undefined || payment.tenderedYen < payment.amountYen) throw new CheckoutError(422, "PAYMENT_INSUFFICIENT", "預り金が不足しています", { amountYen: payment.amountYen, tenderedYen: payment.tenderedYen ?? null });
+    if (payment.tenderedYen === undefined || payment.tenderedYen < payment.amountYen) throw new CheckoutError(422, "PAYMENT_INSUFFICIENT", `預り金が不足しています（あと${payment.amountYen - (payment.tenderedYen ?? 0)}円不足しています）`, { amountYen: payment.amountYen, tenderedYen: payment.tenderedYen ?? null });
     const changeYen = payment.tenderedYen - payment.amountYen;
     if (changeYen >= 10_000) throw new CheckoutError(422, "CHANGE_LIMIT_EXCEEDED", "釣銭が10,000円以上になる会計は確定できません", { changeYen });
     return { ...payment, changeYen };
