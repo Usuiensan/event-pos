@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([string]$OutputDirectory = 'E:\event-pos-usb-kit')
+param([string]$OutputDirectory = 'E:\event-pos-usb-kit', [switch]$Universal)
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
@@ -11,6 +11,6 @@ Push-Location $repositoryRoot
 try {
   & pnpm build
   if ($LASTEXITCODE -ne 0) { throw "pnpm build failed: $LASTEXITCODE" }
-  & $node deploy/usb-kit/build.mjs windows $OutputDirectory $node
+  & $node deploy/usb-kit/build.mjs $(if ($Universal) { 'universal' } else { 'windows' }) $OutputDirectory $node
   if ($LASTEXITCODE -ne 0) { throw "USBキットの作成に失敗しました: $LASTEXITCODE" }
 } finally { Pop-Location }
