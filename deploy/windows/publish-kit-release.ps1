@@ -4,7 +4,8 @@ param(
   [string]$Tag = '',
   [string]$Commit = '',
   [string]$Token = $env:GITHUB_TOKEN,
-  [switch]$PrepareOnly
+  [switch]$PrepareOnly,
+  [switch]$SkipUpdaterCompatCheck
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,6 +19,69 @@ $assetName = 'event-pos-kit-payload.zip'
 # - data（DBはキット側のもの）
 # - event-config（実行時設定は usb-kit-initial のみで、配布対象にしない。初期設定はキット作成時に決まる）
 $excludeTop = @('runtime', 'data', 'event-config')
+
+function Test-UpdaterCompatibility {
+  param([array]$PayloadFiles)
+  # 前回リリースのアップデーターが弾くファイルが新しいペイロードに無いかを確認する。
+  # 旧アップデーターは許可リスト外のルートファイル／先頭フォルダーを検証で即拒否し、
+  # 自分自身を新版へ差し替える前に止まるため、新ファイルを足すリリースは現場で詰む
+  # (kit-20261125 の Recover-USB-Kit-DB.bat で実際に発生)。
+  # 前回アップデーターが KitUpdaterBootstrap 対応なら、先行自己更新で乗り越えられるので対象外。
+  $headers = @{ 'User-Agent' = 'event-pos-publish-kit-release'; 'Accept' = 'application/vnd.github+json' }
+  try {
+    $prevRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoSlug/releases/latest" -Headers $headers -TimeoutSec 30
+  } catch {
+    Write-Warning "前回リリースを取得できないため、アップデーター互換チェックをスキップしました: $($_.Exception.Message)"
+    return
+  }
+  $prevAsset = @($prevRelease.assets | Where-Object { $_.name -eq $assetName }) | Select-Object -First 1
+  if (-not $prevAsset) { Write-Warning '前回リリースにペイロードが無いため、アップデーター互換チェックをスキップしました。'; return }
+  $prevZip = Join-Path $work 'prev-payload.zip'
+  try {
+    Invoke-WebRequest -Uri $prevAsset.browser_download_url -Headers @{ 'User-Agent' = 'event-pos-publish-kit-release' } -OutFile $prevZip -TimeoutSec 600
+  } catch {
+    Write-Warning "前回ペイロードを取得できないため、アップデーター互換チェックをスキップしました: $($_.Exception.Message)"
+    return
+  }
+  if ($prevAsset.digest) {
+    $prevHash = (Get-FileHash -LiteralPath $prevZip -Algorithm SHA256).Hash.ToLower()
+    if ($prevAsset.digest -ne "sha256:$prevHash") { throw "前回ペイロードの digest が一致しません: $($prevAsset.digest)" }
+  }
+  Add-Type -AssemblyName System.IO.Compression
+  $prevUpdaterText = $null
+  $zipStream = [System.IO.File]::OpenRead($prevZip)
+  $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Read)
+  try {
+    $entry = @($archive.Entries | Where-Object { $_.FullName -eq 'update-usb-kit.ps1' }) | Select-Object -First 1
+    if (-not $entry) { Write-Warning '前回ペイロードに update-usb-kit.ps1 が無いため、アップデーター互換チェックをスキップしました。'; return }
+    $reader = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
+    try { $prevUpdaterText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+  } finally { $archive.Dispose(); $zipStream.Dispose() }
+  if ($prevUpdaterText -match 'KitUpdaterBootstrap: v1') {
+    Write-Host '前回アップデーターは先行自己更新（KitUpdaterBootstrap）対応のため、互換チェックを省略します。'
+    return
+  }
+  $prevRootAllow = @()
+  $prevFolderAllow = @()
+  foreach ($line in ($prevUpdaterText -split "`r?`n")) {
+    if ($line -match '\$rootAllow\s*=') { $prevRootAllow = @([regex]::Matches($line, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }) }
+    if ($line -match "-notin @\('server'") { $prevFolderAllow = @([regex]::Matches($line, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value }) }
+  }
+  if ($prevRootAllow.Count -eq 0 -or $prevFolderAllow.Count -eq 0) { Write-Warning '前回アップデーターの許可リストを読めないため、アップデーター互換チェックをスキップしました。'; return }
+  $blocked = @()
+  foreach ($f in $PayloadFiles) {
+    $seg = ([string]$f.path).Split('/')
+    if ($seg.Count -gt 1) {
+      if ($seg[0] -notin $prevFolderAllow) { $blocked += $f.path }
+    } else {
+      if ($seg[0] -notin $prevRootAllow) { $blocked += $f.path }
+    }
+  }
+  if ($blocked.Count -gt 0) {
+    throw "前回リリース ($($prevRelease.tag_name)) のアップデーターが許可していないファイルがペイロードに含まれています: $($blocked -join ', ')`nこのまま公開すると現場キットは更新できません。先に、弾かれるファイルを含まず新しいアップデーターだけを含む中間リリースを公開し、現場キットを一度更新してから、本リリースを公開してください。"
+  }
+  Write-Host "アップデーター互換チェック OK（前回リリース $($prevRelease.tag_name) のアップデーターで更新できます）。"
+}
 
 if (-not $Commit) {
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'git が見つかりません。-Commit で対象コミットを指定してください。' }
@@ -72,6 +136,11 @@ try {
       size = $f.Length
       class = $(if ($rel -ieq 'update-usb-kit.ps1') { 'self' } else { 'overwrite' })
     }
+  }
+  if ($SkipUpdaterCompatCheck) {
+    Write-Warning 'アップデーター互換チェックをスキップしました（-SkipUpdaterCompatCheck）。前回アップデーターが弾くファイルが含まれていると、現場キットは更新できません。'
+  } else {
+    Test-UpdaterCompatibility -PayloadFiles $files
   }
   $manifest = @{
     format = 1
