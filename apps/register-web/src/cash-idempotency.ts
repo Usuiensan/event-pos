@@ -28,3 +28,35 @@ export function idempotencyKeyFor(storage: IdempotencyStorage, storageKey: strin
   storage.setItem(storageKey, JSON.stringify({ key, fingerprint }));
   return key;
 }
+
+// 保存枠を操作内容ごとに分けるためのキーを作る。
+// localStorage はタブ間で共有されるため、単一枠のままだと別の操作（別タブ含む）が
+// 保留中のキーを上書きしてしまう。内容のフィンガープリントから枠を分ければ、
+// 異なる操作同士は互いのキーを上書き・削除しない（同一内容の操作は同じ枠・同じ
+// キーを共有し、サーバーの冪等照合で二重記録にならない）。
+export function idempotencyStorageKey(baseKey: string, fingerprint: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < fingerprint.length; index++) {
+    hash ^= fingerprint.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${baseKey}-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+// 保存が成功したキーを、そのキーの所有者だけが解放する。
+// 枠に残っているキーが自分のキーと一致する場合のみ削除し、別操作が採番した
+// キーを誤って消さない。
+export function releaseIdempotencyKey(storage: IdempotencyStorage, storageKey: string, key: string): void {
+  const raw = storage.getItem(storageKey);
+  if (!raw) return;
+  if (raw === key) {
+    storage.removeItem(storageKey);
+    return;
+  }
+  try {
+    const parsed = JSON.parse(raw) as { key?: unknown };
+    if (parsed.key === key) storage.removeItem(storageKey);
+  } catch {
+    // 壊れた値は所有者を特定できないため残す
+  }
+}
