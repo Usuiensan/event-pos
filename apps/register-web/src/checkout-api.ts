@@ -1,4 +1,4 @@
-import type { Gs1CompanyPrefixRegistry, IsdnProductInfo, ManualDiscountInput, ProductLookupResult, SaleCalculation, TaxCategory } from "@event-pos/contracts";
+import type { Gs1CompanyPrefixRegistry, IsdnProductInfo, ManualDiscountInput, PrinterStatusObservation, ProductLookupResult, SaleCalculation, TaxCategory } from "@event-pos/contracts";
 
 export type CheckoutDraftLine = {
   lineId: string;
@@ -36,6 +36,8 @@ export type CheckoutDraft = {
 };
 export type FinalizeResult = { transactionId: string; draftId: string; draftVersion: number; publicReference: string; publicReferenceDisplay: string; totalYen: number; paymentKind: string; printJobId: string; printState: "pending"; completedAt: string };
 export type PrintJobDto = { jobId: string; transactionId: string; state: "pending" | "sending" | "completed" | "failed" | "retry_wait" | "canceled"; deliveryCertainty?: "not_sent" | "accepted" | "unknown"; errorMessage?: string; reprintNo?: number };
+export type PrintQueueStatusDto = { blocked: boolean; blockReason: string | null; jobId: string | null; errorMessage: string | null; waitingJobs: number };
+export type PrinterStatusDto = { printerId: string; observation: PrinterStatusObservation; queue: PrintQueueStatusDto };
 export type TransactionDto = { transactionId: string; publicReferenceDisplay: string; printJob?: { jobId: string; state: string; createdAt: string } };
 export type BackupArtifactDto = {
   artifactId: string; eventId: string; businessDate: string; cashboxId: string; cashSessionId: string; sourceCashCheckId: number;
@@ -185,6 +187,8 @@ export const checkoutApi = {
   getTransaction: (transactionId: string) => request<TransactionDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}`),
   createOfficialReceipt: (transactionId: string, input: { payeeName?: string; memo?: string; terminalId: string }) => request<{ receiptId: string; printJobId: string; amountYen: number }>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/official-receipts`, { method: "POST", body: body(input) }),
   getPrintJob: (jobId: string) => request<PrintJobDto>(`/api/v1/print-jobs/${encodeURIComponent(jobId)}`),
+  getPrinterStatus: () => request<PrinterStatusDto>("/api/v1/printer/status"),
+  resumePrinter: (actorId: string) => request<{ resumed: boolean }>("/api/v1/printer/resume", { method: "POST", body: body({ actorId }) }),
   createPaymentSlipReminder: (code: string, terminalId: string) => request<{ job: PrintJobDto; reminder: { dueDate: unknown; amount: number; issuerCode: string; gs1CompanyPrefix7: string } }>("/api/v1/payment-slip-reminders", { method: "POST", body: body({ code, terminalId }) }),
   createReprint: (transactionId: string, actorId: string, input: { sourcePrintJobId: string; reason: string; physicalOutcome: "printed" | "not_printed" | "indeterminate"; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } }) => request<PrintJobDto>(`/api/v1/transactions/${encodeURIComponent(transactionId)}/reprints`, { method: "POST", headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId }, body: body(input) }),
   getBackupArtifacts: (eventId: string, businessDate: string, cashboxId: string, actorId: string) => request<{ artifacts: BackupArtifactDto[] }>(`/api/v1/backup-artifacts?eventId=${encodeURIComponent(eventId)}&businessDate=${encodeURIComponent(businessDate)}&cashboxId=${encodeURIComponent(cashboxId)}`, { headers: { "x-pos-role": "manager", "x-pos-actor-id": actorId } }),

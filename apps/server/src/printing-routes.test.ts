@@ -214,3 +214,25 @@ describe("print job cancel kicks the queue (F-037)", () => {
     expect(sent).toEqual(["head", "next"]);
   });
 });
+
+describe("printer status route exposes the queue block (F-057)", () => {
+  it("device faultで停止中は、状態APIが停止と理由を返す", async () => {
+    const db = openDatabase();
+    const app = buildApp({ database: db, printerHost: { accept: async (job) => {
+      throw new PrinterHostFailure({ code: "PAPER_OUT", message: "用紙切れのため送信できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true });
+    } } });
+    apps.push(app);
+    const queueStatus = async () => (await app.inject({ method: "GET", url: "/api/v1/printer/status" })).json().queue;
+    expect(await queueStatus()).toEqual({ blocked: false, blockReason: null, jobId: null, errorMessage: null, waitingJobs: 0 });
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${catalog.eventId}/catalog`, payload: catalog })).statusCode).toBe(200);
+    const enqueue = async (jobId: string) => {
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { jobId, transactionId: `print-test:${jobId}`, printerId: "receipt-1", documentType: "receipt", createdAt: new Date().toISOString(), source: "test", payload: { escposBase64: "G0A=" } } });
+      expect(response.statusCode, response.body).toBe(201);
+    };
+    await enqueue("head");
+    await enqueue("next");
+    let queue: unknown;
+    for (let i = 0; i < 40; i++) { queue = await queueStatus(); if ((queue as { blocked: boolean }).blocked) break; await new Promise((resolve) => setTimeout(resolve, 50)); }
+    expect(queue).toEqual({ blocked: true, blockReason: "device_fault", jobId: "head", errorMessage: "用紙切れのため送信できません", waitingJobs: 2 });
+  });
+});

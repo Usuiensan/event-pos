@@ -4,7 +4,7 @@ import type { PrinterDispatchFailure, PrinterDispatchResult, PrintJob } from "@e
 import { buildPrinterHost } from "@event-pos/printer-host/app";
 import { FakeTransport, TransportSendError } from "@event-pos/printer-host/transport";
 import { createPrintJob, getPrintJob, openDatabase, type PosDatabase } from "./db.js";
-import { PersistentPrintQueue, PrinterHostFailure } from "./print-queue.js";
+import { getPrintQueueStatus, PersistentPrintQueue, PrinterHostFailure } from "./print-queue.js";
 
 const databases: PosDatabase[] = [];
 const queues: PersistentPrintQueue[] = [];
@@ -209,6 +209,83 @@ describe("persistent print queue", () => {
       const queue = new PersistentPrintQueue(db, { accept: async (value) => accepted(value) }, () => new Date(now)); queues.push(queue);
       expect(getPrintJob(db, job.jobId)).toMatchObject({ state: expected.state, deliveryCertainty: expected.certainty });
       expect(db.prepare("SELECT result FROM print_attempts WHERE job_id=?").get(job.jobId)).toEqual({ result: expected.result });
+    }
+  });
+
+  it("状態不明（STATUS_UNKNOWN）はキューを止めず、状態が読めるようになれば自動で送る（F-057）", async () => {
+    const db = database();
+    enqueueRaw(db, "head"); enqueueRaw(db, "tail");
+    const transport = new FakeTransport();
+    let statusName: "unknown" | "ready" = "unknown";
+    const baseStatus = transport.getStatus.bind(transport);
+    transport.getStatus = async () => statusName === "unknown"
+      ? { observedAt: new Date().toISOString(), reachable: { support: "unknown", reason: "状態取得不能" }, online: { support: "unknown", reason: "状態取得不能" }, coverOpen: { support: "unknown", reason: "状態取得不能" }, drawerOpen: { support: "unknown", reason: "状態取得不能" }, paper: { support: "unknown", reason: "状態取得不能" }, error: { support: "unknown", reason: "状態取得不能" }, raw: null }
+      : baseStatus();
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 });
+    let nowMs = Date.parse("2026-08-02T00:00:00.000Z");
+    const queue = new PersistentPrintQueue(db, { accept: async (job) => {
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
+      if (response.statusCode === 409) throw new PrinterHostFailure(response.json().failure);
+      expect(response.statusCode).toBe(201);
+      return response.json<PrinterDispatchResult>();
+    } }, () => new Date(nowMs)); queues.push(queue);
+    try {
+      expect(getPrintQueueStatus(db)).toMatchObject({ blocked: false, waitingJobs: 2 });
+      expect(await queue.runOnce()).toBe("processed");
+      // STATUS_UNKNOWN は retry_wait になるが、device_fault のブロックにはならない。
+      expect(getPrintJob(db, "head")).toMatchObject({ state: "retry_wait", deliveryCertainty: "not_sent" });
+      expect(db.prepare("SELECT block_reason FROM printer_operations WHERE payload_ref='head'").get()).toEqual({ block_reason: null });
+      expect(db.prepare("SELECT error_code FROM print_attempts WHERE job_id='head'").get()).toEqual({ error_code: "STATUS_UNKNOWN" });
+      expect(getPrintQueueStatus(db)).toMatchObject({ blocked: false });
+      expect(await queue.runOnce()).toBe("blocked");
+      expect(transport.sent).toHaveLength(0);
+
+      statusName = "ready";
+      nowMs += 2_000;
+      expect(await queue.runOnce()).toBe("processed");
+      expect(getPrintJob(db, "head")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(await queue.runOnce()).toBe("processed");
+      expect(getPrintJob(db, "tail")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(transport.sent.map((bytes) => Buffer.from(bytes).toString())).toEqual(["payload:head", "payload:tail"]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("実測異常（用紙切れ）は従来どおりブロックし、状態表示と責任者再開で流れる（F-057）", async () => {
+    const db = database();
+    enqueueRaw(db, "head"); enqueueRaw(db, "tail");
+    const transport = new FakeTransport();
+    let paperOut = true;
+    const baseStatus = transport.getStatus.bind(transport);
+    transport.getStatus = async () => {
+      const status = await baseStatus();
+      return paperOut ? { ...status, paper: { support: "supported", value: "empty" } as const } : status;
+    };
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 });
+    const queue = new PersistentPrintQueue(db, { accept: async (job) => {
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
+      if (response.statusCode === 409) throw new PrinterHostFailure(response.json().failure);
+      expect(response.statusCode).toBe(201);
+      return response.json<PrinterDispatchResult>();
+    } }); queues.push(queue);
+    try {
+      expect(await queue.runOnce()).toBe("processed");
+      expect(await queue.runOnce()).toBe("blocked");
+      // 画面表示用の状態には、停止とその理由（先頭ジョブの失敗メッセージ）が入る。
+      expect(getPrintQueueStatus(db)).toEqual({ blocked: true, blockReason: "device_fault", jobId: "head", errorMessage: "用紙切れのため送信できません", waitingJobs: 2 });
+      expect(transport.sent).toHaveLength(0);
+
+      paperOut = false;
+      expect(await queue.runOnce()).toBe("blocked");
+      expect(queue.resumeDeviceFault("manager-1")).toBe(true);
+      await queue.waitForIdle();
+      expect(getPrintJob(db, "head")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(getPrintJob(db, "tail")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(getPrintQueueStatus(db)).toMatchObject({ blocked: false, waitingJobs: 0 });
+      expect(transport.sent.map((bytes) => Buffer.from(bytes).toString())).toEqual(["payload:head", "payload:tail"]);
+    } finally {
+      await app.close();
     }
   });
 });

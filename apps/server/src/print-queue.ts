@@ -21,6 +21,18 @@ function headOperation(db: PosDatabase): Record<string, unknown> | undefined {
   return db.prepare("SELECT * FROM printer_operations WHERE printer_id='receipt-1' AND state IN ('pending','sending','retry_wait') ORDER BY sequence LIMIT 1").get() as Record<string, unknown> | undefined;
 }
 
+export type PrintQueueStatus = { blocked: boolean; blockReason: string | null; jobId: string | null; errorMessage: string | null; waitingJobs: number };
+
+// 画面表示用にキューの停止状態を返す。device fault で止まっている場合は、
+// 先頭ジョブの失敗理由もあわせて返す（F-057）。
+export function getPrintQueueStatus(db: PosDatabase): PrintQueueStatus {
+  const waitingJobs = Number((db.prepare("SELECT COUNT(*) AS count FROM printer_operations WHERE printer_id='receipt-1' AND state IN ('pending','sending','retry_wait')").get() as { count: number }).count);
+  const head = headOperation(db);
+  if (!head || head.block_reason !== "device_fault") return { blocked: false, blockReason: null, jobId: null, errorMessage: null, waitingJobs };
+  const job = getPrintJob(db, String(head.payload_ref));
+  return { blocked: true, blockReason: "device_fault", jobId: String(head.payload_ref), errorMessage: job?.errorMessage ?? null, waitingJobs };
+}
+
 function updateAttempt(db: PosDatabase, jobId: string, attemptNo: number, values: { phase?: string; endedAt?: string; adapterHash?: string; writeHash?: string; acceptedBytes?: number; result?: string; errorCode?: string; errorMessage?: string; transportEvidence?: unknown; statusObservation?: unknown }): void {
   db.prepare(`UPDATE print_attempts SET phase=COALESCE(?,phase),ended_at=COALESCE(?,ended_at),adapter_bytes_sha256=COALESCE(?,adapter_bytes_sha256),write_bytes_sha256=COALESCE(?,write_bytes_sha256),accepted_bytes=COALESCE(?,accepted_bytes),result=COALESCE(?,result),error_code=COALESCE(?,error_code),error_message=COALESCE(?,error_message),transport_evidence_json=COALESCE(?,transport_evidence_json),status_snapshot_json=COALESCE(?,status_snapshot_json) WHERE job_id=? AND attempt_no=?`)
     .run(values.phase ?? null, values.endedAt ?? null, values.adapterHash ?? null, values.writeHash ?? null, values.acceptedBytes ?? null, values.result ?? null, values.errorCode ?? null, values.errorMessage ?? null, values.transportEvidence === undefined ? null : JSON.stringify(values.transportEvidence), values.statusObservation === undefined ? null : JSON.stringify(values.statusObservation), jobId, attemptNo);

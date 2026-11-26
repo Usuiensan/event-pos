@@ -229,6 +229,8 @@ html, body, #root { margin: 0; width: 100%; min-height: 100%; touch-action: mani
 .print-status.failed { background: #ffe8e8; color: #821c1c; }
 .print-status.unknown { background: #2c1737; color: #fff; border-style: double; }
 .print-status.canceled { background: #ececec; color: #444; }
+.printer-alert { box-sizing: border-box; width: 100%; padding: .55rem .8rem; background: #b91c1c; color: #fff; font-weight: 900; text-align: center; }
+.printer-queue-blocked { padding: .55rem .8rem; background: #ffe8e8; color: #821c1c; font-weight: 700; border: 2px solid currentColor; border-radius: .45rem; }
 .reprint-layer { z-index: 150; }
 .unknown-product-layer { z-index: 140; }
 .unknown-product-modal {
