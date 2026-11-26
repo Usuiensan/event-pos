@@ -326,6 +326,42 @@ describe("durable checkout API", () => {
     ]);
   });
 
+  it("複合支払では顧客射影・レシートの預りと釣銭が記録の合計と一致する（F-075）", async () => {
+    const { app, db } = makeApp();
+    const product = { ...catalog.products[0]!, priceInclTax: 100 };
+    await installCatalog(app, { ...catalog, products: [product, ...catalog.products.slice(1)], autoDiscountRules: [] });
+
+    const runScenario = async (registerId: string, key: string, payments: Array<{ kind: "cash" | "credit"; amountYen: number; tenderedYen?: number }>) => {
+      let draft = await startDraft(app, registerId);
+      draft = await addLine(app, draft);
+      expect(draft.calculation.totalYen).toBe(100);
+      for (const payment of payments) draft = await addPayment(app, draft, payment.kind, payment.amountYen, payment.tenderedYen);
+      const response = await finalize(app, draft, key);
+      expect(response.statusCode).toBe(201);
+      const projection = (await app.inject({ url: `/api/v1/customer-displays/${registerId}?registerId=${registerId}` })).json();
+      const snapshotRow = db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE document_type='receipt' ORDER BY created_at DESC, job_id DESC LIMIT 1").get() as { receipt_snapshot_json: string };
+      return { projection, snapshot: JSON.parse(snapshotRow.receipt_snapshot_json) };
+    };
+
+    // A: クレジット40 → 現金60（預り100）。記録の釣銭は40。
+    const a = await runScenario("register-f075-a", "f075-a", [{ kind: "credit", amountYen: 40 }, { kind: "cash", amountYen: 60, tenderedYen: 100 }]);
+    expect(a.projection.payment).toMatchObject({ state: "completed", tenderedYen: 100, changeYen: 40 });
+    expect(a.snapshot).toMatchObject({ tenderedYen: 100, changeYen: 40 });
+
+    // B: 現金60（預り100）→ クレジット40。順序が逆でも同じ集計。
+    const b = await runScenario("register-f075-b", "f075-b", [{ kind: "cash", amountYen: 60, tenderedYen: 100 }, { kind: "credit", amountYen: 40 }]);
+    expect(b.projection.payment).toMatchObject({ state: "completed", tenderedYen: 100, changeYen: 40 });
+    expect(b.snapshot).toMatchObject({ tenderedYen: 100, changeYen: 40 });
+
+    // C: 現金行が複数（30・預り50 と 70・預り100）。最初の行だけではなく全行の合計。
+    const c = await runScenario("register-f075-c", "f075-c", [{ kind: "cash", amountYen: 30, tenderedYen: 50 }, { kind: "cash", amountYen: 70, tenderedYen: 100 }]);
+    expect(c.projection.payment).toMatchObject({ state: "completed", tenderedYen: 150, changeYen: 50 });
+    expect(c.snapshot).toMatchObject({ tenderedYen: 150, changeYen: 50 });
+
+    const recorded = db.prepare("SELECT SUM(change_yen) AS change_sum FROM payments").get() as { change_sum: number };
+    expect(recorded.change_sum).toBe(40 + 40 + 50);
+  });
+
   it("支払い行を取り消してから残額を登録し直して確定でき、連番が衝突しない", async () => {
     const { app, db } = makeApp();
     const product = { ...catalog.products[0]!, priceInclTax: 500 };

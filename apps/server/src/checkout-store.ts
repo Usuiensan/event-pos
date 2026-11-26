@@ -162,7 +162,11 @@ export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
 }
 
 function publicProjection(draft: SaleDraftDto, projectionVersion: number): Record<string, unknown> {
-  const cashPayment = draft.payments.find((payment) => payment.kind === "cash");
+  // 預り・釣銭は最初の現金行ではなく全支払行の合計を使う（F-075）。
+  // receiptSnapshot と同じ集計にそろえ、複合支払でも顧客画面・店員画面・紙面・記録で数字を一致させる。
+  const tenderedPayments = draft.payments.filter((payment) => payment.tenderedYen !== undefined);
+  const tenderedTotalYen = tenderedPayments.reduce((sum, payment) => sum + (payment.tenderedYen ?? 0), 0);
+  const changeTotalYen = tenderedPayments.reduce((sum, payment) => sum + (payment.changeYen ?? 0), 0);
   // 中止した会計は顧客画面に表示しない。レジ画面は中止直後にカートを空にするため、
   // 射影が中止前の明細・合計を写したままだと客側だけに存在しない会計が残る（F-040）。
   // completed は会計済み表示のため明細・合計・支払情報を残す。
@@ -180,7 +184,7 @@ function publicProjection(draft: SaleDraftDto, projectionVersion: number): Recor
     lines: draft.lines.filter((line) => line.status === "active").map((line) => ({ lineId: line.lineId, productCode: line.productCode, name: line.name, quantity: line.quantity, unitPriceYen: line.priceInclTax, taxCategory: line.taxCategory, netYen: draft.calculation.lines.find((item) => item.lineId === line.lineId)?.netYen ?? 0 })),
     discounts: draft.calculation.discounts.map((discount) => ({ label: discount.label, amountYen: discount.amountYen })),
     totals: { subtotalYen: draft.calculation.subtotalYen, discountYen: draft.calculation.discountTotalYen, taxYen: draft.calculation.taxTotalYen, totalYen: draft.calculation.totalYen },
-    payment: draft.payments.length ? { state: draft.state === "completed" ? "completed" : "entered", kinds: draft.payments.map((payment) => payment.kind), ...(cashPayment?.tenderedYen === undefined ? {} : { tenderedYen: cashPayment.tenderedYen, changeYen: cashPayment.changeYen }) } : { state: "waiting", kinds: [] },
+    payment: draft.payments.length ? { state: draft.state === "completed" ? "completed" : "entered", kinds: draft.payments.map((payment) => payment.kind), ...(tenderedPayments.length ? { tenderedYen: tenderedTotalYen, changeYen: changeTotalYen } : {}) } : { state: "waiting", kinds: [] },
     ...(draft.completedTransactionId ? { transactionId: draft.completedTransactionId } : {}),
   };
 }
