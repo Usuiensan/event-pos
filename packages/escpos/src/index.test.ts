@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
-import { bytesSha256, canonicalIrToEscPos, encodeBarcode, encodeCp932, receiptDocumentToEscPos, type EscPosRasterAsset } from "./index.js";
+import { bytesSha256, canonicalIrToEscPos, encodeBarcode, encodeCp932, findCp932UnprintableChars, receiptDocumentToEscPos, sanitizeCp932Text, type EscPosRasterAsset } from "./index.js";
 import iconv from "iconv-lite";
 
 const displayWidth = (value: string): number => { let result = 0; for (const char of value) { const cp = char.codePointAt(0)!; result += cp <= 0x7f || cp === 0xa5 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; } return result; };
@@ -139,6 +139,37 @@ describe("pure ESC/POS renderer", () => {
     expect(lines.join("").replace(/ /g, "")).toBe(`${name}×1\\100`);
     expect(lines.at(-1)!.endsWith("100")).toBe(true);
     expect(displayWidth(lines.at(-1)!)).toBe(32);
+  });
+
+  it("印字できない文字を検出・置換し、encodeCp932の厳格さは維持する（F-070/F-071）", () => {
+    expect(findCp932UnprintableChars("商品🍎と部門🍇")).toEqual(["🍎", "🍇"]);
+    expect(findCp932UnprintableChars("通常の商品名 ¥100")).toEqual([]);
+    expect(sanitizeCp932Text("商品🍎")).toBe("商品?");
+    expect(sanitizeCp932Text("日本語 ¥100")).toBe("日本語 \\100");
+    expect(() => encodeCp932("商品🍎")).toThrow("CP932非対応文字が含まれています");
+  });
+
+  it("印字できない文字を含む文書でも例外なく描画し、金額は32列目に揃う（F-070/F-071）", () => {
+    const emojiDocument: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [
+      { kind: "reset" }, { kind: "text", value: "商品🍎テスト" }, { kind: "row", left: "部門🍎 ×1", right: "¥100" }, { kind: "cut", mode: "partial" },
+    ] };
+    for (const options of [{}, { rotate180: true }]) {
+      const bytes = receiptDocumentToEscPos(emojiDocument, [], options);
+      const text = iconv.decode(Buffer.from(bytes), "cp932");
+      expect(text).toContain("商品?テスト");
+      expect(text).toContain("部門?");
+      expect(text).not.toContain("🍎");
+    }
+    // 通常描画では置換後の幅で金額が32列目に揃う（回転描画は制御コードが混ざるため対象外）
+    const text = iconv.decode(Buffer.from(receiptDocumentToEscPos(emojiDocument)), "cp932");
+    const rowLine = text.split("\n").find((line) => line.includes("部門"));
+    expect(rowLine).toBeDefined();
+    expect(displayWidth(rowLine!)).toBe(32);
+    expect(rowLine!.endsWith("100")).toBe(true);
+    // canonical IR経由の再描画でも同じバイト列になる（PrinterHostの再描画照合）
+    const direct = receiptDocumentToEscPos(emojiDocument);
+    const viaIr = canonicalIrToEscPos(canonicalizeReceiptDocument(emojiDocument));
+    expect(viaIr).toEqual(direct);
   });
 
   it("180度回転でも折り返したrowの行順が保たれる", () => {

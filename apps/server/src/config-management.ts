@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import { buildCatalog, writeCatalog } from "@event-pos/catalog-config";
 import { exportEventCatalog, importEventCatalog, type EventCatalog } from "@event-pos/contracts";
 import { getCatalog, saveCatalog, type PosDatabase } from "./db.js";
+import { validateCatalogPrintability } from "./catalog-printability.js";
 import { getOpenBusinessSession, synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
@@ -123,6 +124,8 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       if (getOpenBusinessSession(options.database, request.params.eventId)) throw new Error("営業中は設定を保存できません");
       const catalog = importEventCatalog(JSON.stringify(request.body?.catalog));
       if (catalog.eventId !== request.params.eventId || (options.authRequired && actor.eventId !== catalog.eventId)) throw new Error("eventIdが一致しません");
+      // YAMLへ書き出す前に検証し、印字できない設定がファイル側へ先行公開されないようにする。
+      validateCatalogPrintability(catalog);
       await writeCatalog(options.configDirectory, catalog);
       const verified = await buildCatalog(options.configDirectory);
       const commitId = options.configRepository ? await commitConfig(options.configRepository, options.configDirectory, actor.responsibleNumber) : undefined;
