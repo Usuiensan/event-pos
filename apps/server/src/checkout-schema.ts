@@ -32,7 +32,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       staff_id TEXT NOT NULL,
       terminal_id TEXT NOT NULL,
       business_date TEXT NOT NULL,
-      session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 9),
+      session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 99),
       cash_session_id TEXT,
       version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
       state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
@@ -128,8 +128,8 @@ export function applyCheckoutSchema(db: PosDatabase): void {
     CREATE TABLE IF NOT EXISTS public_reference_counters (
       event_id TEXT NOT NULL,
       business_date TEXT NOT NULL,
-      session_no INTEGER NOT NULL CHECK(session_no BETWEEN 1 AND 9),
-      next_sequence INTEGER NOT NULL CHECK(next_sequence BETWEEN 1 AND 1000000),
+      session_no INTEGER NOT NULL CHECK(session_no BETWEEN 1 AND 99),
+      next_sequence INTEGER NOT NULL CHECK(next_sequence BETWEEN 1 AND 10000000),
       PRIMARY KEY(event_id, business_date, session_no)
     );
     CREATE TABLE IF NOT EXISTS transaction_lines (
@@ -264,7 +264,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       DROP INDEX IF EXISTS ux_sale_drafts_active_register;
       CREATE TABLE sale_drafts_migrated (
         draft_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, register_id TEXT NOT NULL, staff_id TEXT NOT NULL,
-        terminal_id TEXT NOT NULL, business_date TEXT NOT NULL, session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 9),
+        terminal_id TEXT NOT NULL, business_date TEXT NOT NULL, session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 99),
         cash_session_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
         state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
         completed_transaction_id TEXT, park_reference TEXT, parked_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
@@ -277,6 +277,48 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
       COMMIT;
       PRAGMA foreign_keys=ON;
+    `);
+  }
+
+  // 営業番号の2桁化（F-060）: 旧制約（session_no 1〜9）のまま残っているテーブルを再作成する。
+  const saleDraftTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sale_drafts'").get() as { sql?: string } | undefined)?.sql ?? "";
+  if (saleDraftTableSql.includes("BETWEEN 1 AND 9)")) {
+    db.exec(`
+      PRAGMA foreign_keys=OFF;
+      BEGIN;
+      DROP INDEX IF EXISTS ux_sale_drafts_active_register;
+      CREATE TABLE sale_drafts_session_migrated (
+        draft_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, register_id TEXT NOT NULL, staff_id TEXT NOT NULL,
+        terminal_id TEXT NOT NULL, business_date TEXT NOT NULL, session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 99),
+        cash_session_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+        state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
+        completed_transaction_id TEXT, park_reference TEXT, parked_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        FOREIGN KEY(cash_session_id) REFERENCES cash_sessions(session_id)
+      );
+      INSERT INTO sale_drafts_session_migrated(draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,park_reference,parked_at,created_at,updated_at)
+        SELECT draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,park_reference,parked_at,created_at,updated_at FROM sale_drafts;
+      DROP TABLE sale_drafts;
+      ALTER TABLE sale_drafts_session_migrated RENAME TO sale_drafts;
+      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
+      COMMIT;
+      PRAGMA foreign_keys=ON;
+    `);
+  }
+  const counterTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='public_reference_counters'").get() as { sql?: string } | undefined)?.sql ?? "";
+  if (counterTableSql.includes("BETWEEN 1 AND 9)")) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE public_reference_counters_migrated (
+        event_id TEXT NOT NULL, business_date TEXT NOT NULL,
+        session_no INTEGER NOT NULL CHECK(session_no BETWEEN 1 AND 99),
+        next_sequence INTEGER NOT NULL CHECK(next_sequence BETWEEN 1 AND 10000000),
+        PRIMARY KEY(event_id, business_date, session_no)
+      );
+      INSERT INTO public_reference_counters_migrated(event_id,business_date,session_no,next_sequence)
+        SELECT event_id,business_date,session_no,next_sequence FROM public_reference_counters;
+      DROP TABLE public_reference_counters;
+      ALTER TABLE public_reference_counters_migrated RENAME TO public_reference_counters;
+      COMMIT;
     `);
   }
 

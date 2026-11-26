@@ -14,6 +14,11 @@ describe("nextInputBuffer", () => {
     expect(classifyScan(type("PS1426080210000015"))).toEqual({ kind: "transaction", reference: "10000015", businessDate: "2026-08-02" });
   });
 
+  it("受付番号10桁化後の16桁バーコード（日付6桁+受付番号10桁）も取引として取り込む", () => {
+    expect(classifyScan(type("PS142608021000000015"))).toEqual({ kind: "transaction", reference: "1000000015", businessDate: "2026-08-02" });
+    expect(classifyScan(type("2608021000000015"))).toEqual({ kind: "transaction", reference: "1000000015", businessDate: "2026-08-02" });
+  });
+
   it("文字で始まるコードは記号も含めてそのまま取り込む", () => {
     expect(type("ABC-1234")).toBe("ABC-1234");
     expect(classifyScan(type("ABC-1234"))).toEqual({ kind: "product", raw: "ABC-1234" });

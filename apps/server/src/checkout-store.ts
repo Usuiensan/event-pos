@@ -503,7 +503,7 @@ export function allocatePublicReference(db: PosDatabase, eventId: string, busine
   const alreadyUsed = db.prepare("SELECT 1 FROM transactions WHERE event_id=? AND public_reference=? UNION SELECT 1 FROM holds WHERE event_id=? AND public_reference=? LIMIT 1");
   while (true) {
     const sequence = (counter.get(eventId, businessDate, sessionNo) as { next_sequence: number }).next_sequence;
-    if (sequence > 999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
+    if (sequence > 9_999_999) throw new CheckoutError(409, "PUBLIC_REFERENCE_EXHAUSTED", "受付番号が上限に達しました");
     const raw = createPublicReference(sessionNo, sequence);
     advance.run(eventId, businessDate, sessionNo);
     if (!alreadyUsed.get(eventId, raw, eventId, raw)) return { raw, display: formatPublicReference(raw) };

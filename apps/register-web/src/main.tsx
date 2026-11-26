@@ -714,7 +714,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     if (classification.kind === "hold") { if (!classification.reference) return showOperationError("取り置き受付番号が空です。"); setHoldSearchReference(classification.reference); setShowHoldOperations(true); return; }
     if (classification.kind === "transaction") {
       if (!classification.reference) return showOperationError("取引受付番号が空です。");
-      if (classification.businessDate && /^\d{14}$/.test(raw.trim()) && validatePublicReference(classification.reference)) {
+      if (classification.businessDate && /^(?:\d{14}|\d{16})$/.test(raw.trim()) && validatePublicReference(classification.reference)) {
         const year = Number(classification.businessDate.slice(0, 4)); const month = Number(classification.businessDate.slice(5, 7)); const day = Number(classification.businessDate.slice(8, 10));
         const parsedDate = new Date(Date.UTC(year, month - 1, day));
         if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {

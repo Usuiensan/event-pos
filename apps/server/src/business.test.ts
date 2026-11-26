@@ -3,6 +3,11 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
 import { openDatabase } from "./db.js";
 import { openRegisterForTest, signInForTest } from "./test-support.js";
+import { parsePublicReference, validatePublicReference } from "@event-pos/contracts";
+import { DatabaseSync } from "node:sqlite";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const apps: FastifyInstance[] = [];
 afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
@@ -214,5 +219,73 @@ describe("営業状態と担当者session", () => {
     const released = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/release`, payload: { reason: "来場取消" } });
     expect(released.statusCode).toBe(200);
     expect((await closeBusiness()).statusCode).toBe(200);
+  });
+});
+
+describe("営業番号の2桁対応（F-060）", () => {
+  it("10回目の営業でも下書き・会計確定・取り置きができ、受付番号は10桁になる", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const { eventId } = catalog;
+    const registerId = "register-1";
+    await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: catalog });
+    for (let cycle = 1; cycle <= 9; cycle++) {
+      const date = `2026-08-${String(cycle).padStart(2, "0")}`;
+      const cashSessionId = await openRegisterForTest(app, eventId, date, registerId);
+      expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${cashSessionId}/checks/closing`, payload: { counted: [], terminalId: registerId } })).statusCode, `cycle ${cycle} closing`).toBe(201);
+      const business = (await app.inject(`/api/v1/business-sessions/current?eventId=${eventId}`)).json().session;
+      expect(business.sessionNo).toBe(cycle);
+      expect((await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.businessSessionId}/close`, payload: { terminalId: registerId } })).statusCode, `cycle ${cycle} close`).toBe(200);
+    }
+    const date10 = "2026-08-10";
+    await openRegisterForTest(app, eventId, date10, registerId);
+    const business10 = (await app.inject(`/api/v1/business-sessions/current?eventId=${eventId}`)).json().session;
+    expect(business10.sessionNo).toBe(10);
+    const draftResponse = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId, businessDate: date10, staffId: "001", terminalId: registerId } });
+    expect(draftResponse.statusCode, draftResponse.body).toBe(201);
+    const draft = draftResponse.json();
+    expect(draft.sessionNo).toBe(10);
+    const line = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(line.statusCode, line.body).toBe(201);
+    const paid = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(line.json().version) }, payload: { kind: "cash", amountYen: 100, tenderedYen: 100 } });
+    expect(paid.statusCode, paid.body).toBe(201);
+    const sale = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "f060-sale" }, payload: { version: paid.json().version } });
+    expect(sale.statusCode, sale.body).toBe(201);
+    const reference = sale.json().publicReference as string;
+    expect(reference).toHaveLength(10);
+    expect(validatePublicReference(reference)).toBe(true);
+    expect(parsePublicReference(reference)).toMatchObject({ session: 10, sequence: 1 });
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId, registerId, terminalId: registerId, lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode, hold.body).toBe(201);
+    expect(validatePublicReference(String(hold.json().publicReference))).toBe(true);
+  }, 120000);
+
+  it("旧スキーマ（session_no 1〜9）のDBを開くと制約が移行され、既存行が残る", () => {
+    const path = join(tmpdir(), `event-pos-f060-${process.pid}-${Date.now()}.sqlite`);
+    try {
+      const raw = new DatabaseSync(path);
+      raw.exec(`CREATE TABLE sale_drafts (
+        draft_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, register_id TEXT NOT NULL, staff_id TEXT NOT NULL,
+        terminal_id TEXT NOT NULL, business_date TEXT NOT NULL, session_no INTEGER NOT NULL DEFAULT 1 CHECK(session_no BETWEEN 1 AND 9),
+        cash_session_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK(version >= 1),
+        state TEXT NOT NULL CHECK(state IN ('editing','payment','finalizing','parked','completed','canceled')),
+        park_reference TEXT, parked_at TEXT, completed_transaction_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE public_reference_counters (
+        event_id TEXT NOT NULL, business_date TEXT NOT NULL,
+        session_no INTEGER NOT NULL CHECK(session_no BETWEEN 1 AND 9),
+        next_sequence INTEGER NOT NULL CHECK(next_sequence BETWEEN 1 AND 1000000),
+        PRIMARY KEY(event_id, business_date, session_no)
+      );
+      INSERT INTO public_reference_counters VALUES ('legacy-event', '2026-08-02', 9, 5);`);
+      raw.close();
+      const db = openDatabase(path);
+      expect(db.prepare("SELECT next_sequence FROM public_reference_counters WHERE event_id='legacy-event' AND session_no=9").get()).toEqual({ next_sequence: 5 });
+      expect(() => db.prepare("INSERT INTO public_reference_counters (event_id,business_date,session_no,next_sequence) VALUES ('legacy-event','2026-08-02',10,1)").run()).not.toThrow();
+      expect(() => db.prepare(`INSERT INTO sale_drafts (draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,version,state,created_at,updated_at)
+        VALUES ('d1','legacy-event','register-1','001','register-1','2026-08-02',10,1,'editing','2026-08-02T00:00:00.000Z','2026-08-02T00:00:00.000Z')`).run()).not.toThrow();
+      db.close();
+    } finally {
+      rmSync(path, { force: true }); rmSync(`${path}-wal`, { force: true }); rmSync(`${path}-shm`, { force: true });
+    }
   });
 });
