@@ -87,6 +87,8 @@ function DetailHeader() {
 function App({ role, registerNumber }: { role: RegisterRole; registerNumber: number }) {
   const storageKey = (suffix: string) => `event-pos-register-${registerNumber}-${suffix}`;
   const [catalog, setCatalog] = useState(initialCatalog);
+  const [catalogStatus, setCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [serverDraft, setServerDraft] = useState<CheckoutDraft | null>(null);
   const [authoritativeTotal, setAuthoritativeTotal] = useState<number | null>(null);
@@ -559,7 +561,26 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
    }, [checkoutLocked, lastAddedShortcut, role, selectedLine, showSignIn, total, catalog.products]);
-  useEffect(() => { void resolveActiveEventId().then((eventId) => fetch(apiUrl(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`))).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    setCatalogStatus("loading");
+    void (async () => {
+      try {
+        const eventId = await resolveActiveEventId();
+        const response = await fetch(apiUrl(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`));
+        if (!response.ok) {
+          // デモは同梱カタログで起動できる。実イベントのカタログが読めない場合は
+          // デモで代替せずエラーとして止める（誤開局の防止）。
+          if (eventId !== demoCatalog.eventId) throw new Error(`catalog fetch failed: ${response.status}`);
+          if (!cancelled) { setCatalog(initialCatalog); setCatalogStatus("ready"); }
+          return;
+        }
+        const loaded = (await response.json()).catalog as EventCatalog;
+        if (!cancelled) { setCatalog(loaded); setCatalogStatus("ready"); }
+      } catch { if (!cancelled) setCatalogStatus("error"); }
+    })();
+    return () => { cancelled = true; };
+  }, [bootAttempt]);
   useEffect(() => {
     if (role !== "staff" || !authActor) return;
     inventoryRefreshRef.current = refreshInventory;
@@ -810,6 +831,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
      {showOfficialReceipt && <div className="modal-backdrop"><form className="official-receipt-modal" onSubmit={(event) => { event.preventDefault(); issueOfficialReceipt(); }}><h2>領収書を発行</h2><p>宛名・但し書きは、印刷された領収書に手書きで記入してください。</p><div><button type="submit" disabled={officialReceiptBusy}>{officialReceiptBusy ? "発行中…" : "発行する"}</button><button type="button" onClick={() => setShowOfficialReceipt(false)}>戻る</button></div></form></div>}
    </>;
    const training = isTrainingMode();
+  if (catalogStatus === "loading") return <main className="launcher-screen"><section className="launcher-card"><p>読み込み中…</p></section></main>;
+  if (catalogStatus === "error") return <main className="launcher-screen"><section className="launcher-card"><h1>カタログを読み込めません</h1><p>サーバーに接続できませんでした。接続を確認して、再試行してください。</p><button onClick={() => setBootAttempt((current) => current + 1)}>再試行</button></section></main>;
    if (role === "customer") return <main className={`pos-screen customer-screen${training ? " training-mode" : ""}`}>{training && TRAINING_BANNER}<section className="customer-lines">{(customerAgeNotice || customerRequiresAge) && <div className={`age-notice ${customerAgeNotice === "verified" ? "" : "customer-age-prompt"} ${customerAgeNotice ?? "required"}`}><strong>{customerAgeNotice === "verified" ? `年齢確認済み（${customerAgeMinimum}歳以上）` : `あなたは${customerAgeMinimum}歳以上ですか？`}</strong>{customerAgeNotice !== "verified" && <button className="customer-age-yes" onPointerUp={() => { if (!ageConfirmationRequest || ageConfirmationRequest.state !== "requested") return; void checkoutApi.acknowledgeAgeConfirmation(terminalId, registerId, ageConfirmationRequest.requestId).then(() => { setCustomerAgeAcknowledged(true); setCustomerAgeNotice("verified"); speakIdentityMayBeRequested(speech); }).catch((error) => showSystemError(errorMessage(error))); }}>はい</button>}</div>}{cart.length === 0 ? <div className="customer-empty customer-welcome">{catalog.customerWelcome?.imageUrl && <img src={catalog.customerWelcome.imageUrl} alt="" />}{catalog.customerWelcome?.circleName && <strong>{catalog.customerWelcome.circleName}</strong>}{catalog.customerWelcome?.space && <span>{catalog.customerWelcome.space}</span>}<p>{catalog.customerWelcome?.message ?? "いらっしゃいませ"}</p></div> : <><div className="customer-line customer-line-head"><span>商品名</span><span>税区分</span><span>点数</span></div>{cart.map((line, index) => <div data-product-code={line.product.productCode} className={`customer-line ${lineClassName(line)}`} key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{taxCategoryLabel(line.product.taxCategory)}</span><span>{isQuantityAnimated(line) ? <span className="line-quantity-change">{line.quantity}</span> : line.quantity}点</span></div>)}</>}{displayDiscounts.map((discount, index) => <div className="customer-discount" key={`${discount.label}-${index}`}><span>{discount.label}</span><strong>-{discount.amountYen.toLocaleString()}円</strong></div>)}</section><footer className="customer-total"><span>{customerCheckoutStatus ?? `合計 ${activeCart.reduce((sum, line) => sum + line.quantity, 0)}点`}</span><strong>{total.toLocaleString()}円</strong></footer>{emergencyModal}</main>;
   if (!authActor || businessSession?.state !== "open" || registerState?.state !== "open") return <main className={`pos-screen lifecycle-shell${training ? " training-mode" : ""}`}>
     {training && TRAINING_BANNER}
@@ -862,11 +885,15 @@ function Launcher() {
 
 function AdminRoot() {
   const [eventId, setEventId] = useState<string | undefined>(undefined);
+  const [resolutionFailed, setResolutionFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    void resolveActiveEventId().then((resolved) => { if (!cancelled) setEventId(resolved); });
+    setResolutionFailed(false);
+    void resolveActiveEventId().then((resolved) => { if (!cancelled) setEventId(resolved); }).catch(() => { if (!cancelled) setResolutionFailed(true); });
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
+  if (resolutionFailed) return <main className="launcher-screen"><section className="launcher-card"><h1>イベントを読み込めません</h1><p>サーバーに接続できませんでした。接続を確認して、再試行してください。</p><button onClick={() => setAttempt((current) => current + 1)}>再試行</button></section></main>;
   if (!eventId) return <main className="launcher-screen"><section className="launcher-card"><p>読み込み中…</p></section></main>;
   return <AdminSettings eventId={eventId} />;
 }
