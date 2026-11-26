@@ -66,11 +66,7 @@ export function createManualRefund(db: PosDatabase, input: ManualRefundInput) {
   if (!input.description.trim()) throw new CheckoutError(400, "REFUND_DESCRIPTION_REQUIRED", "商品名または返金内容が必要です");
   if (!Number.isSafeInteger(input.amountYen) || input.amountYen <= 0) throw new CheckoutError(400, "REFUND_AMOUNT_INVALID", "返金額は1円以上の整数で入力してください");
   if (!input.idempotencyKey.trim()) throw new CheckoutError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Keyが必要です");
-  const product = input.productCode ? db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, input.productCode) as { product_id: string; product_code: string; name: string } | undefined : undefined;
-  const productCodeNotFound = !!input.productCode && !product;
-  if (productCodeNotFound && input.confirmWithoutProductCode !== true) throw new CheckoutError(400, "PRODUCT_CODE_NOT_FOUND", `商品コード「${input.productCode}」は商品マスタに存在しません`);
   const requestedQuantity = input.productCode ? Math.max(1, Math.trunc(input.quantity ?? 1)) : 1;
-  const quantity = product ? requestedQuantity : 1;
   const selectedReason = input.reason?.trim() || null; const reasonText = selectedReason ?? "紙面へ手書き"; const movementReason = selectedReason ?? "例外返金";
   // 商品マスタが変わっても同じリクエストのハッシュは変えない。
   const requestHash = createHash("sha256").update(JSON.stringify({ ...input, quantity: requestedQuantity })).digest("hex");
@@ -78,6 +74,11 @@ export function createManualRefund(db: PosDatabase, input: ManualRefundInput) {
   try {
     const replay = db.prepare("SELECT request_hash,response_json FROM idempotency_records WHERE scope='manual-refund' AND idempotency_key=?").get(input.idempotencyKey) as { request_hash: string; response_json: string } | undefined;
     if (replay) { if (replay.request_hash !== requestHash) throw new CheckoutError(409, "IDEMPOTENCY_KEY_REUSED", "同じIdempotency-Keyが異なる返金に使用されています"); db.exec("COMMIT"); return JSON.parse(replay.response_json); }
+    // 商品の存在確認は冪等リプレイ照合の後に行う。確定後に商品がマスタから消えても、記録済みの結果を再送で受け取れるようにするため。
+    const product = input.productCode ? db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, input.productCode) as { product_id: string; product_code: string; name: string } | undefined : undefined;
+    const productCodeNotFound = !!input.productCode && !product;
+    if (productCodeNotFound && input.confirmWithoutProductCode !== true) throw new CheckoutError(400, "PRODUCT_CODE_NOT_FOUND", `商品コード「${input.productCode}」は商品マスタに存在しません`);
+    const quantity = product ? requestedQuantity : 1;
     const session = db.prepare("SELECT c.event_id,c.business_date,c.state,c.opening_yen,b.session_no AS session_no FROM cash_sessions c LEFT JOIN business_sessions b ON b.business_session_id=c.business_session_id WHERE c.session_id=?").get(input.cashSessionId) as { event_id: string; business_date: string; state: string; opening_yen: number | null; session_no: number | null } | undefined;
     if (!session || session.event_id !== input.eventId || session.state !== "open" || session.opening_yen === null) throw new CheckoutError(409, "CASH_SESSION_NOT_OPEN", "開局中の現金セッションが必要です");
     const now = new Date().toISOString(); const transactionId = uuidV7(); const printJobId = uuidV7(); const operationId = uuidV7();
