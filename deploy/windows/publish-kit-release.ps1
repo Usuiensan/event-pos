@@ -6,7 +6,8 @@ param(
   [string]$Token = $env:GITHUB_TOKEN,
   [switch]$PrepareOnly,
   [switch]$SkipUpdaterCompatCheck,
-  [switch]$Universal
+  [switch]$Universal,
+  [ValidateSet('create-only', 'overwrite')][string]$EnvClass = 'create-only'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +59,15 @@ function Test-UpdaterCompatibility {
     $reader = New-Object System.IO.StreamReader($entry.Open(), [System.Text.Encoding]::UTF8)
     try { $prevUpdaterText = $reader.ReadToEnd() } finally { $reader.Dispose() }
   } finally { $archive.Dispose(); $zipStream.Dispose() }
+  # 分類の追加は先行自己更新（KitUpdaterBootstrap）では乗り越えられない。旧アップデーターは
+  # 未知の分類を manifest 検証で即拒否し、自己更新の前に止まるため、パス許可リストとは別に、
+  # ペイロードが使う分類が前回アップデーターのソースに含まれているかを確認する。
+  $payloadClasses = @($PayloadFiles | ForEach-Object { [string]$_.class } | Sort-Object -Unique)
+  foreach ($payloadClass in $payloadClasses) {
+    if ($prevUpdaterText -notmatch [regex]::Escape($payloadClass)) {
+      throw "ペイロードの分類 '$payloadClass' は前回リリース ($($prevRelease.tag_name)) のアップデーターが対応していません。`nこのまま公開すると現場キットは更新できません。先に、その分類を使わない中間リリース（printer-host.env 類は -EnvClass overwrite で発行）で新しいアップデーターだけを配り、現場キットを一度更新してから、本リリースを公開してください。"
+    }
+  }
   if ($prevUpdaterText -match 'KitUpdaterBootstrap: v1') {
     Write-Host '前回アップデーターは先行自己更新（KitUpdaterBootstrap）対応のため、互換チェックを省略します。'
     return
@@ -137,7 +147,11 @@ try {
       path = $rel.Replace('\', '/')
       sha256 = (Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLower()
       size = $f.Length
-      class = $(if ($rel -ieq 'update-usb-kit.ps1') { 'self' } else { 'overwrite' })
+      # printer-host.env / printer-host-macos.env は現場設定（プリンター名・USBシリアル等）のため、
+      # 既存ファイルがあるキットでは上書きしない create-only で配る（F-065）。前回アップデーターが
+      # create-only に未対応の間は -EnvClass overwrite の中間リリースで新しいアップデーターを先に配る
+      # （互換チェックが検出して止める）。
+      class = $(if ($rel -ieq 'update-usb-kit.ps1') { 'self' } elseif ($rel -ieq 'printer-host.env' -or $rel -ieq 'printer-host-macos.env') { $EnvClass } else { 'overwrite' })
     }
   }
   if ($SkipUpdaterCompatCheck) {
