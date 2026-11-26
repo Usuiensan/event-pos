@@ -12,6 +12,7 @@ import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArt
 import { applyBusinessSchema } from "./business-schema.js";
 import { applyHoldSchema } from "./hold-schema.js";
 import { applyProductAssistSchema } from "./product-assist-schema.js";
+import { validateCatalogPrintability } from "./catalog-printability.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -113,6 +114,7 @@ export function listCatalogs(db: PosDatabase): CatalogRecord[] {
 export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: string, action = "upsert"): CatalogRecord {
   const updatedAt = new Date().toISOString();
   const catalog = importEventCatalog(catalogJson);
+  validateCatalogPrintability(catalog);
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO event_catalogs (event_id, catalog_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET catalog_json = excluded.catalog_json, updated_at = excluded.updated_at").run(eventId, catalogJson, updatedAt);

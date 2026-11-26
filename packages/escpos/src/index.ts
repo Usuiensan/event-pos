@@ -27,6 +27,25 @@ export function encodeCp932(value: string): Uint8Array {
   return Uint8Array.from(bytes);
 }
 
+function isCp932Encodable(char: string): boolean {
+  return iconv.decode(iconv.encode(char, "cp932"), "cp932") === char;
+}
+
+// CP932で往復できず印字できない文字を列挙する（保存時検証用）。
+export function findCp932UnprintableChars(value: string): string[] {
+  const found = new Set<string>();
+  for (const char of normalizeCp932Text(value)) if (!isCp932Encodable(char)) found.add(char);
+  return [...found];
+}
+
+// 印字できない文字を "?" へ置換する（印字時の防御用）。確定記録には原文を保持し、
+// 置換は印字データ生成の入口だけで行う。encodeCp932 の厳格な検証は維持する。
+export function sanitizeCp932Text(value: string): string {
+  let result = "";
+  for (const char of normalizeCp932Text(value)) result += isCp932Encodable(char) ? char : "?";
+  return result;
+}
+
 function charColumns(char: string): number {
   // ¥ (U+00A5) は CP932 では半角1桁 (0x5C) で印字されるため1列として数える。
   const cp = char.codePointAt(0)!;
@@ -146,8 +165,15 @@ function rasterBytes(asset: EscPosRasterAsset, requestedWidth: number, rotate180
 
 function append(parts: number[], bytes: Uint8Array): void { parts.push(...bytes); }
 
-export function receiptDocumentToEscPos(document: ReceiptDocument, assets: readonly EscPosRasterAsset[] = [], options: EscPosRenderOptions = {}): Uint8Array {
-  validateDocument(document);
+export function receiptDocumentToEscPos(sourceDocument: ReceiptDocument, assets: readonly EscPosRasterAsset[] = [], options: EscPosRenderOptions = {}): Uint8Array {
+  validateDocument(sourceDocument);
+  // 印字できない文字は折り返し計算より前に "?" へ置換し、印字データ生成の例外で
+  // 業務トランザクション（会計確定・精算）を巻き戻さないようにする。
+  const document: ReceiptDocument = { ...sourceDocument, nodes: sourceDocument.nodes.map((node) => {
+    if (node.kind === "text") return { ...node, value: sanitizeCp932Text(node.value) };
+    if (node.kind === "row") return { ...node, left: sanitizeCp932Text(node.left), right: sanitizeCp932Text(node.right) };
+    return node;
+  }) };
   const assetsById = new Map(assets.map((asset) => [asset.assetId, asset])); const output: number[] = [];
   if (options.rotate180) {
     type State = { align: "left" | "center" | "right"; bold: boolean; underline: boolean; invert: boolean; width: 1 | 2; height: 1 | 2 };
