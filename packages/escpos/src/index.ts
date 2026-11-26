@@ -27,17 +27,49 @@ export function encodeCp932(value: string): Uint8Array {
   return Uint8Array.from(bytes);
 }
 
+function charColumns(char: string): number {
+  // ¥ (U+00A5) は CP932 では半角1桁 (0x5C) で印字されるため1列として数える。
+  const cp = char.codePointAt(0)!;
+  return cp <= 0x7f || cp === 0xa5 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2;
+}
+
 function columns(value: string): number {
   let result = 0;
-  // ¥ (U+00A5) は CP932 では半角1桁 (0x5C) で印字されるため1列として数える。
-  for (const char of value.normalize("NFC")) { const cp = char.codePointAt(0)!; result += cp <= 0x7f || cp === 0xa5 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; }
+  for (const char of value.normalize("NFC")) result += charColumns(char);
   return result;
 }
 
+function wrapColumns(value: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = ""; let lineColumns = 0;
+  for (const char of value.normalize("NFC")) {
+    const charWidth = charColumns(char);
+    if (line && lineColumns + charWidth > width) { lines.push(line); line = ""; lineColumns = 0; }
+    line += char; lineColumns += charWidth;
+  }
+  lines.push(line);
+  return lines;
+}
+
 function rowText(left: string, right: string): string {
-  const padding = 32 - columns(left) - columns(right);
-  if (padding < 1) throw new EscPosError("2列が384 dotsの内容幅を超えています");
-  return `${left}${" ".repeat(padding)}${right}`;
+  const rightColumns = columns(right);
+  const padding = 32 - columns(left) - rightColumns;
+  if (padding >= 1) return `${left}${" ".repeat(padding)}${right}`;
+  if (rightColumns >= 32) throw new EscPosError("2列が384 dotsの内容幅を超えています");
+  // 左側が右側と同居できない場合は切り捨てず折り返し、右側は最終行の右端にそろえる。
+  const lines = wrapColumns(left, 32);
+  const last = lines.pop()!;
+  const lastLineWidth = 32 - rightColumns - 1;
+  if (columns(last) <= lastLineWidth) {
+    lines.push(`${last}${" ".repeat(32 - columns(last) - rightColumns)}${right}`);
+  } else if (lastLineWidth >= 2) {
+    const tail = wrapColumns(last, lastLineWidth);
+    const tailLast = tail.pop()!;
+    lines.push(...tail, `${tailLast}${" ".repeat(32 - columns(tailLast) - rightColumns)}${right}`);
+  } else {
+    lines.push(last, `${" ".repeat(32 - rightColumns)}${right}`);
+  }
+  return lines.join("\n");
 }
 
 function qrBytes(dataValue: string, moduleSize: number, errorCorrection: "L" | "M" | "Q" | "H"): Uint8Array {
@@ -134,7 +166,11 @@ export function receiptDocumentToEscPos(document: ReceiptDocument, assets: reado
       if (node.kind === "align") { state.align = node.value; continue; }
       if (node.kind === "emphasis") { state.bold = node.bold; state.underline = node.underline; state.invert = node.invert; continue; }
       if (node.kind === "size") { state.width = node.width; state.height = node.height; continue; }
-      if (node.kind === "text" && node.value.includes("\n")) {
+      const rowLines = node.kind === "row" ? rowText(node.left, node.right).split("\n") : undefined;
+      if (rowLines && rowLines.length > 1) {
+        // 折り返したrowは行ごとにsegmentへ分け、回転時の行順反転へ追随させる。
+        for (const value of rowLines) segments.push({ state: copyState(), node: { kind: "text", value } });
+      } else if (node.kind === "text" && node.value.includes("\n")) {
         for (const value of node.value.split("\n")) segments.push({ state: copyState(), node: { kind: "text", value } });
       } else segments.push({ state: copyState(), node });
     }

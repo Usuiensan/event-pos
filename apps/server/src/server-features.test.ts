@@ -279,3 +279,18 @@ describe("在庫調整", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements WHERE type='adjustment'").get()).toEqual({ count: 0 });
   });
 });
+
+describe("長い商品名の保留票（F-061）", () => {
+  it("全角16文字の商品名でも保留できる", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    const longCatalog = { eventId: "longname-feature-event", event: { name: "長名イベント", businessDate: "2026-08-02", seller: { circleName: "試験サークル", space: "A01", receiptIssuerName: "試験" }, locale: { language: "ja", currency: "JPY", timezone: "Asia/Tokyo" } }, products: [{ productCode: "00000001", name: "あいうえおかきくけこさしすせそた", priceInclTax: 100, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/longname-feature-event/catalog", payload: longCatalog })).statusCode).toBe(200);
+    await openRegisterForTest(app, "longname-feature-event", "2026-08-02", "register-1");
+    const draft = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: "longname-feature-event", staffId: "001", terminalId: "register-1", businessDate: "2026-08-02" } })).json();
+    const line = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(line.statusCode).toBe(201);
+    const parked = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/park`, payload: { terminalId: "register-1" } });
+    expect(parked.statusCode).toBe(201);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='park_ticket'").get()).toEqual({ count: 1 });
+  });
+});

@@ -287,10 +287,10 @@ function enqueueCashCheckReceipt(db: PosDatabase, session: { event_id: string; b
   ] };
   if (summary) document.nodes.splice(-2, 0,
     ...section("売上集計", [{ left: "取引件数", right: `${summary.salesCount}件` }, { left: "売上合計", right: yen(summary.salesYen) }, ...(summary.noChargeCount > 0 ? [{ left: "無配", right: `${summary.noChargeCount}件 ${yen(summary.noChargeYen)}` }] : [])]),
-    ...section("商品別", summary.products.map((row) => ({ left: `${row.name.slice(0, 14)} ×${row.quantity}`, right: yen(row.salesYen) }))),
-    ...section("部門別", summary.departments.map((row) => ({ left: `${row.name.slice(0, 14)} ×${row.quantity}`, right: yen(row.salesYen) }))),
+    ...section("商品別", summary.products.map((row) => ({ left: `${row.name} ×${row.quantity}`, right: yen(row.salesYen) }))),
+    ...section("部門別", summary.departments.map((row) => ({ left: `${row.name} ×${row.quantity}`, right: yen(row.salesYen) }))),
     ...section("担当者別", summary.staff.map((row) => ({ left: `${row.staffId} ${row.salesCount}件`, right: yen(row.salesYen) }))),
-    ...section("決済手段別", summary.payments.map((row) => ({ left: `${row.methodName.slice(0, 14)} ${row.salesCount}件`, right: yen(row.salesYen) }))),
+    ...section("決済手段別", summary.payments.map((row) => ({ left: `${row.methodName} ${row.salesCount}件`, right: yen(row.salesYen) }))),
     ...section("時間帯別（JST）", summary.timeBands.map((row) => ({ left: `${row.timeBand} ${row.salesCount}件`, right: yen(row.salesYen) }))),
   );
   if (check.kind === "closing" || check.kind === "interim") document.nodes.splice(-2, 0,

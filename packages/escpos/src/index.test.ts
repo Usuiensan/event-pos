@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { canonicalizeReceiptDocument, type ReceiptDocument } from "@event-pos/receipt-ir";
 import { bytesSha256, canonicalIrToEscPos, encodeBarcode, encodeCp932, receiptDocumentToEscPos, type EscPosRasterAsset } from "./index.js";
+import iconv from "iconv-lite";
+
+const displayWidth = (value: string): number => { let result = 0; for (const char of value) { const cp = char.codePointAt(0)!; result += cp <= 0x7f || cp === 0xa5 || (cp >= 0xff61 && cp <= 0xff9f) ? 1 : 2; } return result; };
 
 const raster = Uint8Array.from([0x80, 0x40]);
 const asset: EscPosRasterAsset = { assetId: "logo", version: 1, sha256: bytesSha256(raster), widthDots: 8, heightDots: 2, rasterBase64: Buffer.from(raster).toString("base64") };
@@ -119,5 +122,33 @@ describe("pure ESC/POS renderer", () => {
     expect(normal).toEqual(split);
     const rotated = Buffer.from(receiptDocumentToEscPos({ ...document, nodes }, [], { rotate180: true })).toString("binary");
     expect(rotated.indexOf("B")).toBeLessThan(rotated.indexOf("A"));
+  });
+
+  it("左側が長いrowは例外にせず折り返し、金額を最終行の右端にそろえる", () => {
+    const name = "あいうえおかきくけこさしすせそた"; // 全角16文字 = 32列
+    const bytes = receiptDocumentToEscPos({ ...document, nodes: [
+      { kind: "reset" }, { kind: "row", left: `${name} ×1`, right: "¥100" }, { kind: "cut", mode: "partial" },
+    ] });
+    const text = iconv.decode(Buffer.from(bytes), "cp932");
+    // 制御命令のバイト列を避け、名前の開始位置から折り返した2行を取り出す
+    const lines = text.slice(text.indexOf("あ")).split("\n").slice(0, 2);
+    expect(lines.length).toBe(2);
+    for (const line of lines) expect(displayWidth(line)).toBeLessThanOrEqual(32);
+    // 切り捨てず全文が残り、金額は最終行の右端（32列目）までそろう（¥はCP932復号で \ になる）
+    expect(lines[0]).toBe(name);
+    expect(lines.join("").replace(/ /g, "")).toBe(`${name}×1\\100`);
+    expect(lines.at(-1)!.endsWith("100")).toBe(true);
+    expect(displayWidth(lines.at(-1)!)).toBe(32);
+  });
+
+  it("180度回転でも折り返したrowの行順が保たれる", () => {
+    const name = "あいうえおかきくけこさしすせそた";
+    const bytes = receiptDocumentToEscPos({ ...document, nodes: [
+      { kind: "reset" }, { kind: "align", value: "left" }, { kind: "row", left: `${name} ×1`, right: "¥100" }, { kind: "cut", mode: "partial" },
+    ] }, [], { rotate180: true });
+    const text = iconv.decode(Buffer.from(bytes), "cp932");
+    // 回転出力は行順を反転して送るため、金額のある最終行が名前の先頭より先に現れる
+    expect(text.indexOf("100")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("あいうえお")).toBeGreaterThan(text.indexOf("100"));
   });
 });
