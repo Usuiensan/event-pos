@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
   [ValidateSet('Auto', 'GitHub', 'Local')][string]$Mode = 'Auto',
   [string]$RepoRoot = $(if ($env:EVENT_POS_REPO) { $env:EVENT_POS_REPO } else { 'C:\private\event-pos' })
