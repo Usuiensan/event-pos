@@ -181,7 +181,7 @@ describe("顧客画面realtime境界", () => {
     const lineId = nextAdded.json().lines[0].lineId;
     const deleted = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${nextDraft.draftId}/lines/${lineId}`, headers: { "if-match": String(nextAdded.json().version) } });
     expect(deleted.statusCode).toBe(200);
-    const resumed = await app.inject({ method: "POST", url: `${registerUrl}/parked-drafts/resume`, payload: { parkReference: parkedResponse.json().parkReference, terminalId: "register-1" } });
+    const resumed = await app.inject({ method: "POST", url: `${registerUrl}/parked-drafts/resume`, payload: { parkReference: parkedResponse.json().parkReference, terminalId: "register-1", eventId: catalog.eventId } });
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json().draftId).toBe(draft.draftId);
     const canceledDraft = (await app.inject(`/api/v1/sale-drafts/${nextDraft.draftId}`)).json();

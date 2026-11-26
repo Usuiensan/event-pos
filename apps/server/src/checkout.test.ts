@@ -91,7 +91,7 @@ describe("durable checkout API", () => {
     const url = `/api/v1/sale-drafts/${draft.draftId}`;
     const parked = await app.inject({ method: "POST", url: `${url}/park`, payload: { terminalId: "register-1" } });
     expect(parked.statusCode).toBe(201);
-    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { terminalId: "register-1", parkReference: parked.json().parkReference } });
+    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { terminalId: "register-1", parkReference: parked.json().parkReference, eventId: catalog.eventId } });
     expect(resumed.statusCode).toBe(200);
     draft = await addPayment(app, resumed.json(), kind, totalYen, "tenderedYen" in cash ? cash.tenderedYen : undefined);
     const finalized = await finalize(app, draft, `snapshot-${kind}`);

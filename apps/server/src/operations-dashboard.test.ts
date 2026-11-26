@@ -115,7 +115,7 @@ describe("責任者運用ダッシュボード", () => {
     expect(parked.statusCode).toBe(201);
     expect(await closingBlockers()).toMatchObject([{ holdId, state: "claimed" }]);
 
-    const resumed = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/parked-drafts/resume`, payload: { parkReference: parked.json().parkReference, terminalId: registerId } });
+    const resumed = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/parked-drafts/resume`, payload: { parkReference: parked.json().parkReference, terminalId: registerId, eventId } });
     expect(resumed.statusCode).toBe(200);
     const paid = await app.inject({ method: "POST", url: `${draftUrl}/payments`, headers: { "if-match": String(resumed.json().version) }, payload: { kind: "credit" } });
     expect(paid.statusCode).toBe(201);
