@@ -75,7 +75,7 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
           return reply.code(200).send({ ...existing.result, duplicate: true });
         }
         const failure = existing.failure;
-        if (failure && !(failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0)) {
+        if (failure && !(failure.acceptedBytes === 0 && failure.notSentProven && (failure.deviceFault || failure.retryable))) {
           return reply.code(409).send({ failure, duplicate: true });
         }
       }

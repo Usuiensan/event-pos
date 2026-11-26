@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { bytesSha256 } from "@event-pos/escpos";
 import type { PrinterDispatchFailure, PrinterDispatchResult, PrintJob } from "@event-pos/contracts";
+import { buildPrinterHost } from "@event-pos/printer-host/app";
+import { FakeTransport, TransportSendError } from "@event-pos/printer-host/transport";
 import { createPrintJob, getPrintJob, openDatabase, type PosDatabase } from "./db.js";
 import { PersistentPrintQueue, PrinterHostFailure } from "./print-queue.js";
 
@@ -112,6 +114,44 @@ describe("persistent print queue", () => {
     expect(db.prepare("SELECT attempt_no,result FROM print_attempts WHERE job_id='head' ORDER BY attempt_no").all()).toEqual([
       { attempt_no: 1, result: "retry_wait" }, { attempt_no: 2, result: "retry_wait" }, { attempt_no: 3, result: "retry_wait" }, { attempt_no: 4, result: "failed" },
     ]);
+  });
+
+  it("デバイスを開けるようになったら先頭を一度だけ送信してから後続へ進む", async () => {
+    const db = database();
+    enqueueRaw(db, "head"); enqueueRaw(db, "tail");
+    const transport = new FakeTransport();
+    vi.spyOn(transport, "send").mockRejectedValueOnce(new TransportSendError("デバイスを開けません", 0, true));
+    const getStatus = vi.spyOn(transport, "getStatus");
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 });
+    let nowMs = Date.parse("2026-08-02T00:00:00.000Z");
+    const queue = new PersistentPrintQueue(db, { accept: async (job) => {
+      const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: job });
+      if (response.statusCode === 409) throw new PrinterHostFailure(response.json().failure);
+      expect(response.statusCode).toBe(201);
+      return response.json<PrinterDispatchResult>();
+    } }, () => new Date(nowMs));
+    try {
+      expect(await queue.runOnce()).toBe("processed");
+      expect(getPrintJob(db, "head")).toMatchObject({ state: "retry_wait", deliveryCertainty: "not_sent" });
+      expect(await queue.runOnce()).toBe("blocked");
+      expect(getPrintJob(db, "tail")?.state).toBe("pending");
+      expect(transport.sent).toHaveLength(0);
+
+      const statusReadsBeforeRetry = getStatus.mock.calls.length;
+      nowMs += 2_000;
+      expect(await queue.runOnce()).toBe("processed");
+      expect(getPrintJob(db, "head")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(getStatus).toHaveBeenCalledTimes(statusReadsBeforeRetry + 1);
+      expect(transport.sent.map((bytes) => Buffer.from(bytes).toString())).toEqual(["payload:head"]);
+
+      expect(await queue.runOnce()).toBe("processed");
+      expect(getPrintJob(db, "tail")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+      expect(await queue.runOnce()).toBe("idle");
+      expect(transport.sent.map((bytes) => Buffer.from(bytes).toString())).toEqual(["payload:head", "payload:tail"]);
+    } finally {
+      await queue.stop();
+      await app.close();
+    }
   });
 
   it("short write・timeout・host crashはunknownとして失敗し、自動再送しない", async () => {
