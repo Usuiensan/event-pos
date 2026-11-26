@@ -112,6 +112,8 @@ Linux RAWで途中まで送信した場合は、確認できた受理バイト�
 
 プリンター状態APIはドロアーの有効可否（drawerEnabled）も返します。レジ画面はドロアーが無効な環境では「ドロアーを開く」ボタンを表示しません。ドロアー駆動の運用上の拒否（DRAWER_NOT_ACCEPTED等）はシステムエラーではなく操作エラーとして表示します。
 
+PrinterHostにPRINTER_HOST_TOKENを設定した場合は、サーバーも同じトークン（環境変数PRINTER_HOST_TOKEN）で認証します。USBキットではprinter-host.env／printer-host-macos.envのトークンをサーバーワーカーへも渡します。認証が失敗した（401）ジョブはPrinterHostへ届いていないため、結果不明ではなく「未送信」の失敗として記録します。
+
 ### 現金・営業
 
 - 営業開始、レジ準備
