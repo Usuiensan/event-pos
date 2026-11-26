@@ -48,7 +48,7 @@ function Test-HttpOk {
 
 # ビルド／ペイロードが上書きする範囲だけを退避・復旧の対象にする
 $scopedDirs = @('server\dist', 'printer-host\dist', 'printer-host\scripts', 'web', 'runtime', 'data', 'event-config\usb-kit-initial')
-$rootFiles = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', '.event-pos-usb-kit', 'printer-host.env', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1')
+$rootFiles = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', '.event-pos-usb-kit', 'printer-host.env', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env')
 
 function Backup-Scoped {
   foreach ($rel in $scopedDirs) {
@@ -271,7 +271,7 @@ function Invoke-GitHubUpdate {
     if ($entries.Count -gt 5000) { throw 'ペイロードのファイル数が上限を超えています。' }
     $totalSize = ($entries | Measure-Object -Property size -Sum).Sum
     if ($totalSize -gt 314572800) { throw 'ペイロードの合計サイズが上限を超えています。' }
-    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1')
+    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env')
     $seen = @{}
     $blockedPaths = @()
     foreach ($e in $entries) {
