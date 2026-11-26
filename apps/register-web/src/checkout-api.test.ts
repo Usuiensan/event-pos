@@ -24,6 +24,13 @@ describe("checkout API client", () => {
     await expect(checkoutApi.addPayment("draft-1", 2, { kind: "cash", amountYen: 500, tenderedYen: 100 })).rejects.toMatchObject({ code: "PAYMENT_INSUFFICIENT", message: "預り金が不足しています" } satisfies Partial<CheckoutApiError>);
   });
 
+  it("登録済み支払いの取消を版数ヘッダー付きDELETEで送る", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ draftId: "draft-1", payments: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.removePayment("draft-1", "pay-1", 3);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/sale-drafts/draft-1/payments/pay-1", expect.objectContaining({ method: "DELETE", headers: expect.objectContaining({ "if-match": "3" }) }));
+  });
+
   it("成果物再生成へ責任者と冪等キーを送る", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ artifactId: "artifact-2" }) });
     vi.stubGlobal("fetch", fetchMock);

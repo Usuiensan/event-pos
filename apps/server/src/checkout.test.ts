@@ -301,6 +301,68 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 1 });
   });
 
+  it("少額の支払い行が残った下書きへ残額を追加して確定でき、不足分はエラーに表示される", async () => {
+    const { app, db } = makeApp();
+    const product = { ...catalog.products[0]!, priceInclTax: 500 };
+    await installCatalog(app, { ...catalog, products: [product, ...catalog.products.slice(1)], autoDiscountRules: [] });
+    let draft = await startDraft(app, "register-split-payment");
+    draft = await addLine(app, draft, product.productCode, 2);
+    expect(draft.calculation.totalYen).toBe(1000);
+    draft = await addPayment(app, draft, "cash", 100, 100);
+
+    const shortFinalize = await finalize(app, draft, "split-payment-short");
+    expect(shortFinalize.statusCode).toBe(422);
+    expect(shortFinalize.json().error.code).toBe("PAYMENT_MISMATCH");
+    expect(shortFinalize.json().error.message).toContain("あと900円不足しています");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toMatchObject({ count: 0 });
+
+    draft = await addPayment(app, draft, "cash", 900, 900);
+    expect(draft.payments).toHaveLength(2);
+    const response = await finalize(app, draft, "split-payment-ok");
+    expect(response.statusCode).toBe(201);
+    expect(db.prepare("SELECT kind,amount_yen,tendered_yen,change_yen FROM payments ORDER BY sequence").all()).toEqual([
+      { kind: "cash", amount_yen: 100, tendered_yen: 100, change_yen: 0 },
+      { kind: "cash", amount_yen: 900, tendered_yen: 900, change_yen: 0 },
+    ]);
+  });
+
+  it("支払い行を取り消してから残額を登録し直して確定でき、連番が衝突しない", async () => {
+    const { app, db } = makeApp();
+    const product = { ...catalog.products[0]!, priceInclTax: 500 };
+    await installCatalog(app, { ...catalog, products: [product, ...catalog.products.slice(1)], autoDiscountRules: [] });
+    let draft = await startDraft(app, "register-remove-payment");
+    draft = await addLine(app, draft, product.productCode, 2);
+    draft = await addPayment(app, draft, "cash", 100, 100);
+    draft = await addPayment(app, draft, "credit", 200);
+    expect(draft.payments.map((payment: any) => payment.sequence)).toEqual([1, 2]);
+
+    const removed = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/payments/${draft.payments[0].paymentId}`, headers: { "if-match": String(draft.version) } });
+    expect(removed.statusCode).toBe(200);
+    draft = removed.json();
+    expect(draft.payments).toHaveLength(1);
+
+    draft = await addPayment(app, draft, "cash", 800, 800);
+    expect(draft.payments.map((payment: any) => payment.sequence)).toEqual([2, 3]);
+    expect((await finalize(app, draft, "remove-payment-ok")).statusCode).toBe(201);
+    expect(db.prepare("SELECT kind,amount_yen FROM payments ORDER BY sequence").all()).toEqual([
+      { kind: "credit", amount_yen: 200 },
+      { kind: "cash", amount_yen: 800 },
+    ]);
+  });
+
+  it("支払い合計が会計金額を超える登録と、残額への預り不足を拒否する", async () => {
+    const { app, db } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app, "register-overpay"); draft = await addLine(app, draft);
+    draft = await addPayment(app, draft, "cash", 100, 100);
+    const over = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(draft.version) }, payload: { kind: "credit", amountYen: 100 } });
+    expect(over.statusCode).toBe(422); expect(over.json().error.code).toBe("PAYMENT_MISMATCH");
+    expect(over.json().error.message).toContain("90円超過しています");
+    const short = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(draft.version) }, payload: { kind: "cash", amountYen: 10, tenderedYen: 5 } });
+    expect(short.statusCode).toBe(422); expect(short.json().error.code).toBe("PAYMENT_INSUFFICIENT");
+    expect(short.json().error.message).toContain("あと5円不足しています");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM draft_payments WHERE draft_id=?").get(draft.draftId)).toMatchObject({ count: 1 });
+  });
+
   it("distinguishes credit, accounts receivable, and no-charge payments", async () => {
     const { app, db } = makeApp(); await installCatalog(app);
     for (const [index, kind] of (["credit", "accounts_receivable", "no_charge"] as const).entries()) {
