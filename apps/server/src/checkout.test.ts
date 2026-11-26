@@ -526,6 +526,46 @@ describe("durable checkout API", () => {
     expect(JSON.stringify(db.prepare("SELECT * FROM age_verifications").all())).not.toContain(canary);
   });
 
+  it("年齢制限付き取り置きの受取は、確認不足が下書きに示され、確認を記録すれば明細を変えずに確定できる (F-076)", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000003", quantity: 2 }] } });
+    expect(hold.statusCode).toBe(201);
+    const claimed = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/claim`, payload: { draftId: draft.draftId, version: draft.version } });
+    expect(claimed.statusCode).toBe(200);
+    draft = claimed.json();
+    // 受取直後の下書きは、確定時と同じ判定で「20歳の追加確認が必要」と示す。
+    expect(draft.pendingAgeVerification).toBe(20);
+    expect(draft.ageVerifications).toEqual([]);
+    const claimedLineIds = draft.lines.map((line: any) => line.lineId);
+    draft = await addPayment(app, draft, "credit", 440);
+    const rejected = await finalize(app, draft, "hold-age-unverified");
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json().error.code).toBe("AGE_VERIFICATION_REQUIRED");
+    // 明細を追加し直さず、確認結果だけを同じ下書きへ記録する。
+    const verified = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/age-verifications`, headers: { "if-match": String(draft.version) }, payload: { minimumAge: 20, method: "id_visual", result: "passed", confirmerId: "staff-1", terminalId: "register-1" } });
+    expect(verified.statusCode).toBe(201);
+    draft = verified.json();
+    expect(draft.pendingAgeVerification).toBeNull();
+    expect(draft.lines.map((line: any) => line.lineId)).toEqual(claimedLineIds);
+    expect(draft.lines[0]).toMatchObject({ quantity: 2, status: "active" });
+    expect((await finalize(app, draft, "hold-age-verified")).statusCode).toBe(201);
+  });
+
+  it("取り置き受取後に年齢制限明細をすべて取り消すと追加確認は不要になる (F-076)", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000003", quantity: 1 }, { productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const claimed = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/claim`, payload: { draftId: draft.draftId, version: draft.version } });
+    draft = claimed.json();
+    expect(draft.pendingAgeVerification).toBe(20);
+    const ageLine = draft.lines.find((line: any) => line.productCode === "00000003");
+    const canceled = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${ageLine.lineId}`, headers: { "if-match": String(draft.version) } });
+    expect(canceled.statusCode).toBe(200);
+    expect(canceled.json().pendingAgeVerification).toBeNull();
+  });
+
   it.each([
     {
       title: "合格の後に同じ年齢で不合格を登録すると確定を拒否する",

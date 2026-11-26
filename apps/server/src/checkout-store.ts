@@ -37,6 +37,8 @@ export type SaleDraftDto = {
   lines: DraftLineDto[];
   payments: DraftPaymentDto[];
   ageVerifications: DraftAgeVerificationDto[];
+  // 確定時の年齢要件検査と同じ判定で算出した、追加の担当者確認が必要な年齢（不要なら null）。
+  pendingAgeVerification: 18 | 20 | null;
   calculation: SaleCalculation;
   createdAt: string;
   updatedAt: string;
@@ -154,11 +156,11 @@ export function getSaleDraft(db: PosDatabase, draftId: string): SaleDraftDto {
   };
   if (draft.state === "completed") {
     const completedTransactionId = String(row.completed_transaction_id);
-    return { ...draft, completedTransactionId, ...readCompletedSale(db, completedTransactionId) };
+    return { ...draft, completedTransactionId, pendingAgeVerification: null, ...readCompletedSale(db, completedTransactionId) };
   }
   const lines = readLines(db, draftId);
   const payments = readPayments(db, draftId);
-  return { ...draft, lines, payments, calculation: calculateDraft(db, draft.eventId, lines, payments.some((payment) => payment.kind === "no_charge")) };
+  return { ...draft, lines, payments, pendingAgeVerification: pendingAgeVerification(db, draftId, lines), calculation: calculateDraft(db, draft.eventId, lines, payments.some((payment) => payment.kind === "no_charge")) };
 }
 
 function publicProjection(draft: SaleDraftDto, projectionVersion: number): Record<string, unknown> {
@@ -496,6 +498,18 @@ function requiredAge(db: PosDatabase, lines: DraftLineDto[]): number {
   return maximum;
 }
 
+// 確定時の年齢要件検査と同一の判定（F-076）。有効明細が求める年齢に対し、
+// 登録順で最後の担当者確認（容貌・身分証目視）の結果が合格でなければ、その年齢を追加確認が必要として返す。
+// 取り置き受取など年齢確認を経ずに明細が追加された下書きでも、画面が支払前に同じ判定を使えるようにする。
+function pendingAgeVerification(db: PosDatabase, draftId: string, lines: DraftLineDto[]): 18 | 20 | null {
+  const age = requiredAge(db, lines);
+  if (age <= 0) return null;
+  const latest = db.prepare(`SELECT result FROM draft_age_verifications
+    WHERE draft_id = ? AND minimum_age >= ? AND method IN ('appearance', 'id_visual') AND confirmer_id <> ''
+    ORDER BY rowid DESC LIMIT 1`).get(draftId, age) as { result: DraftAgeVerificationDto["result"] } | undefined;
+  return latest?.result === "passed" ? null : age as 18 | 20;
+}
+
 function validatedPayments(payments: DraftPaymentDto[], calculation: SaleCalculation): Array<DraftPaymentDto & { changeYen?: number }> {
   if (calculation.totalYen === 0 && payments.length === 0) return [{ paymentId: uuidV7(), sequence: 1, kind: "no_charge", amountYen: 0 }];
   if (payments.length === 0) throw new CheckoutError(422, "PAYMENT_REQUIRED", "支払を入力してください");
@@ -571,13 +585,8 @@ export function finalizeSale(db: PosDatabase, draftId: string, version: number, 
     const noCharge = draftPayments.some((payment) => payment.kind === "no_charge");
     const calculation = calculateDraft(db, String(row.event_id), lines, noCharge);
     const payments = validatedPayments(draftPayments, calculation);
-    const age = requiredAge(db, lines);
-    if (age > 0) {
-      const latest = db.prepare(`SELECT result FROM draft_age_verifications
-        WHERE draft_id = ? AND minimum_age >= ? AND method IN ('appearance', 'id_visual') AND confirmer_id <> ''
-        ORDER BY rowid DESC LIMIT 1`).get(draftId, age) as { result: DraftAgeVerificationDto["result"] } | undefined;
-      if (latest?.result !== "passed") throw new CheckoutError(422, "AGE_VERIFICATION_REQUIRED", `${age}歳以上の担当者確認が必要です`, { minimumAge: age });
-    }
+    const pendingAge = pendingAgeVerification(db, draftId, lines);
+    if (pendingAge !== null) throw new CheckoutError(422, "AGE_VERIFICATION_REQUIRED", `${pendingAge}歳以上の担当者確認が必要です`, { minimumAge: pendingAge });
     const ageVerifications = readAgeVerifications(db, draftId);
     failureInjector?.("after_recalculation");
     const now = new Date().toISOString();
