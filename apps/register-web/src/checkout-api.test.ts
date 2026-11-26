@@ -31,6 +31,14 @@ describe("checkout API client", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/sale-drafts/draft-1/payments/pay-1", expect.objectContaining({ method: "DELETE", headers: expect.objectContaining({ "if-match": "3" }) }));
   });
 
+  it("プリンター状態からドロアー有効可否を取得する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ printerId: "receipt-1", observation: {}, queue: {}, drawerEnabled: false }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const status = await checkoutApi.getPrinterStatus();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/printer/status", expect.anything());
+    expect(status.drawerEnabled).toBe(false);
+  });
+
   it("成果物再生成へ責任者と冪等キーを送る", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ artifactId: "artifact-2" }) });
     vi.stubGlobal("fetch", fetchMock);
