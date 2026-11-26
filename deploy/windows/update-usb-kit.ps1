@@ -12,6 +12,7 @@ $backup = Join-Path $localRoot 'update-backup'
 $statePath = Join-Path $localRoot 'update-state.json'
 $repoSlug = 'Usuiensan/event-pos'
 $assetName = 'event-pos-kit-payload.zip'
+# KitUpdaterBootstrap: v1
 $dbPath = Join-Path $kit 'data\event-pos.sqlite'
 $initialPath = Join-Path $kit 'event-config\usb-kit-initial'
 
@@ -272,6 +273,7 @@ function Invoke-GitHubUpdate {
     if ($totalSize -gt 314572800) { throw 'ペイロードの合計サイズが上限を超えています。' }
     $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1')
     $seen = @{}
+    $blockedPaths = @()
     foreach ($e in $entries) {
       $rel = ([string]$e.path).Replace('/', '\')
       if ([System.IO.Path]::IsPathRooted($rel) -or $rel -match '(^|\\)\.\.(\\|$)' -or $rel -match '^[a-zA-Z]:') { throw "ペイロードに不正なパスがあります: $($e.path)" }
@@ -280,9 +282,9 @@ function Invoke-GitHubUpdate {
       $seen[$key] = $true
       $seg = $rel.Split('\')
       if ($seg.Count -gt 1) {
-        if ($seg[0] -notin @('server', 'printer-host', 'web')) { throw "ペイロードに許可されていないフォルダーがあります: $($e.path)" }
+        if ($seg[0] -notin @('server', 'printer-host', 'web')) { $blockedPaths += $e.path }
       } else {
-        if ($seg[0] -notin $rootAllow) { throw "ペイロードに許可されていないファイルがあります: $($e.path)" }
+        if ($seg[0] -notin $rootAllow) { $blockedPaths += $e.path }
       }
       if ($e.class -notin @('overwrite', 'self')) { throw "ペイロードの分類が不正です: $($e.path)" }
       if ($e.class -eq 'self' -and $rel -ne 'update-usb-kit.ps1') { throw "self 分類は update-usb-kit.ps1 だけに使えます: $($e.path)" }
@@ -296,6 +298,22 @@ function Invoke-GitHubUpdate {
     foreach ($sf in $stageFiles) {
       if ($sf -ieq 'manifest.json') { continue }
       if (-not $seen.ContainsKey($sf.ToLower())) { throw "ペイロードに manifest へ記載のないファイルがあります: $sf" }
+    }
+    if ($blockedPaths.Count -gt 0) {
+      $blockedList = $blockedPaths -join ', '
+      $selfEntry = @($entries | Where-Object { ([string]$_.path).Replace('/', '\') -ieq 'update-usb-kit.ps1' -and $_.class -eq 'self' }) | Select-Object -First 1
+      if (-not $selfEntry) {
+        throw "ペイロードに許可されていないファイルがあります: $blockedList（新しいアップデーターがペイロードに含まれていないため、先行更新もできません）"
+      }
+      $selfStage = Join-Path $stage 'update-usb-kit.ps1'
+      $selfCurrent = Join-Path $kit 'update-usb-kit.ps1'
+      if ((Get-FileDigest $selfStage) -eq (Get-FileDigest $selfCurrent)) {
+        throw "ペイロードに許可されていないファイルがあります: $blockedList（ペイロードのアップデーターも現行版と同じため、このままでは更新できません。配布側で中間リリースが必要です）"
+      }
+      # ここまでの検証で ZIP digest と manifest、全ファイルの SHA256 は一致済み。
+      # 検証済みの新アップデーターだけを .new へ置き、次回起動時に差し替えてから再実行してもらう（Update-USB-Kit.bat が .new を差し替える）。
+      Copy-Item -LiteralPath $selfStage -Destination (Join-Path $kit 'update-usb-kit.ps1.new') -Force
+      throw "現在のアップデーターが許可していないファイルがペイロードに含まれています: $blockedList`nアップデーターだけを先に更新しました。もう一度 Update-USB-Kit.bat を実行してください（次回は新しいアップデーターで更新が進みます）。"
     }
     Write-Host "ペイロードの検証が終わりました（$($entries.Count) ファイル / コミット $($manifest.commit)）。"
 
