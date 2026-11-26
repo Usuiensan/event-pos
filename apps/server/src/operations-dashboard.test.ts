@@ -70,4 +70,91 @@ describe("責任者運用ダッシュボード", () => {
     const close = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${next.json().businessSessionId}/close`, payload: { terminalId: "register-1" } });
     expect(close.statusCode).toBe(409); expect(close.json().error.code).toBe("ACTIVE_HOLDS_EXIST");
   });
+
+  it("受取直後と保留中は閉局阻害一覧に表示し、受取会計の確定後に消す（F-054）", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const eventId = "dashboard-pickup";
+    const businessDate = "2026-08-03";
+    const registerId = "register-1";
+    const productCode = "00000001";
+    const saved = await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: {
+      eventId, products: [{ productCode, name: "予約商品", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], staffMembers: [],
+    } });
+    expect(saved.statusCode).toBe(200);
+    await openRegisterForTest(app, eventId, businessDate, registerId);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId, registerId, terminalId: registerId, lines: [{ productCode, quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const { holdId } = hold.json();
+    const started = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId, businessDate, terminalId: registerId, staffId: "002" } });
+    expect(started.statusCode).toBe(201);
+    const { draftId, version } = started.json();
+    const claimed = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/claim`, payload: { draftId, version } });
+    expect(claimed.statusCode).toBe(200);
+    const closingBlockers = async (date = businessDate) => {
+      const response = await app.inject({ url: `/api/v1/operations/dashboard?eventId=${eventId}&businessDate=${date}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "002" } });
+      expect(response.statusCode).toBe(200);
+      return response.json().holds.closingBlockers;
+    };
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "claimed" }]);
+    expect(await closingBlockers("2026-08-04")).toEqual([]);
+
+    const draftUrl = `/api/v1/sale-drafts/${draftId}`;
+    const parked = await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: registerId } });
+    expect(parked.statusCode).toBe(201);
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "claimed" }]);
+
+    const resumed = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/parked-drafts/resume`, payload: { parkReference: parked.json().parkReference, terminalId: registerId } });
+    expect(resumed.statusCode).toBe(200);
+    const paid = await app.inject({ method: "POST", url: `${draftUrl}/payments`, headers: { "if-match": String(resumed.json().version) }, payload: { kind: "credit" } });
+    expect(paid.statusCode).toBe(201);
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "claimed" }]);
+    const finalized = await app.inject({ method: "POST", url: `${draftUrl}/finalize`, headers: { "idempotency-key": "dashboard-pickup-finalize" }, payload: { version: paid.json().version } });
+    expect(finalized.statusCode).toBe(201);
+    expect(await closingBlockers()).toEqual([]);
+  });
+
+  it("同じ現金箱の点検を営業ごとの現金セッションに紐づける（F-055）", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const eventId = "dashboard-cash";
+    const businessDate = "2026-08-03";
+    const registerId = "register-1";
+    const saved = await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: { eventId, products: [], quickEntries: [], staffMembers: [] } });
+    expect(saved.statusCode).toBe(200);
+    const firstId = await openRegisterForTest(app, eventId, businessDate, registerId);
+    const current = await app.inject({ url: `/api/v1/business-sessions/current?eventId=${eventId}` });
+    expect(current.statusCode).toBe(200);
+    const { businessSessionId } = current.json().session;
+    for (const kind of ["interim", "closing"]) {
+      const result = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${firstId}/checks/${kind}`, payload: { counted: [], terminalId: registerId } });
+      expect(result.statusCode).toBe(201);
+    }
+    const closed = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${businessSessionId}/close`, payload: { terminalId: registerId } });
+    expect(closed.statusCode).toBe(200);
+    const second = await app.inject({ method: "POST", url: "/api/v1/business-sessions", payload: { eventId, businessDate, terminalId: registerId } });
+    expect(second.statusCode).toBe(201);
+    expect(second.json().sessionNo).toBe(2);
+    const prepared = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${second.json().businessSessionId}/registers/${registerId}/prepare`, payload: { terminalId: registerId } });
+    expect(prepared.statusCode).toBe(201);
+    const secondId = prepared.json().sessionId;
+
+    const cashStatus = async () => {
+      const response = await app.inject({ url: `/api/v1/operations/dashboard?eventId=${eventId}&businessDate=${businessDate}`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "002" } });
+      expect(response.statusCode).toBe(200);
+      return response.json().cash;
+    };
+    const before = await cashStatus();
+    expect(before.sessions).toHaveLength(2);
+    expect(before.sessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: firstId, cashboxId: registerId, state: "closed" }),
+      expect.objectContaining({ sessionId: secondId, cashboxId: registerId, state: "preparing" }),
+    ]));
+    expect(before.checks.map(({ sessionId, kind }: { sessionId: string; kind: string }) => `${sessionId}:${kind}`).sort()).toEqual([`${firstId}:closing`, `${firstId}:interim`, `${firstId}:opening`]);
+
+    const opened = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${secondId}/checks/opening`, payload: { counted: [], terminalId: registerId } });
+    expect(opened.statusCode).toBe(201);
+    const after = await cashStatus();
+    expect(after.sessions).toEqual(before.sessions.map((session: { sessionId: string }) => session.sessionId === secondId ? { ...session, state: "open", openingYen: 0 } : session));
+    expect(after.checks).toHaveLength(before.checks.length + 1);
+    expect(after.checks).toEqual(expect.arrayContaining([...before.checks, expect.objectContaining({ sessionId: secondId, kind: "opening" })]));
+  });
 });
