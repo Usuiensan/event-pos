@@ -60,6 +60,22 @@ async function finalize(app: FastifyInstance, draft: any, key: string): Promise<
   return app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": key }, payload: { version: draft.version } });
 }
 
+async function prepareManualRefund() {
+  const { app, db } = makeApp();
+  await installCatalog(app);
+  const terminalId = "register-1";
+  const cashSessionId = await openRegisterForTest(app, catalog.eventId, "2026-08-02", terminalId);
+  return {
+    db,
+    refund: (productCode: string, confirmWithoutProductCode?: boolean) => app.inject({
+      method: "POST",
+      url: "/api/v1/refunds/manual",
+      headers: { "idempotency-key": "manual-refund-product-code" },
+      payload: { eventId: catalog.eventId, cashSessionId, terminalId, description: "商品の返金", amountYen: 350, paymentKind: "cash", productCode, quantity: 3, confirmWithoutProductCode },
+    }),
+  };
+}
+
 describe("durable checkout API", () => {
   it.each([
     { kind: "cash", totalYen: 180, discountYen: 20, tenderedYen: 500, changeYen: 320 },
@@ -160,6 +176,52 @@ describe("durable checkout API", () => {
     expect(db.prepare("SELECT reason FROM cash_movements WHERE transaction_id=?").get(selectedId)).toEqual({reason:"買主都合"});
     const audit=db.prepare("SELECT detail_json FROM audit_log WHERE action='manual_refund' AND entity_id=?").get(selectedId) as {detail_json:string};
     expect(JSON.parse(audit.detail_json)).toMatchObject({reason:"買主都合",reasonRecordedOnPaper:false});
+  });
+  it("未登録の商品コードで確認なしの例外返金を拒否する", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const printJobCount = db.prepare("SELECT COUNT(*) AS count FROM print_jobs");
+    const before = printJobCount.get();
+    const response = await refund("99999999");
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatchObject({ code: "PRODUCT_CODE_NOT_FOUND", message: "商品コード「99999999」は商品マスタに存在しません" });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action='manual_refund'").get()).toEqual({ count: 0 });
+    expect(printJobCount.get()).toEqual(before);
+  });
+  it("未登録の商品コードを確認してコードなしで例外返金し、在庫は戻さない", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const inventory = db.prepare("SELECT product_id,on_hand FROM inventory_balances ORDER BY product_id");
+    const before = inventory.all();
+    const response = await refund("99999999", true);
+    expect(response.statusCode).toBe(201);
+    const { transactionId } = response.json();
+    expect(db.prepare("SELECT product_code,quantity FROM transaction_lines WHERE transaction_id=?").get(transactionId)).toEqual({ product_code: "MANUAL", quantity: -1 });
+    expect(inventory.all()).toEqual(before);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements").get()).toEqual({ count: 0 });
+    const { receipt_snapshot_json } = db.prepare("SELECT receipt_snapshot_json FROM print_jobs WHERE transaction_id=?").get(transactionId) as { receipt_snapshot_json: string };
+    expect(JSON.parse(receipt_snapshot_json).lines).toMatchObject([{ productCode: "MANUAL", quantity: 1 }]);
+    const { detail_json } = db.prepare("SELECT detail_json FROM audit_log WHERE action='manual_refund' AND entity_id=?").get(transactionId) as { detail_json: string };
+    expect(JSON.parse(detail_json)).toMatchObject({ productCode: "99999999", productCodeNotFoundConfirmed: true });
+  });
+  it("登録済みの商品コードで例外返金すると数量分の在庫が戻る", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const response = await refund("00000001");
+    expect(response.statusCode).toBe(201);
+    const { transactionId } = response.json();
+    expect(db.prepare("SELECT product_code,quantity FROM transaction_lines WHERE transaction_id=?").get(transactionId)).toEqual({ product_code: "00000001", quantity: -3 });
+    expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE product_id=?").get(`${catalog.eventId}:00000001`)).toEqual({ on_hand: 3 });
+    const replay = await refund("00000001", false);
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().transactionId).toBe(transactionId);
+  });
+  it("コードなし確認済みの例外返金を同じキーで再送しても二重登録しない", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const first = await refund("99999999", true);
+    expect(first.statusCode).toBe(201);
+    const replay = await refund("99999999", true);
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().transactionId).toBe(first.json().transactionId);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 1 });
   });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);

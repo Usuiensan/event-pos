@@ -1,14 +1,56 @@
 import { useEffect, useState } from "react";
 import { createUuid } from "./uuid.js";
-import { checkoutApi, type ReturnableTransactionDto } from "./checkout-api.js";
+import { checkoutApi, CheckoutApiError, type ReturnableTransactionDto } from "./checkout-api.js";
 import { DEFAULT_REASON, ReasonSelect } from "./reason-options.js";
+
+type ManualRefundRequest = { input: Parameters<typeof checkoutApi.createManualRefund>[0]; key: string };
 
 export function ReturnOperations({ eventId, businessDate, cashboxId, actorId, terminalId, onClose, initialQuery = "" }: { eventId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void; initialQuery?: string }) {
   const [mode,setMode]=useState<"original"|"manual">("original"); const [query,setQuery]=useState(""); const [items,setItems]=useState<ReturnableTransactionDto[]>([]); const [selected,setSelected]=useState<ReturnableTransactionDto|null>(null); const [description,setDescription]=useState(""); const [amount,setAmount]=useState(""); const [productCode,setProductCode]=useState(""); const [quantity,setQuantity]=useState("1"); const [paymentKind,setPaymentKind]=useState<"cash"|"credit"|"accounts_receivable">("cash"); const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [completed,setCompleted]=useState<{publicReferenceDisplay:string;printJobId:string}|null>(null); const [fullReason,setFullReason]=useState(DEFAULT_REASON); const [manualReason,setManualReason]=useState(DEFAULT_REASON);
+  const [manualConfirmation, setManualConfirmation] = useState<ManualRefundRequest | null>(null);
   const currentSession=async()=>{const current=await checkoutApi.getCurrentCashSession(eventId,businessDate,cashboxId,actorId); if(!current.session||current.session.state!=="open"||current.session.openingYen===null) throw new Error("返金前にこのレジを開局してください"); return current.session;};
   const search=async(value=query)=>{if(!value.trim())return setError("番号または取引IDを入力してください");setBusy(true);try{const result=await checkoutApi.searchReturnableTransactions(eventId,value.trim(),actorId);setItems(result.transactions);setError(result.transactions.length?"":"該当する元売上がありません");}catch(cause){setError(cause instanceof Error?cause.message:"検索に失敗しました");}finally{setBusy(false);}};
   useEffect(() => { if (!initialQuery) return; setQuery(initialQuery); void search(initialQuery); }, [initialQuery]);
   const fullReturn=async()=>{if(!selected)return;setBusy(true);setError("");try{const session=await currentSession();const key=createUuid();const result=await checkoutApi.createFullReturn(selected.transactionId,{cashSessionId:session.sessionId,terminalId,reason:fullReason},actorId,key);setCompleted(result);setSelected(null);}catch(cause){setError(cause instanceof Error?cause.message:"返品処理に失敗しました");}finally{setBusy(false);}};
-  const manualRefund=async()=>{const amountYen=Number(amount);if(!description.trim()||!Number.isSafeInteger(amountYen)||amountYen<=0)return setError("返金内容と1円以上の返金額を入力してください");setBusy(true);setError("");try{const session=await currentSession();const result=await checkoutApi.createManualRefund({eventId,cashSessionId:session.sessionId,terminalId,description:description.trim(),amountYen,paymentKind,reason:manualReason,...(productCode.trim()?{productCode:productCode.trim(),quantity:Number(quantity)||1}:{})},actorId,createUuid());setCompleted(result);setDescription("");setAmount("");}catch(cause){setError(cause instanceof Error?cause.message:"例外返金に失敗しました");}finally{setBusy(false);}};
-  return <div className="modal-backdrop return-operations-layer"><section className="return-operations"><header><div><h2>返品・返金</h2><p>権限による制限はありません。発行紙へ扱い者署名を記載してください。</p></div><button onClick={onClose}>閉じる</button></header><div><button onClick={()=>setMode("original")}>元売上を全部返品</button><button onClick={()=>setMode("manual")}>レシートなし・例外返金</button></div>{completed&&<div className="return-completed"><strong>返金を確定しました</strong><span>{completed.publicReferenceDisplay}</span><span>返金レシートjob {completed.printJobId}</span><b>紙へ扱い者署名を記載してください</b></div>}{mode==="original"?<><div className="return-search"><label>レシートの返品バーコードまたは取引ID<input autoFocus value={query} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{event.stopPropagation();if(event.key==="Enter"){event.preventDefault();void search();}}}/></label><button disabled={busy} onClick={()=>void search()}>検索</button></div><div className="return-results">{items.map(item=><button key={item.transactionId} disabled={!item.returnable} onClick={()=>setSelected(item)}><strong>{item.publicReferenceDisplay}</strong><span>{item.totalYen.toLocaleString()}円</span><small>{item.returnable?"全部返品":"返品済み"}</small></button>)}</div>{selected&&<div className="return-confirm"><h3>{selected.publicReferenceDisplay}を全部返品</h3><p>返金額 {selected.totalYen.toLocaleString()}円</p><label>理由<ReasonSelect value={fullReason} onChange={setFullReason}/></label><button className="return-danger" disabled={busy} onClick={()=>void fullReturn()}>返金レシートを発行</button></div>}</>:<div className="return-reason"><label>商品コード（商品マスタにある場合）<input value={productCode} onChange={event=>setProductCode(event.target.value)}/></label>{productCode&&<label>数量<input inputMode="numeric" value={quantity} onChange={event=>setQuantity(event.target.value.replace(/\D/g,""))}/></label>}<label>商品名・返金内容<input value={description} onChange={event=>setDescription(event.target.value)}/></label><label>返金額<input inputMode="numeric" value={amount} onChange={event=>setAmount(event.target.value.replace(/\D/g,""))}/></label><label>返金方法<select value={paymentKind} onChange={event=>setPaymentKind(event.target.value as typeof paymentKind)}><option value="cash">現金</option><option value="credit">外部決済</option><option value="accounts_receivable">売掛</option></select></label><label>理由<ReasonSelect value={manualReason} onChange={setManualReason}/></label><p>商品マスタに異常がある場合は商品コードを空欄にし、内容と金額を直接入力できます。</p><button className="return-danger" disabled={busy} onClick={()=>void manualRefund()}>返金を確定してレシート発行</button></div>}{error&&<p role="alert" className="return-error">{error}</p>}</section></div>;
+  const manualRefund = async (confirmation?: ManualRefundRequest) => {
+    const amountYen = Number(amount);
+    if (!confirmation && (!description.trim() || !Number.isSafeInteger(amountYen) || amountYen <= 0)) {
+      return setError("返金内容と1円以上の返金額を入力してください");
+    }
+    setBusy(true);
+    setError("");
+    let submission = confirmation;
+    try {
+      submission ??= {
+        input: {
+          eventId, cashSessionId: (await currentSession()).sessionId, terminalId,
+          description: description.trim(), amountYen, paymentKind, reason: manualReason,
+          ...(productCode.trim() ? { productCode: productCode.trim(), quantity: Number(quantity) || 1 } : {}),
+        },
+        key: createUuid(),
+      };
+      const { input, key } = submission;
+      const result = await checkoutApi.createManualRefund(confirmation ? { ...input, confirmWithoutProductCode: true } : input, actorId, key);
+      setManualConfirmation(null);
+      setCompleted(result);
+      setDescription("");
+      setAmount("");
+    } catch (cause) {
+      if (!confirmation && submission?.input.productCode && cause instanceof CheckoutApiError && cause.code === "PRODUCT_CODE_NOT_FOUND") {
+        setCompleted(null);
+        setManualConfirmation(submission);
+      } else {
+        setError(cause instanceof Error ? cause.message : "例外返金に失敗しました");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <div className="modal-backdrop return-operations-layer"><section className="return-operations"><header><div><h2>返品・返金</h2><p>権限による制限はありません。発行紙へ扱い者署名を記載してください。</p></div><button onClick={onClose}>閉じる</button></header><div><button onClick={()=>setMode("original")}>元売上を全部返品</button><button onClick={()=>setMode("manual")}>レシートなし・例外返金</button></div>{completed&&<div className="return-completed"><strong>返金を確定しました</strong><span>{completed.publicReferenceDisplay}</span><span>返金レシートjob {completed.printJobId}</span><b>紙へ扱い者署名を記載してください</b></div>}{mode==="original"?<><div className="return-search"><label>レシートの返品バーコードまたは取引ID<input autoFocus value={query} onChange={event=>setQuery(event.target.value)} onKeyDown={event=>{event.stopPropagation();if(event.key==="Enter"){event.preventDefault();void search();}}}/></label><button disabled={busy} onClick={()=>void search()}>検索</button></div><div className="return-results">{items.map(item=><button key={item.transactionId} disabled={!item.returnable} onClick={()=>setSelected(item)}><strong>{item.publicReferenceDisplay}</strong><span>{item.totalYen.toLocaleString()}円</span><small>{item.returnable?"全部返品":"返品済み"}</small></button>)}</div>{selected&&<div className="return-confirm"><h3>{selected.publicReferenceDisplay}を全部返品</h3><p>返金額 {selected.totalYen.toLocaleString()}円</p><label>理由<ReasonSelect value={fullReason} onChange={setFullReason}/></label><button className="return-danger" disabled={busy} onClick={()=>void fullReturn()}>返金レシートを発行</button></div>}</> : manualConfirmation ? (
+    <div className="return-confirm" onKeyDown={event => event.stopPropagation()}>
+      <p id="manual-refund-confirmation">商品コード「{manualConfirmation.input.productCode}」は商品マスタに存在しません。コードなしで登録しますか？在庫は戻りません。</p>
+      <button className="return-danger" disabled={busy} onClick={() => void manualRefund(manualConfirmation)}>コードなしで登録する</button>
+      <button autoFocus aria-describedby="manual-refund-confirmation" disabled={busy} onClick={() => { setManualConfirmation(null); setError(""); }}>やめる</button>
+    </div>
+  ) : <div className="return-reason"><label>商品コード（商品マスタにある場合）<input value={productCode} onChange={event=>setProductCode(event.target.value)}/></label>{productCode&&<label>数量<input inputMode="numeric" value={quantity} onChange={event=>setQuantity(event.target.value.replace(/\D/g,""))}/></label>}<label>商品名・返金内容<input value={description} onChange={event=>setDescription(event.target.value)}/></label><label>返金額<input inputMode="numeric" value={amount} onChange={event=>setAmount(event.target.value.replace(/\D/g,""))}/></label><label>返金方法<select value={paymentKind} onChange={event=>setPaymentKind(event.target.value as typeof paymentKind)}><option value="cash">現金</option><option value="credit">外部決済</option><option value="accounts_receivable">売掛</option></select></label><label>理由<ReasonSelect value={manualReason} onChange={setManualReason}/></label><p>商品マスタに異常がある場合は商品コードを空欄にし、内容と金額を直接入力できます。</p><button className="return-danger" disabled={busy} onClick={()=>void manualRefund()}>返金を確定してレシート発行</button></div>}{error&&<p role="alert" className="return-error">{error}</p>}</section></div>;
 }
