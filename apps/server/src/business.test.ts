@@ -320,3 +320,50 @@ describe("長い商品名の帳票（F-061）", () => {
     expect((await app.inject(`/api/v1/cash-sessions/${cashSessionId}`)).json().state).toBe("closed");
   });
 });
+
+describe("イベント切替時の下書き（F-062）", () => {
+  it("旧イベントの未確定下書きが新イベントの下書き作成を妨げず、旧セッションに戻れば再び見える", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const catalogA = { ...catalog, eventId: "switch-event-a" };
+    const catalogB = { ...catalog, eventId: "switch-event-b" };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/switch-event-a/catalog", payload: catalogA })).statusCode).toBe(200);
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/switch-event-b/catalog", payload: catalogB })).statusCode).toBe(200);
+    const registerId = "register-1";
+    await openRegisterForTest(app, "switch-event-a", "2026-08-02", registerId);
+    const draftA = (await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId: "switch-event-a", businessDate: "2026-08-02", staffId: "001", terminalId: registerId } })).json();
+    const lineA = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draftA.draftId}/lines`, headers: { "if-match": String(draftA.version) }, payload: { productCode: "00000001" } });
+    expect(lineA.statusCode).toBe(201);
+    // イベントBへ切り替える（Aの営業は開いたまま、下書きは未確定のまま残す）
+    await openRegisterForTest(app, "switch-event-b", "2026-08-02", registerId);
+    const createdB = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId: "switch-event-b", businessDate: "2026-08-02", staffId: "001", terminalId: registerId } });
+    expect(createdB.statusCode).toBe(201);
+    expect(createdB.json()).toMatchObject({ eventId: "switch-event-b" });
+    expect(createdB.json().draftId).not.toBe(draftA.draftId);
+    // 現在のセッション（B）の下書きが返り、Aの下書きは返らない
+    const current = await app.inject(`/api/v1/registers/${registerId}/sale-draft`);
+    expect(current.statusCode).toBe(200);
+    expect(current.json().draftId).toBe(createdB.json().draftId);
+    // Aの下書きは消えておらず、Aのセッションで作り直すと明細ごと戻る
+    expect((await app.inject(`/api/v1/sale-drafts/${draftA.draftId}`)).json()).toMatchObject({ state: "editing" });
+    const againA = await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId: "switch-event-a", businessDate: "2026-08-02", staffId: "001", terminalId: registerId } });
+    expect(againA.statusCode).toBe(201);
+    expect(againA.json().draftId).toBe(draftA.draftId);
+    expect(againA.json().lines).toHaveLength(1);
+  });
+
+  it("旧形式のアクティブ下書き一意索引はセッション単位へ移行される", () => {
+    const path = join(tmpdir(), `event-pos-f062-${Date.now()}.sqlite`);
+    try {
+      const db = openDatabase(path);
+      db.exec("DROP INDEX ux_sale_drafts_active_register");
+      db.exec("CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing')");
+      db.close();
+      const reopened = openDatabase(path);
+      const index = reopened.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name='ux_sale_drafts_active_register'").get() as { sql: string };
+      expect(index.sql).toContain("cash_session_id");
+      reopened.close();
+    } finally {
+      rmSync(path, { force: true }); rmSync(`${path}-wal`, { force: true }); rmSync(`${path}-shm`, { force: true });
+    }
+  });
+});

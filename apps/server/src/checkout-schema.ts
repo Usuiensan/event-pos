@@ -43,7 +43,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(cash_session_id) REFERENCES cash_sessions(session_id)
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_sale_drafts_active_register ON sale_drafts(register_id, cash_session_id) WHERE state IN ('editing','payment','finalizing');
     CREATE TABLE IF NOT EXISTS sale_draft_lines (
       line_id TEXT PRIMARY KEY,
       draft_id TEXT NOT NULL,
@@ -274,7 +274,7 @@ export function applyCheckoutSchema(db: PosDatabase): void {
         SELECT draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,created_at,updated_at FROM sale_drafts;
       DROP TABLE sale_drafts;
       ALTER TABLE sale_drafts_migrated RENAME TO sale_drafts;
-      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
+      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id, cash_session_id) WHERE state IN ('editing','payment','finalizing');
       COMMIT;
       PRAGMA foreign_keys=ON;
     `);
@@ -299,9 +299,17 @@ export function applyCheckoutSchema(db: PosDatabase): void {
         SELECT draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,completed_transaction_id,park_reference,parked_at,created_at,updated_at FROM sale_drafts;
       DROP TABLE sale_drafts;
       ALTER TABLE sale_drafts_session_migrated RENAME TO sale_drafts;
-      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id) WHERE state IN ('editing','payment','finalizing');
+      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id, cash_session_id) WHERE state IN ('editing','payment','finalizing');
       COMMIT;
       PRAGMA foreign_keys=ON;
+    `);
+  }
+  // アクティブ下書きの一意制約をレジ単位からセッション単位へ（F-062）: 旧索引が残るDBでは作り替える。
+  const activeDraftIndexSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='index' AND name='ux_sale_drafts_active_register'").get() as { sql?: string } | undefined)?.sql ?? "";
+  if (activeDraftIndexSql && !activeDraftIndexSql.includes("cash_session_id")) {
+    db.exec(`
+      DROP INDEX ux_sale_drafts_active_register;
+      CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id, cash_session_id) WHERE state IN ('editing','payment','finalizing');
     `);
   }
   const counterTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='public_reference_counters'").get() as { sql?: string } | undefined)?.sql ?? "";

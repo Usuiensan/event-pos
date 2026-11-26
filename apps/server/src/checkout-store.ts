@@ -205,20 +205,28 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
   catalogFor(db, input.eventId);
   return immediate(db, () => {
     const register = assertRegisterOpen(db, input.eventId, input.registerId);
-    const existing = db.prepare("SELECT draft_id,cash_session_id FROM sale_drafts WHERE register_id=? AND state IN ('editing','payment','finalizing')")
-      .get(input.registerId) as { draft_id: string; cash_session_id: string } | undefined;
-    if (existing?.cash_session_id === register.cashSessionId) return getSaleDraft(db, existing.draft_id);
+    const existing = db.prepare("SELECT draft_id FROM sale_drafts WHERE register_id=? AND cash_session_id=? AND state IN ('editing','payment','finalizing')")
+      .get(input.registerId, register.cashSessionId) as { draft_id: string } | undefined;
+    if (existing) return getSaleDraft(db, existing.draft_id);
     const now = new Date().toISOString();
-    if (existing) {
+    // 別セッションの下書きは現在のセッションの下書き作成を妨げない（黙って消さない）。
+    // ただし終了済み営業に残った空の下書きだけは、従来どおり取り消して引き継ぐ。
+    const others = db.prepare(`SELECT d.draft_id, b.state AS business_state FROM sale_drafts d
+      LEFT JOIN cash_sessions c ON c.session_id=d.cash_session_id
+      LEFT JOIN business_sessions b ON b.business_session_id=c.business_session_id
+      WHERE d.register_id=? AND d.state IN ('editing','payment','finalizing') AND COALESCE(d.cash_session_id,'')<>?`)
+      .all(input.registerId, register.cashSessionId) as Array<{ draft_id: string; business_state: string | null }>;
+    for (const other of others) {
+      if (other.business_state === "open") continue;
       const canceled = db.prepare(`UPDATE sale_drafts AS d SET state='canceled',version=version+1,updated_at=?
         WHERE d.draft_id=? AND d.state='editing'
           AND EXISTS (SELECT 1 FROM cash_sessions c JOIN business_sessions b ON b.business_session_id=c.business_session_id
             WHERE c.session_id=d.cash_session_id AND b.state='closed')
           AND NOT EXISTS (SELECT 1 FROM sale_draft_lines l WHERE l.draft_id=d.draft_id AND l.status='active')
           AND NOT EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)
-          AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.claimed_draft_id=d.draft_id AND h.state='claimed')`).run(now, existing.draft_id);
+          AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.claimed_draft_id=d.draft_id AND h.state='claimed')`).run(now, other.draft_id);
       if (Number(canceled.changes) !== 1) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "別の営業の未確定の会計が残っています");
-      cancelDraftAgeRequests(db, existing.draft_id, now);
+      cancelDraftAgeRequests(db, other.draft_id, now);
     }
     const draftId = uuidV7();
     db.prepare(`INSERT INTO sale_drafts (draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,created_at,updated_at)
@@ -228,12 +236,20 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
 }
 
 export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleDraftDto | undefined {
-  const row = db.prepare(`SELECT d.draft_id FROM sale_drafts d WHERE d.register_id=?
-    AND (d.state NOT IN ('editing','payment','finalizing')
-      OR EXISTS (SELECT 1 FROM cash_sessions c JOIN business_sessions b ON b.business_session_id=c.business_session_id
-        WHERE c.session_id=d.cash_session_id AND c.cashbox_id=d.register_id AND b.event_id=d.event_id
-          AND c.state='open' AND c.opening_yen IS NOT NULL AND b.state='open'))
-    ORDER BY CASE WHEN d.state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, d.created_at DESC, d.rowid DESC LIMIT 1`)
+  // 現在の営業セッション（このレジで開局中の最新の営業）の下書きだけを対象にする。
+  // 別セッションの下書きは、そのセッションが現在の間は返さない（消しもしない）。
+  const current = db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
+    WHERE b.state='open' AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
+    ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`)
+    .get(registerId) as { session_id: string } | undefined;
+  if (current) {
+    const row = db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND cash_session_id=?
+      ORDER BY CASE WHEN state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, created_at DESC, rowid DESC LIMIT 1`)
+      .get(registerId, current.session_id) as { draft_id: string } | undefined;
+    return row ? getSaleDraft(db, row.draft_id) : undefined;
+  }
+  const row = db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND state NOT IN ('editing','payment','finalizing')
+    ORDER BY created_at DESC, rowid DESC LIMIT 1`)
     .get(registerId) as { draft_id: string } | undefined;
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
