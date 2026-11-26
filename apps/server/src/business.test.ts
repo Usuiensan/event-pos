@@ -148,7 +148,10 @@ describe("営業状態と担当者session", () => {
     const { eventId } = catalog;
     const registerId = "register-1";
     const businessDate = "2026-08-03";
-    const saved = await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: catalog });
+    const saved = await app.inject({
+      method: "PUT", url: `/api/v1/events/${eventId}/catalog`,
+      payload: { ...catalog, products: [{ ...catalog.products[0], inventory: { openingQuantity: 1 } }] },
+    });
     expect(saved.statusCode).toBe(200);
     const sessionId = await openRegisterForTest(app, eventId, businessDate, registerId);
     const business = await app.inject({ url: `/api/v1/business-sessions/current?eventId=${eventId}` });
@@ -159,6 +162,15 @@ describe("営業状態と担当者session", () => {
     });
     expect(hold.statusCode).toBe(201);
     const { holdId } = hold.json();
+    const closingBlockers = async () => {
+      const response = await app.inject({
+        url: `/api/v1/operations/dashboard?eventId=${eventId}&businessDate=${businessDate}`,
+        headers: { "x-pos-role": "manager", "x-pos-actor-id": "002" },
+      });
+      expect(response.statusCode).toBe(200);
+      return response.json().holds.closingBlockers;
+    };
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "active" }]);
     const created = await app.inject({
       method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`,
       payload: { eventId, staffId: "001", terminalId: registerId, businessDate },
@@ -173,6 +185,7 @@ describe("営業状態と担当者session", () => {
       headers: { "if-match": String(pickup.json().version) },
     });
     expect(canceledLine.statusCode).toBe(200);
+    expect(canceledLine.json().lines).toMatchObject([{ status: "canceled" }]);
 
     const closeBusiness = () => app.inject({
       method: "POST", url: `/api/v1/business-sessions/${businessSessionId}/close`, payload: { terminalId: registerId },
@@ -187,11 +200,16 @@ describe("営業状態と担当者session", () => {
       [blockedBusiness.statusCode, blockedBusiness.json().error?.code],
       [blockedCash.statusCode, blockedCash.json().error?.code],
     ]).toEqual([[409, "ACTIVE_DRAFTS_EXIST"], [409, "ACTIVE_DRAFTS_EXIST"]]);
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "claimed" }]);
 
     const canceled = await app.inject({
       method: "DELETE", url: draftUrl, headers: { "if-match": String(canceledLine.json().version) },
     });
     expect(canceled.statusCode).toBe(200);
+    expect(await closingBlockers()).toMatchObject([{ holdId, state: "active" }]);
+    const inventory = await app.inject({ url: `/api/v1/events/${eventId}/inventory` });
+    expect(inventory.statusCode).toBe(200);
+    expect(inventory.json().products).toMatchObject([{ reserved: 1 }]);
     expect((await closeCash()).statusCode).toBe(201);
     const released = await app.inject({ method: "POST", url: `/api/v1/holds/${holdId}/release`, payload: { reason: "来場取消" } });
     expect(released.statusCode).toBe(200);
