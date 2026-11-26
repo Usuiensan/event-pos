@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { cashDenominations, calculateCashActual, type CashCount, type CashDenomination } from "@event-pos/contracts";
 import { checkoutApi, type BackupArtifactDto, type CashSessionDto, type CashSettlementSummary } from "./checkout-api.js";
+import { idempotencyKeyFor } from "./cash-idempotency.js";
 import { ReasonSelect, DEFAULT_REASON, cashMovementReasonOptions } from "./reason-options.js";
-import { createUuid } from "./uuid.js";
 
 type CheckKind = "opening" | "interim" | "closing";
 type PendingAction =
@@ -69,14 +69,19 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
         }
         if (!current) throw new Error("レジの準備を開始できませんでした");
         const storageKey = `event-pos-cash-check-${current.sessionId}-${pending.checkKind}`;
-        const idempotencyKey = localStorage.getItem(storageKey) ?? createUuid(); localStorage.setItem(storageKey, idempotencyKey);
+        // サーバーが冪等照合に使う内容（セッション・種別・金種・翌日残し）とフィンガープリントを対にしてキーを管理する
+        const fingerprint = JSON.stringify({ sessionId: current.sessionId, kind: pending.checkKind, counted: pending.counted, carryoverYen: pending.carryoverYen ?? 0 });
+        const idempotencyKey = idempotencyKeyFor(localStorage, storageKey, fingerprint);
         const result = await checkoutApi.saveCashCheck(current.sessionId, pending.checkKind, { counted: pending.counted, ...(pending.carryoverYen === undefined ? {} : { carryoverYen: pending.carryoverYen }), terminalId }, actorId, idempotencyKey);
         localStorage.removeItem(storageKey);
         if (result.backupArtifact) { setLastArtifact(result.backupArtifact); onArtifact?.(result.backupArtifact); }
         if (pending.checkKind !== "opening") setSettlementSummary(await checkoutApi.getCashSettlementSummary(current.sessionId));
       } else if (pending.kind === "movement") {
         if (!session) throw new Error("営業開始後に入出金してください");
-        const storageKey = `event-pos-cash-movement-${session.sessionId}`; const idempotencyKey = localStorage.getItem(storageKey) ?? createUuid(); localStorage.setItem(storageKey, idempotencyKey);
+        const storageKey = `event-pos-cash-movement-${session.sessionId}`;
+        // サーバーが冪等照合に使う内容（セッション・種別・金額・理由）とフィンガープリントを対にしてキーを管理する
+        const fingerprint = JSON.stringify({ sessionId: session.sessionId, type: pending.movementType, amountYen: pending.amountYen, reason: pending.reason });
+        const idempotencyKey = idempotencyKeyFor(localStorage, storageKey, fingerprint);
         await checkoutApi.saveCashMovement(session.sessionId, { type: pending.movementType, amountYen: pending.amountYen, reason: pending.reason, idempotencyKey, terminalId }, actorId); localStorage.removeItem(storageKey);
       } else {
         if (!session) throw new Error("現金セッションがありません");
