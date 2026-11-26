@@ -60,7 +60,7 @@ describe("取り置き",()=>{
     const db=openDatabase(); const app=buildApp({database:db});apps.push(app); await app.inject({method:"PUT",url:"/api/v1/events/hold-event/catalog",payload:catalog});
     const operator={}; await openRegisterForTest(app,catalog.eventId,"2026-08-03","register-1");
     const productId="hold-event:00000001"; db.prepare("UPDATE inventory_balances SET on_hand=3 WHERE event_id=? AND product_id=?").run(catalog.eventId,productId);
-    const hold=await app.inject({method:"POST",url:"/api/v1/holds",headers:operator,payload:{eventId:catalog.eventId,registerId:"register-1",terminalId:"register-1",lines:[{productCode:"00000001",quantity:2}]}}); expect(hold.statusCode).toBe(201); expect(hold.json().publicReferenceDisplay).toMatch(/^1000-/);
+    const hold=await app.inject({method:"POST",url:"/api/v1/holds",headers:operator,payload:{eventId:catalog.eventId,registerId:"register-1",terminalId:"register-1",lines:[{productCode:"00000001",quantity:2}]}}); expect(hold.statusCode).toBe(201); expect(hold.json().publicReferenceDisplay).toMatch(/^01000-/);
     const ticket = db.prepare("SELECT kind,canonical_ir AS canonicalIr,escpos_bytes AS escposBytes FROM print_jobs WHERE job_id=?").get(hold.json().printJobId) as { kind: string; canonicalIr: string; escposBytes: Buffer };
     expect(ticket.kind).toBe("original"); expect(ticket.canonicalIr).toContain(`{BPS12${hold.json().publicReference}`); expect(ticket.escposBytes.length).toBeGreaterThan(0);
     const reprint = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/reprint`, headers: operator, payload: { terminalId: "register-1", reason: "紙切れ" } });

@@ -61,7 +61,7 @@ export function openBusinessSession(db: PosDatabase, input: { eventId: string; b
   const configuredManager = db.prepare("SELECT 1 FROM event_staff_assignments WHERE event_id=? AND active=1 AND role IN ('manager','admin') LIMIT 1").get(input.eventId);
   if (!configuredManager) throw new CheckoutError(409, "MANAGER_NOT_CONFIGURED", "開局前に責任者を1名以上設定してください");
   const maximum = Number((db.prepare("SELECT COALESCE(MAX(session_no),0) AS maximum FROM business_sessions WHERE event_id=?").get(input.eventId) as { maximum: number }).maximum);
-  if (maximum >= 999) throw new CheckoutError(409, "BUSINESS_SESSION_LIMIT", "営業セッション番号が上限999に達しています");
+  if (maximum >= 99) throw new CheckoutError(409, "BUSINESS_SESSION_LIMIT", "営業セッション番号が上限99に達しています");
   const now = new Date().toISOString(); const id = uuidV7();
   db.exec("BEGIN IMMEDIATE");
   try {
