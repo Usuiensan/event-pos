@@ -1,10 +1,9 @@
 @echo off
-chcp 65001 >nul
 "%~dp0runtime\node.exe" "%~dp0server\dist\start.mjs"
 set "RC=%ERRORLEVEL%"
 if %RC% NEQ 0 pause
 if %RC% NEQ 0 exit /b %RC%
 echo.
-echo 邨ゆｺ�縺励∪縺励◆縲ゅ％縺ｮ繧ｦ繧｣繝ｳ繝峨え縺ｯ10遘貞ｾ後↓髢峨§縺ｾ縺呻ｼ井ｽ輔°繧ｭ繝ｼ繧呈款縺吶→縺吶＄髢峨§縺ｾ縺呻ｼ峨�
+echo 終了しました。このウィンドウは10秒後に閉じます（何かキーを押すとすぐ閉じます）。
 timeout /t 10 2>nul
 exit /b 0
