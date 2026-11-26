@@ -1,4 +1,19 @@
 ﻿$ErrorActionPreference = 'Stop'
+function Get-Sha256Hex {
+  param([string]$Path)
+  # Get-FileHash（Microsoft.PowerShell.Utility の自動読み込み）に依存しない。
+  # pwsh 7 のプロンプトから起動すると環境変数が継承され、5.1 側でモジュールが
+  # 読めず Get-FileHash が見つからないことがあるため、.NET で直接計算する。
+  $stream = [System.IO.File]::OpenRead($Path)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '')
+  } finally {
+    $sha.Dispose()
+    $stream.Dispose()
+  }
+}
+
 try {
   $localRoot = Join-Path $env:LOCALAPPDATA 'EventPos\UsbKit'
   $localData = Join-Path $localRoot 'data'
@@ -56,7 +71,7 @@ try {
   foreach ($s in @('', '-wal', '-shm')) {
     $l = "$localDb$s"; $u = "$usbDb$s"
     if ((Test-Path -LiteralPath $l) -and (Test-Path -LiteralPath $u)) {
-      if ((Get-FileHash -LiteralPath $l -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $u -Algorithm SHA256).Hash) {
+      if ((Get-Sha256Hex -Path $l) -ne (Get-Sha256Hex -Path $u)) {
         throw "書き戻し後の照合に失敗しました: event-pos.sqlite$s（マーカーは残してあります。バックアップ: $bak）"
       }
     }

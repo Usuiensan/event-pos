@@ -16,10 +16,25 @@ $assetName = 'event-pos-kit-payload.zip'
 $dbPath = Join-Path $kit 'data\event-pos.sqlite'
 $initialPath = Join-Path $kit 'event-config\usb-kit-initial'
 
+function Get-Sha256Hex {
+  param([string]$Path)
+  # Get-FileHash（Microsoft.PowerShell.Utility の自動読み込み）に依存しない。
+  # pwsh 7 のプロンプトから起動すると環境変数が継承され、5.1 側でモジュールが
+  # 読めず Get-FileHash が見つからないことがあるため、.NET で直接計算する。
+  $stream = [System.IO.File]::OpenRead($Path)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    return ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '')
+  } finally {
+    $sha.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Get-FileDigest {
   param([string]$Path)
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
-  return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+  return (Get-Sha256Hex -Path $Path)
 }
 
 function Get-TreeDigest {
@@ -28,7 +43,7 @@ function Get-TreeDigest {
   $files = Get-ChildItem -LiteralPath $Path -Recurse -File | Sort-Object FullName
   $lines = foreach ($f in $files) {
     $rel = $f.FullName.Substring($Path.Length).TrimStart('\')
-    "$rel=$((Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash)"
+    "$rel=$((Get-Sha256Hex -Path $f.FullName))"
   }
   $joined = [string]::Join("`n", @($lines))
   $sha = [System.Security.Cryptography.SHA256]::Create()
@@ -255,7 +270,7 @@ function Invoke-GitHubUpdate {
     } catch {
       throw "ペイロードのダウンロードに失敗しました。ネットワーク接続を確認してください: $($_.Exception.Message)"
     }
-    $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLower()
+    $zipHash = (Get-Sha256Hex -Path $zipPath).ToLower()
     if ($assetDigest) {
       if ($assetDigest -ne "sha256:$zipHash") { throw 'ダウンロードしたZIPのハッシュがリリース情報と一致しません。中断します。' }
     } else {
