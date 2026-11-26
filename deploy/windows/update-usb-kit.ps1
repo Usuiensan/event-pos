@@ -309,8 +309,9 @@ function Invoke-GitHubUpdate {
       } else {
         if ($seg[0] -notin $rootAllow) { $blockedPaths += $e.path }
       }
-      if ($e.class -notin @('overwrite', 'self')) { throw "ペイロードの分類が不正です: $($e.path)" }
+      if ($e.class -notin @('overwrite', 'self', 'create-only')) { throw "ペイロードの分類が不正です: $($e.path)" }
       if ($e.class -eq 'self' -and $rel -ne 'update-usb-kit.ps1') { throw "self 分類は update-usb-kit.ps1 だけに使えます: $($e.path)" }
+      if ($e.class -eq 'create-only' -and $rel -notin @('printer-host.env', 'printer-host-macos.env')) { throw "create-only 分類は printer-host.env / printer-host-macos.env だけに使えます: $($e.path)" }
       if ([long]$e.size -gt 134217728) { throw "ペイロードのファイルが大きすぎます: $($e.path)" }
       $f = Join-Path $stage $rel
       if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { throw "ペイロードにファイルが不足しています: $($e.path)" }
@@ -346,10 +347,17 @@ function Invoke-GitHubUpdate {
     Backup-Scoped
     Write-State 'applying'
     $problems = @()
+    $skippedCreateOnly = @{}
     try {
       foreach ($e in $entries) {
         $rel = ([string]$e.path).Replace('/', '\')
         $src = Join-Path $stage $rel
+        # create-only（現場のプリンター設定）は、キット側に既にあれば配布内容で上書きしない（F-065）
+        if ($e.class -eq 'create-only' -and (Test-Path -LiteralPath (Join-Path $kit $rel) -PathType Leaf)) {
+          $skippedCreateOnly[$rel] = $true
+          Write-Host "現場の設定を保持します（更新では上書きしません）: $rel"
+          continue
+        }
         # Update-USB-Kit.bat は実行中の自分自身のため、直接上書きすると cmd.exe の読み取り位置がずれて
         # 行の断片を実行したり即終了したりする。アップデーター本体と同じく .new へ退避し、
         # 次回起動時にバッチ冒頭で差し替える（差し替えは制御移譲で行い、実行中ファイルは読み直さない）。
@@ -368,6 +376,7 @@ function Invoke-GitHubUpdate {
       foreach ($e in $entries) {
         if ($e.class -eq 'self') { continue }
         $rel = ([string]$e.path).Replace('/', '\')
+        if ($skippedCreateOnly.ContainsKey($rel)) { continue }
         $dst = Join-Path $kit $rel
         if ($rel -ieq 'Update-USB-Kit.bat') { $dst = Join-Path $kit ($rel + '.new') }
         if ((Get-FileDigest $dst).ToLower() -ne ([string]$e.sha256).ToLower()) { $problems += "適用後のハッシュが一致しません: $rel" }
