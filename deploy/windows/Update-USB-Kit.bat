@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal
 cd /d %~dp0
 if not exist "%~dp0update-usb-kit.ps1" if exist "%~dp0update-usb-kit.ps1.prev" move /y "%~dp0update-usb-kit.ps1.prev" "%~dp0update-usb-kit.ps1" >nul
