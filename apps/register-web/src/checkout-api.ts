@@ -30,6 +30,8 @@ export type CheckoutDraft = {
   lines: CheckoutDraftLine[];
   payments: CheckoutDraftPayment[];
   ageVerifications: Array<{ verificationId: string; minimumAge: 18 | 20; method: "appearance" | "id_visual" | "self_declaration"; result: "passed" | "failed"; confirmerId?: string; terminalId: string; verifiedAt: string }>;
+  // サーバーが確定時と同じ判定で算出した、追加の担当者確認が必要な年齢（不要なら null）。
+  pendingAgeVerification?: 18 | 20 | null;
   calculation: SaleCalculation;
   createdAt: string;
   updatedAt: string;
