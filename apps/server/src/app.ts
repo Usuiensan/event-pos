@@ -7,7 +7,7 @@ import { createCashSession, createPrintJob, findCashJournalCandidates, findCashS
 import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, parsePaymentSlipCode, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
 import { bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { registerCheckoutRoutes } from "./checkout-routes.js";
-import type { FailureInjector } from "./checkout-store.js";
+import { CheckoutError, type FailureInjector } from "./checkout-store.js";
 import { RealtimeHub, registerRealtimeRoutes } from "./realtime.js";
 import { PersistentPrintQueue, type PrinterHost } from "./print-queue.js";
 import { registerPrintingRoutes } from "./printing-routes.js";
@@ -15,7 +15,7 @@ import { BackupArtifactWorker, type BackupArtifactFailureInjector } from "./back
 import { getBackupArtifact, listBackupArtifacts, reserveBackupArtifactRegeneration } from "./backup-artifact-schema.js";
 import { registerOperationsDashboard } from "./operations-dashboard.js";
 import { registerBusinessRoutes } from "./business-routes.js";
-import { synchronizeCatalogStaff } from "./business-store.js";
+import { assertStaffChangeKeepsAdmin, synchronizeCatalogStaff } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
 import { registerConfigManagementRoutes } from "./config-management.js";
@@ -189,10 +189,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (catalog.eventId !== request.params.eventId) return reply.code(400).send({ error: "event_id_mismatch" });
       const existingStaff = options.database.prepare("SELECT 1 FROM event_staff_assignments WHERE event_id=? LIMIT 1").get(catalog.eventId);
       if (options.requireAuth && existingStaff) requireAuthActor(options.database, request, "admin", true);
+      assertStaffChangeKeepsAdmin(options.database, catalog);
       const record = saveCatalog(options.database, catalog.eventId, exportEventCatalog(catalog));
       synchronizeCatalogStaff(options.database, catalog);
       return reply.code(200).send({ catalog, updatedAt: record.updatedAt });
-    } catch (error) { return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
+    } catch (error) { if (error instanceof CheckoutError) return reply.code(error.status).send({ error: error.code, message: error.message }); return reply.code(400).send({ error: "invalid_catalog", message: error instanceof Error ? error.message : "invalid_catalog" }); }
   });
   app.post<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog/reload", async (request, reply) => {
     if (!options.eventConfigDirectory) return reply.code(503).send({ error: "event_config_not_configured", message: "POS_EVENT_CONFIG_DIRが設定されていません" });
@@ -202,10 +203,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
       if (options.database.prepare("SELECT 1 FROM business_sessions WHERE event_id=? AND state='open' LIMIT 1").get(request.params.eventId)) return reply.code(409).send({ error: "business_already_open", message: "営業開始後は設定を再読み込みできません" });
       const catalog = await buildCatalog(options.eventConfigDirectory);
       if (catalog.eventId !== request.params.eventId) return reply.code(400).send({ error: "event_id_mismatch", message: "YAMLのeventIdと対象イベントが一致しません" });
+      assertStaffChangeKeepsAdmin(options.database, catalog);
       const record = saveCatalog(options.database, catalog.eventId, exportEventCatalog(catalog), "catalog_reload");
       synchronizeCatalogStaff(options.database, catalog);
       return reply.code(200).send({ catalog, updatedAt: record.updatedAt, source: "yaml" });
-    } catch (error) { return reply.code(400).send({ error: "catalog_reload_failed", message: error instanceof Error ? error.message : "YAML再読み込みに失敗しました" }); }
+    } catch (error) { if (error instanceof CheckoutError) return reply.code(error.status).send({ error: error.code, message: error.message }); return reply.code(400).send({ error: "catalog_reload_failed", message: error instanceof Error ? error.message : "YAML再読み込みに失敗しました" }); }
   });
   app.get<{ Querystring: { eventId?: string; businessDate?: string; cashboxId?: string } }>("/api/v1/backup-artifacts", async (request, reply) => {
     const auth = cashAuth(options.database, request, "manager", options.requireAuth ?? options.requireCashAuth ?? false); if (!auth.ok) return reply.code(auth.status).send({ error: auth.error });

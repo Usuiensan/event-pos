@@ -5,7 +5,7 @@ import { buildCatalog, writeCatalog } from "@event-pos/catalog-config";
 import { exportEventCatalog, type EventCatalog } from "@event-pos/contracts";
 import type { PosDatabase } from "./db.js";
 import { saveCatalog } from "./db.js";
-import { synchronizeCatalogStaff } from "./business-store.js";
+import { assertStaffChangeKeepsAdmin, synchronizeCatalogStaff } from "./business-store.js";
 
 export async function fetchTrainingCatalog(trainingSourceUrl: string, trainingEventId: string): Promise<EventCatalog> {
   const response = await fetch(`${trainingSourceUrl.replace(/\/$/, "")}/api/v1/events/${encodeURIComponent(trainingEventId)}/catalog`);
@@ -27,6 +27,7 @@ export async function ensureTrainingConfigDirectory(catalog: EventCatalog, event
 }
 
 export function seedTrainingDatabase(database: PosDatabase, catalog: EventCatalog): void {
+  assertStaffChangeKeepsAdmin(database, catalog);
   saveCatalog(database, catalog.eventId, exportEventCatalog(catalog), "training_seed");
   synchronizeCatalogStaff(database, catalog);
 }

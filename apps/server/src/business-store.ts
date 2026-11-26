@@ -16,10 +16,24 @@ function roleFor(member: StaffMember): StaffRole {
   return "operator";
 }
 
-export function synchronizeCatalogStaff(db: PosDatabase, catalog: EventCatalog, now = new Date().toISOString()): void {
-  const members = catalog.staffMembers?.some((member) => member.responsibleNumber === "001")
+function effectiveStaffMembers(catalog: EventCatalog): StaffMember[] {
+  return catalog.staffMembers?.some((member) => member.responsibleNumber === "001")
     ? catalog.staffMembers
     : [...(catalog.staffMembers ?? []), { responsibleNumber: "001", displayName: "管理者", role: "admin" as const }];
+}
+
+// F-078: 有効な管理者がいるイベントで、保存後に管理者が0人になる変更（最後の管理者の降格・削除）を拒否する。
+// 管理者が最初からいないイベントの初回保存は対象外（従来どおり保存できる）。
+export function assertStaffChangeKeepsAdmin(db: PosDatabase, catalog: EventCatalog, now = new Date().toISOString()): void {
+  if (effectiveStaffMembers(catalog).some((member) => roleFor(member) === "admin")) return;
+  const currentAdmin = db.prepare(`SELECT 1 FROM event_staff_assignments WHERE event_id=? AND active=1 AND role='admin'
+    AND valid_from<=? AND (valid_until IS NULL OR valid_until>?) LIMIT 1`).get(catalog.eventId, now, now);
+  if (currentAdmin) throw new CheckoutError(409, "LAST_ACTIVE_ADMIN", "有効な管理者を1名以上残してください。最後の管理者の降格・削除はできません");
+}
+
+export function synchronizeCatalogStaff(db: PosDatabase, catalog: EventCatalog, now = new Date().toISOString()): void {
+  assertStaffChangeKeepsAdmin(db, catalog, now);
+  const members = effectiveStaffMembers(catalog);
   const activeNumbers = new Set<string>();
   for (const member of members) {
     activeNumbers.add(member.responsibleNumber);

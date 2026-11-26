@@ -420,3 +420,99 @@ describe("イベント切替時の下書き（F-062）", () => {
     }
   });
 });
+
+describe("最後の管理者の保護（F-078）", () => {
+  const adminCatalog = {
+    eventId: "last-admin-event",
+    products: [],
+    quickEntries: [],
+    staffMembers: [{ responsibleNumber: "001", displayName: "管理者", role: "admin" }],
+  };
+
+  it("唯一の管理者001の降格を拒否し、カタログと割当を変えない", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db, requireAuth: true }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", payload: adminCatalog })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "management-console" });
+    const demoted = { ...adminCatalog, staffMembers: [{ responsibleNumber: "001", displayName: "管理者", role: "operator" }] };
+    const rejected = await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin, payload: demoted });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({ error: "LAST_ACTIVE_ADMIN" });
+    // 保存済みカタログ（画面表示）と割当が一致したままであること
+    const stored = await app.inject({ method: "GET", url: "/api/v1/events/last-admin-event/catalog" });
+    expect(stored.json().catalog.staffMembers).toEqual([{ responsibleNumber: "001", displayName: "管理者", role: "admin" }]);
+    expect(db.prepare("SELECT role FROM event_staff_assignments WHERE event_id='last-admin-event' AND responsible_number='001' AND active=1").get()).toEqual({ role: "admin" });
+    const signIn = await app.inject({ method: "POST", url: "/api/v1/auth/sessions", payload: { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "register-1" } });
+    expect(signIn.statusCode).toBe(201);
+    expect(signIn.json().actor).toMatchObject({ responsibleNumber: "001", role: "admin" });
+  });
+
+  it("管理者が複数いる場合の降格は通り、最後の1人の降格で止まる", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    const twoAdmins = { ...adminCatalog, staffMembers: [
+      { responsibleNumber: "001", displayName: "管理者", role: "admin" },
+      { responsibleNumber: "002", displayName: "副管理者", role: "admin" },
+    ] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", payload: twoAdmins })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "management-console" });
+    const demote001 = { ...adminCatalog, staffMembers: [
+      { responsibleNumber: "001", displayName: "管理者", role: "operator" },
+      { responsibleNumber: "002", displayName: "副管理者", role: "admin" },
+    ] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin, payload: demote001 })).statusCode).toBe(200);
+    const admin002 = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "002", terminalId: "management-console" });
+    const demoteBoth = { ...adminCatalog, staffMembers: [
+      { responsibleNumber: "001", displayName: "管理者", role: "operator" },
+      { responsibleNumber: "002", displayName: "副管理者", role: "operator" },
+    ] };
+    const rejected = await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin002, payload: demoteBoth });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({ error: "LAST_ACTIVE_ADMIN" });
+  });
+
+  it("最後の管理者を削除と降格の組み合わせで消す保存も拒否する", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    const twoAdmins = { ...adminCatalog, staffMembers: [
+      { responsibleNumber: "001", displayName: "管理者", role: "admin" },
+      { responsibleNumber: "002", displayName: "副管理者", role: "admin" },
+    ] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", payload: twoAdmins })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "management-console" });
+    // 002を削除し、001を降格すると管理者が0人になる
+    const removed = { ...adminCatalog, staffMembers: [{ responsibleNumber: "001", displayName: "管理者", role: "operator" }] };
+    const rejected = await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin, payload: removed });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json()).toMatchObject({ error: "LAST_ACTIVE_ADMIN" });
+  });
+
+  it("001をカタログから外す保存は従来どおり001の管理者が補完される", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", payload: adminCatalog })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "management-console" });
+    const without001 = { ...adminCatalog, staffMembers: [{ responsibleNumber: "002", displayName: "責任者", role: "manager" }] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin, payload: without001 })).statusCode).toBe(200);
+    const signIn = await app.inject({ method: "POST", url: "/api/v1/auth/sessions", payload: { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "register-1" } });
+    expect(signIn.json().actor).toMatchObject({ responsibleNumber: "001", role: "admin" });
+  });
+
+  it("管理者が最初からいないイベントの初回保存は従来どおり通る", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    const noAdmin = { eventId: "no-admin-event", products: [], quickEntries: [], staffMembers: [
+      { responsibleNumber: "001", displayName: "担当", role: "operator" },
+      { responsibleNumber: "002", displayName: "責任者", role: "manager" },
+    ] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/no-admin-event/catalog", payload: noAdmin })).statusCode).toBe(200);
+  });
+
+  it("permissions由来の管理者が引き継ぐ場合は降格できる", async () => {
+    const app = buildApp({ database: openDatabase(), requireAuth: true }); apps.push(app);
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", payload: adminCatalog })).statusCode).toBe(200);
+    const admin = await signInForTest(app, { eventId: "last-admin-event", responsibleNumber: "001", terminalId: "management-console" });
+    const handedOver = { ...adminCatalog, staffMembers: [
+      { responsibleNumber: "001", displayName: "管理者", role: "operator" },
+      { responsibleNumber: "002", displayName: "後任", permissions: ["catalog_import"] },
+    ] };
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/last-admin-event/catalog", headers: admin, payload: handedOver })).statusCode).toBe(200);
+    const signIn = await app.inject({ method: "POST", url: "/api/v1/auth/sessions", payload: { eventId: "last-admin-event", responsibleNumber: "002", terminalId: "register-1" } });
+    expect(signIn.json().actor).toMatchObject({ responsibleNumber: "002", role: "admin" });
+  });
+});
