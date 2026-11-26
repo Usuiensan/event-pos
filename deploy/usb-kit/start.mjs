@@ -221,14 +221,18 @@ async function run() {
       if (result && result !== "ready") throw new Error(`${result.name}が終了しました（終了コード ${result.code}）。ログ: ${logs}`);
       return result === "ready";
     };
+    const printerEnv = readPrinterEnv();
     if (!await start("printer-host", {
-      ...shared, ...readPrinterEnv(), HOST: "127.0.0.1", PRINTER_HOST_BIND: "127.0.0.1", PORT: "4318",
+      ...shared, ...printerEnv, HOST: "127.0.0.1", PRINTER_HOST_BIND: "127.0.0.1", PORT: "4318",
     })) return;
     if (!await start("server", {
       ...shared, PORT: "3000", POS_REQUIRE_HTTPS: "0", POS_REQUIRE_AUTH: "1",
       POS_TRAINING_MODE: "0", POS_DATABASE_PATH: database.localDb, POS_ARTIFACT_ROOT: artifacts,
       POS_EVENT_CONFIG_DIR: config, REGISTER_WEB_DIST: join(kit, "web"),
       PRINTER_HOST_URL: "http://127.0.0.1:4318", DRAWER_ENABLED: "0",
+      // PrinterHost に PRINTER_HOST_TOKEN を設定した場合はサーバーにも同じトークンを渡す
+      // （渡さないと全リクエストが 401 になり印刷が止まる）。
+      ...(printerEnv.PRINTER_HOST_TOKEN ? { PRINTER_HOST_TOKEN: printerEnv.PRINTER_HOST_TOKEN } : {}),
     })) return;
 
     servicesReady = true;
