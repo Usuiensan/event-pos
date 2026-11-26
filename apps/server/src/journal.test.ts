@@ -18,6 +18,19 @@ describe("ジャーナル参照", () => {
     expect((await app.inject({ method: "GET", url: "/api/v1/events/event-j/journal/lookup?reference=10000011" })).json()).toEqual({ transactionId: "t-early" });
   });
 
+  it("日付付きバーコード（旧14桁・現行16桁）でも検索でき、日付が違うと見つからない（F-072）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    db.prepare("INSERT INTO cash_sessions(session_id,event_id,business_date,cashbox_id,state,created_at) VALUES (?,?,?,?,?,?)").run("session-16", "event-j", "2026-11-29", "register-1", "open", "2026-11-29T08:00:00.000Z");
+    db.prepare("INSERT INTO transactions(transaction_id,session_id,idempotency_key,event_id,business_day_id,public_reference,public_reference_display,register_id,staff_id,type,total_yen,subtotal_yen,discount_total_yen,tax_total_yen,payment_kind,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run("t-16", "session-16", "key-16", "event-j", "event-j:2026-11-29:1", "0100000011", "01000-00011", "register-1", "staff-1", "sale", 500, 500, 0, 45, "cash", "2026-11-29T09:01:00.000Z");
+    db.prepare("INSERT INTO cash_sessions(session_id,event_id,business_date,cashbox_id,state,created_at) VALUES (?,?,?,?,?,?)").run("session-14", "event-j", "2026-08-02", "register-1", "open", "2026-08-02T08:00:00.000Z");
+    db.prepare("INSERT INTO transactions(transaction_id,session_id,idempotency_key,event_id,business_day_id,public_reference,public_reference_display,register_id,staff_id,type,total_yen,subtotal_yen,discount_total_yen,tax_total_yen,payment_kind,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run("t-14", "session-14", "key-14", "event-j", "event-j:2026-08-02:1", "10000012", "1000-0012", "register-1", "staff-1", "sale", 500, 500, 0, 45, "cash", "2026-08-02T09:01:00.000Z");
+    expect((await app.inject({ method: "GET", url: "/api/v1/events/event-j/journal/lookup?reference=2611290100000011" })).json()).toEqual({ transactionId: "t-16" });
+    expect((await app.inject({ method: "GET", url: "/api/v1/events/event-j/journal/lookup?reference=26080210000012" })).json()).toEqual({ transactionId: "t-14" });
+    expect((await app.inject({ method: "GET", url: "/api/v1/events/event-j/journal/lookup?reference=0100000011" })).json()).toEqual({ transactionId: "t-16" });
+    const wrongDate = await app.inject({ method: "GET", url: "/api/v1/events/event-j/journal/lookup?reference=2611280100000011" });
+    expect(wrongDate.statusCode).toBe(404);
+  });
+
   it("例外返金が営業日指定のジャーナル一覧に出る（新規分は営業日ID形式、修正前の日付のみ分も拾う）", async () => {
     const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
     const installed = await app.inject({ method: "PUT", url: "/api/v1/events/event-j/catalog", payload: { eventId: "event-j", quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }], products: [] } });

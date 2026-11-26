@@ -1,5 +1,5 @@
-export { calculateDammCheckDigit, createPublicReference, formatPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
-export type { PublicReferenceParts } from "./public-reference.js";
+export { calculateDammCheckDigit, createPublicReference, formatPublicReference, parseDatedPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
+export type { DatedPublicReference, PublicReferenceParts } from "./public-reference.js";
 export { durablePrintJobStates, isPrintJobState, legacyPrintJobStates, normalizePrintJobState, printJobStates } from "./print-job.js";
 export type { AttemptPhase, Capability, DeliveryCertainty, DurablePrintJobState, LegacyPrintJobState, PrinterStatusObservation, PrintJob, PrintJobRequest, PrinterDispatchFailure, PrinterDispatchResult, PrintJobState, PrintJobStateUpdate } from "./print-job.js";
 export { formatJapaneseYenSpeech, readJapaneseYen } from "./japanese-money.js";

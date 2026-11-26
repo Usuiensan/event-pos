@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { parseDatedPublicReference } from "@event-pos/contracts";
 import type { PosDatabase } from "./db.js";
 import { CheckoutError, getTransactionSnapshot } from "./checkout-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
@@ -33,6 +34,13 @@ export function registerJournalRoutes(app: FastifyInstance, options: Options): v
       requireAuthActor(options.database, request, "operator", options.authRequired);
       const reference = (request.query.reference ?? "").trim().replace(/-/g, "");
       if (!reference) throw new CheckoutError(400, "REFERENCE_REQUIRED", "受付番号を入力してください");
+      // 日付付きバーコード（旧14桁・現行16桁）は受付番号へ分解し、印字元の営業日も照合する。
+      const dated = parseDatedPublicReference(reference);
+      if (dated) {
+        const datedRow = options.database.prepare("SELECT transaction_id FROM transactions WHERE event_id=? AND public_reference=? AND (business_day_id LIKE ? OR business_day_id=?) LIMIT 1").get(request.params.eventId, dated.publicReference, `${request.params.eventId}:${dated.businessDate}:%`, dated.businessDate) as { transaction_id: string } | undefined;
+        if (!datedRow) throw new CheckoutError(404, "TRANSACTION_NOT_FOUND", "該当する取引が見つかりません");
+        return { transactionId: datedRow.transaction_id };
+      }
       const row = options.database.prepare("SELECT transaction_id FROM transactions WHERE event_id=? AND (public_reference=? OR REPLACE(public_reference_display,'-','')=? OR public_reference='R-' || ?) ORDER BY CASE WHEN public_reference=? THEN 0 ELSE 1 END LIMIT 1").get(request.params.eventId, reference, reference, reference, reference) as { transaction_id: string } | undefined;
       if (!row) throw new CheckoutError(404, "TRANSACTION_NOT_FOUND", "該当する取引が見つかりません");
       return { transactionId: row.transaction_id };

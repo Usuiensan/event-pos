@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPublicReference, formatPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
+import { createPublicReference, formatPublicReference, parseDatedPublicReference, parsePublicReference, validatePublicReference } from "./public-reference.js";
 
 describe("public reference", () => {
   it("creates, formats, validates, and parses the 10-digit reference", () => {
@@ -26,6 +26,18 @@ describe("public reference", () => {
     expect(() => createPublicReference(0, 1)).toThrow();
     expect(() => createPublicReference(100, 1)).toThrow();
     expect(() => createPublicReference(1, 10000000)).toThrow();
+  });
+  it("parses dated receipt barcodes in both legacy 14-digit and current 16-digit forms (F-072)", () => {
+    expect(parseDatedPublicReference("26080210000012")).toEqual({ businessDate: "2026-08-02", publicReference: "10000012" });
+    expect(parseDatedPublicReference("2611290100000011")).toEqual({ businessDate: "2026-11-29", publicReference: "0100000011" });
+  });
+  it("rejects dated barcodes with a non-existent date or a bad check digit (F-072)", () => {
+    expect(parseDatedPublicReference("2602300100000011")).toBeNull();
+    expect(parseDatedPublicReference("2611290100000012")).toBeNull();
+    // GTIN-14 として有効でも、受付番号の検査数字が不正なら日付付き受付番号ではない
+    expect(parseDatedPublicReference("12022900000008")).toBeNull();
+    expect(parseDatedPublicReference("0100000011")).toBeNull();
+    expect(parseDatedPublicReference("261129010000001")).toBeNull();
   });
   it("still validates, formats, and parses legacy 8-digit references", () => {
     // 旧形式: 営業1桁 + 連番6桁 + 検査数字（移行前に発行された受付番号の例）
