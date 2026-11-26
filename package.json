@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.9.0",
   "engines": { "node": ">=24.0.0" },
   "scripts": {
-    "check": "pnpm build && pnpm typecheck && pnpm test && node --test deploy/usb-kit/database.test.mjs && pnpm --filter @event-pos/printer-host smoke:built && pnpm --filter @event-pos/printer-host smoke:deploy",
+    "check": "pnpm build && pnpm typecheck && pnpm test && node --test deploy/usb-kit/database.test.mjs deploy/usb-kit/lan.test.mjs && pnpm --filter @event-pos/printer-host smoke:built && pnpm --filter @event-pos/printer-host smoke:deploy",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r build",

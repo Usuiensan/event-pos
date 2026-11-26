@@ -147,6 +147,15 @@ PrinterHostにPRINTER_HOST_TOKENを設定した場合は、サーバーも同じ
 
 Excelは正本ではなく、SQLiteが正本です。
 
+### LAN公開・接続案内
+
+- USBキットのPOSサーバーは既定で `127.0.0.1:3000` のみ待ち受ける。環境変数 `EVENT_POS_LAN=1`（または `true`）、もしくは起動引数 `--lan` を付けると `0.0.0.0:3000` で待ち受け、同じネットワークの他端末から接続できる（Windows は `start-usb-kit.ps1 -Lan` でも可。ランチャーの `.bat` / `.command` は引数をそのまま渡す）。
+- LAN公開の対象はPOSサーバーだけ。printer-host は常に `127.0.0.1` のまま、練習環境（トレーニングサーバー）には適用しない。
+- 管理画面に「接続案内」セクションがある。表示時点のサーバーがネットワークインターフェースから取得したLANアドレス（固定値ではない）と実際の待ち受けポートで、レジ画面（`?register=1&role=staff`）と顧客画面（`?register=1&role=customer`）のURLとQRコードを表示する。LAN未公開時はその旨と有効化方法を警告表示する。
+- 接続案内にはWi-Fi接続QRも表示する。接続先Wi-Fi（スマートフォンのテザリング等）のSSIDとパスワードは管理画面で編集・保存でき、サーバーの `app_metadata`（キー `connection_wifi_ssid` / `connection_wifi_password`）に保持する。QRの元文字列は `WIFI:T:WPA;S:<ssid>;P:<password>;;` 形式（パスワード空欄時は `WIFI:T:nopass;S:<ssid>;;`、区切り文字はバックスラッシュでエスケープ）。保存時の監査ログにはパスワードを含めない。
+- API は `GET /api/v1/connection-guide`（待ち受け情報・LANアドレス・URL・Wi-Fi設定を返す）と `PUT /api/v1/connection-guide/wifi`（Wi-Fi設定の保存）。どちらも責任者（manager）以上の権限が要る。SSIDは1〜32バイト、パスワードは空欄か8〜63文字。
+- QRコードの生成はレジ画面のブラウザ内で完結し、外部通信は発生しない（バイトモード・誤り訂正レベルM・バージョン1〜10の自前実装。URLが長く収まらない場合は表示できない）。
+
 ## 4. 外部決済
 
 クレジット等の外部決済端末とは自動連携しません。

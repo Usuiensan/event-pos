@@ -46,7 +46,7 @@ if (trainingMode) {
     }
   }
 }
-const app = buildApp({ database, requireAuth, drawerEnabled, errorReportDirectory, artifactRoot: artifactConfig.artifactRoot, artifactMinimumFreeBytes: artifactConfig.minimumFreeBytes, ...(effectiveEventConfigDirectory ? { eventConfigDirectory: effectiveEventConfigDirectory } : {}), ...(eventConfigRepository ? { eventConfigRepository } : {}), ...(https ? { https } : {}), ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl, 15_000, process.env.PRINTER_HOST_TOKEN) } : {}) });
+const app = buildApp({ database, requireAuth, drawerEnabled, listenInfo: { host, port }, errorReportDirectory, artifactRoot: artifactConfig.artifactRoot, artifactMinimumFreeBytes: artifactConfig.minimumFreeBytes, ...(effectiveEventConfigDirectory ? { eventConfigDirectory: effectiveEventConfigDirectory } : {}), ...(eventConfigRepository ? { eventConfigRepository } : {}), ...(https ? { https } : {}), ...(printerHostUrl ? { printerHost: new HttpPrinterHostClient(printerHostUrl, 15_000, process.env.PRINTER_HOST_TOKEN) } : {}) });
 const registerWebDist = process.env.REGISTER_WEB_DIST ?? "/app/register-web";
 const contentTypes: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".wav": "audio/wav", ".mp3": "audio/mpeg" };
 const sendAsset = async (file: string, reply: { type(value: string): { send(value: Buffer): unknown }; code(value: number): { send(value: unknown): unknown } }) => {

@@ -20,11 +20,12 @@ import { AuthError, requireAuthActor } from "./auth.js";
 import { buildCatalog } from "@event-pos/catalog-config";
 import { registerConfigManagementRoutes } from "./config-management.js";
 import { registerServerFeatureRoutes } from "./server-features.js";
+import { registerConnectionGuideRoutes } from "./connection-guide.js";
 import { registerJournalRoutes } from "./journal.js";
 import { receiptRenderOptions } from "./receipt-render-config.js";
 
 export type { PrinterHost } from "./print-queue.js";
-export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string };
+export type AppOptions = { database: PosDatabase; printerHost?: PrinterHost; requireCashAuth?: boolean; requireAuth?: boolean; checkoutFailureInjector?: FailureInjector; realtimeHub?: RealtimeHub; errorReportDirectory?: string; drawerEnabled?: boolean; artifactRoot?: string; artifactMinimumFreeBytes?: number; backupArtifactFailureInjector?: BackupArtifactFailureInjector; https?: { key: Buffer; cert: Buffer }; eventConfigDirectory?: string; eventConfigRepository?: string; listenInfo?: { host: string; port: number } };
 type EmergencyAlert = { id: string; title: string; message: string; receivedAt: string; source?: string };
 
 function emergencyAlertFromPrintJob(body: PrintJobRequest): EmergencyAlert {
@@ -255,6 +256,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerCheckoutRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), ...(options.checkoutFailureInjector ? { checkoutFailureInjector: options.checkoutFailureInjector } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }), realtimeHub });
   registerServerFeatureRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { printQueue } : {}), realtimeHub });
+  registerConnectionGuideRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(options.listenInfo ? { listenInfo: options.listenInfo } : {}) });
   registerJournalRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
   registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
