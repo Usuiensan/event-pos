@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import { createDatabaseSession, lockLocalDirectory } from "./database.mjs";
+import { drawerEnabled } from "./drawer.mjs";
 import { serverHost } from "./lan.mjs";
 import { initializeUsbDatabase } from "./initialize-usb-db.js";
 
@@ -228,11 +229,12 @@ async function run() {
     })) return;
     if (serverHost() === "0.0.0.0") console.log("LAN公開モードで起動します（既定）。他の端末からは管理画面の「接続案内」に表示されるQRコードで接続できます。この端末のみに制限するには、環境変数 EVENT_POS_LAN=0 または起動引数 --no-lan を指定してください。");
     else console.log("この端末のみで起動します（LAN公開は無効）。他の端末から接続できるようにするには、環境変数 EVENT_POS_LAN=1 または起動引数 --lan を指定してください。");
+    if (drawerEnabled()) console.log("ドロアー駆動が有効です（DRAWER_ENABLED=1 または --drawer）");
     if (!await start("server", {
       ...shared, HOST: serverHost(), PORT: "3000", POS_REQUIRE_HTTPS: "0", POS_REQUIRE_AUTH: "1",
       POS_TRAINING_MODE: "0", POS_DATABASE_PATH: database.localDb, POS_ARTIFACT_ROOT: artifacts,
       POS_EVENT_CONFIG_DIR: config, REGISTER_WEB_DIST: join(kit, "web"),
-      PRINTER_HOST_URL: "http://127.0.0.1:4318", DRAWER_ENABLED: "0",
+      PRINTER_HOST_URL: "http://127.0.0.1:4318", DRAWER_ENABLED: drawerEnabled() ? "1" : "0",
       // PrinterHost に PRINTER_HOST_TOKEN を設定した場合はサーバーにも同じトークンを渡す
       // （渡さないと全リクエストが 401 になり印刷が止まる）。
       ...(printerEnv.PRINTER_HOST_TOKEN ? { PRINTER_HOST_TOKEN: printerEnv.PRINTER_HOST_TOKEN } : {}),
