@@ -93,9 +93,15 @@ export function buildPrinterHost(options: PrinterHostOptions): FastifyInstance {
       // dispatch attempt while no measured capability explicitly blocks it.
       const ready = reachable && !explicitlyOffline && !coverOpen && !paperEmpty;
       if (!ready) {
-        const code = coverOpen ? "PRINTER_COVER_OPEN" : paperEmpty ? "PAPER_OUT" : "STATUS_UNKNOWN";
-        const message = coverOpen ? "プリンターカバーが開いているため送信できません" : paperEmpty ? "用紙切れのため送信できません" : "プリンター状態を送信可能と確認できません";
-        return reject(reply, job, { code, message, acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+        // 実測できた異常（カバー開・用紙切れ・明示的なオフライン／到達不可）は
+        // device fault として扱い、キューの責任者再開を待つ。
+        if (coverOpen) return reject(reply, job, { code: "PRINTER_COVER_OPEN", message: "プリンターカバーが開いているため送信できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+        if (paperEmpty) return reject(reply, job, { code: "PAPER_OUT", message: "用紙切れのため送信できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+        const measuredOffline = explicitlyOffline || (status.reachable.support === "supported" && !status.reachable.value);
+        if (measuredOffline) return reject(reply, job, { code: "PRINTER_OFFLINE", message: "プリンターがオフラインのため送信できません", acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true, statusObservation: status });
+        // 状態が未確認（unknown）なだけなら一時的な失敗として扱い、device fault
+        // にはしない。サーバー側の通常バックオフで自動再試行される（F-057）。
+        return reject(reply, job, { code: "STATUS_UNKNOWN", message: "プリンター状態を送信可能と確認できません", acceptedBytes: 0, notSentProven: true, retryable: true, deviceFault: false, statusObservation: status });
       }
       job = await setState(job, "sending");
       log({ level: "info", event: "dispatch_started", message: "PrinterTransportへ送信を開始します", jobId: job.jobId, documentType: job.documentType, bytesSha256: hash, payloadLength: bytes.length });

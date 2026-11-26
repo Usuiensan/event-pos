@@ -5,7 +5,7 @@ import type { PrintJob } from "@event-pos/contracts";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 import { uuidV7 } from "./checkout-store.js";
 import { getCatalog, getPrintJob, type PosDatabase } from "./db.js";
-import type { PersistentPrintQueue } from "./print-queue.js";
+import { getPrintQueueStatus, type PersistentPrintQueue } from "./print-queue.js";
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
 import { createPrintJob } from "./db.js";
 import { AuthError, requireAuthActor } from "./auth.js";
@@ -130,7 +130,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
   });
   app.get("/api/v1/printer/status", async () => {
     const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, drawerOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
-    return { printerId: "receipt-1", observation };
+    return { printerId: "receipt-1", observation, queue: getPrintQueueStatus(options.database) };
   });
   app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => options.queue?.resumeDeviceFault(request.body?.actorId ?? "") ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"));
 }

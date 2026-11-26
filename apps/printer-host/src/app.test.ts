@@ -87,13 +87,38 @@ describe("printer host", () => {
     expect(transport.sent).toHaveLength(1);
   });
 
-  it("状態不明と用紙切れをI/O前のdevice faultとして返す", async () => {
-    for (const status of ["unknown", "paper_out"] as const) {
+  it("用紙切れとオフラインはI/O前のdevice faultとして返す", async () => {
+    for (const [status, code] of [["paper_out", "PAPER_OUT"], ["offline", "PRINTER_OFFLINE"]] as const) {
       const app = buildPrinterHost({ transport: new FakeTransport(undefined, status) }); apps.push(app);
       const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: `job-${status}` } });
       expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({ failure: { acceptedBytes: 0, notSentProven: true, deviceFault: true } });
+      expect(response.json()).toMatchObject({ failure: { code, acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true } });
     }
+  });
+
+  it("状態不明（unknown）はdevice faultにせず、再試行可能な失敗として返す（F-057）", async () => {
+    const app = buildPrinterHost({ transport: new FakeTransport(undefined, "unknown") }); apps.push(app);
+    const response = await app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-unknown" } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ failure: { code: "STATUS_UNKNOWN", acceptedBytes: 0, notSentProven: true, retryable: true, deviceFault: false } });
+  });
+
+  it("状態不明から復旧したら、同じjobの再要求で状態を読み直して送信する（F-057）", async () => {
+    const transport = new FakeTransport();
+    let status = statusObservation("unknown");
+    transport.getStatus = async () => status;
+    const app = buildPrinterHost({ transport, statusPollIntervalMs: 60_000 }); apps.push(app);
+    const submit = () => app.inject({ method: "POST", url: "/api/v1/print-jobs", payload: { ...job, jobId: "job-unknown-recovery" } });
+
+    const first = await submit();
+    expect(first.statusCode).toBe(409);
+    expect(first.json()).toMatchObject({ failure: { code: "STATUS_UNKNOWN", deviceFault: false, retryable: true } });
+    expect(transport.sent).toHaveLength(0);
+
+    status = statusObservation("ready");
+    const second = await submit();
+    expect(second.statusCode).toBe(201);
+    expect(transport.sent).toEqual([receiptBytes]);
   });
 
   it("未送信のdevice faultを再確認し、復旧後の同時要求でも一回だけ送信する", async () => {
