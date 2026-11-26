@@ -319,6 +319,30 @@ describe("取り置き",()=>{
     const nextClose = await app.inject({ method: "POST", url: `/api/v1/business-sessions/${next.json().businessSessionId}/close`, payload: { terminalId: "register-1" } });
     expect(nextClose.statusCode).toBe(409); expect(nextClose.json().error.code).toBe("ACTIVE_HOLDS_EXIST");
   });
+  it("繰越予約をした営業と同じ営業での有効化は409で拒否され、翌営業では同じ受付番号を有効化できる（F-051）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: catalog });
+    const firstCashSessionId = await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    db.prepare("UPDATE inventory_balances SET on_hand=1 WHERE event_id=? AND product_id=?").run(catalog.eventId, "hold-event:00000001");
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const firstBusiness = (await app.inject({ method: "GET", url: `/api/v1/business-sessions/current?eventId=${catalog.eventId}` })).json().session.businessSessionId;
+    const requested = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry-request`, payload: { terminalId: "register-1" } });
+    expect(requested.statusCode).toBe(200);
+    const sameBusiness = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry`, payload: { businessSessionId: firstBusiness, terminalId: "register-1" } });
+    expect(sameBusiness.statusCode).toBe(409); expect(sameBusiness.json().error.code).toBe("HOLD_NOT_CARRYABLE");
+    expect(db.prepare("SELECT state,business_session_id AS businessSessionId FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({ state: "carried", businessSessionId: firstBusiness });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM hold_carryovers WHERE hold_id=?").get(hold.json().holdId)).toEqual({ count: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM hold_carry_requests WHERE hold_id=?").get(hold.json().holdId)).toEqual({ count: 1 });
+    expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId, "hold-event:00000001")).toMatchObject({ reserved: 1 });
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${firstCashSessionId}/checks/closing`, payload: { counted: [], terminalId: "register-1" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `/api/v1/business-sessions/${firstBusiness}/close`, payload: { terminalId: "register-1" } })).statusCode).toBe(200);
+    const next = await app.inject({ method: "POST", url: "/api/v1/business-sessions", payload: { eventId: catalog.eventId, businessDate: "2026-08-04", terminalId: "register-1" } });
+    expect(next.statusCode).toBe(201);
+    const carried = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/carry`, payload: { businessSessionId: next.json().businessSessionId, terminalId: "register-1" } });
+    expect(carried.statusCode).toBe(200); expect(carried.json()).toMatchObject({ state: "active" });
+    expect(db.prepare("SELECT public_reference AS reference,business_session_id AS businessSessionId FROM holds WHERE hold_id=?").get(hold.json().holdId)).toMatchObject({ reference: hold.json().publicReference, businessSessionId: next.json().businessSessionId });
+  });
   it("同じ商品を複数明細に分けても、在庫不足の判定は同一商品で合算される（F-036）", async () => {
     const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
     const limitedCatalog = { ...catalog, products: [{ ...catalog.products[0], inventory: { openingQuantity: 3 } }] };
