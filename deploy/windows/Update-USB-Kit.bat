@@ -7,4 +7,10 @@ if exist "%~dp0update-usb-kit.ps1.new" (
   move /y "%~dp0update-usb-kit.ps1.new" "%~dp0update-usb-kit.ps1" >nul
 )
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-usb-kit.ps1" %*
-if errorlevel 1 pause
+set "RC=%ERRORLEVEL%"
+if %RC% NEQ 0 pause
+if %RC% NEQ 0 exit /b %RC%
+echo.
+echo 終了しました。このウィンドウは10秒後に閉じます（何かキーを押すとすぐ閉じます）。
+timeout /t 10 2>nul
+exit /b 0
