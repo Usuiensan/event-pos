@@ -53,6 +53,21 @@ export function formatPublicReference(reference: string): string {
   return `${reference.slice(0, split)}-${reference.slice(split)}`;
 }
 
+export type DatedPublicReference = { businessDate: string; publicReference: string };
+
+// レシートのバーコードは営業日6桁（YYMMDD）＋受付番号で、旧形式は14桁・現行形式は16桁。
+// 日付付き受付番号の解析は検索（サーバー）とスキャン振り分け（レジ）でこの関数を共用する。
+// 実在しない日付や、受付番号の検査数字（Damm）が不正なものは日付付き受付番号として扱わない。
+export function parseDatedPublicReference(input: string): DatedPublicReference | null {
+  if (!/^\d{14}$/.test(input) && !/^\d{16}$/.test(input)) return null;
+  const publicReference = input.slice(6);
+  if (!validatePublicReference(publicReference)) return null;
+  const businessDate = `20${input.slice(0, 2)}-${input.slice(2, 4)}-${input.slice(4, 6)}`;
+  const parsedDate = new Date(`${businessDate}T00:00:00.000Z`);
+  if (Number.isNaN(parsedDate.valueOf()) || parsedDate.toISOString().slice(0, 10) !== businessDate) return null;
+  return { businessDate, publicReference };
+}
+
 export function parsePublicReference(reference: string): PublicReferenceParts {
   const normalized = reference.replace("-", "");
   if (!validatePublicReference(normalized)) throw new Error("受付番号が不正です");

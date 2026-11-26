@@ -1,3 +1,5 @@
+import { parseDatedPublicReference } from "@event-pos/contracts";
+
 export type ScanClassification =
   | { kind: "parked-draft"; parkReference: string }
   | { kind: "hold"; reference: string }
@@ -16,9 +18,10 @@ const SCAN_RULES: Array<(raw: string) => ScanClassification | null> = [
     return { kind: "transaction", reference: value, businessDate: null };
   },
   (raw) => {
-    if (!/^\d{14}$/.test(raw) && !/^\d{16}$/.test(raw)) return null;
-    const month = Number(raw.slice(2, 4)); const day = Number(raw.slice(4, 6));
-    return month >= 1 && month <= 12 && day >= 1 && day <= 31 ? { kind: "transaction", reference: raw.slice(6), businessDate: `20${raw.slice(0, 2)}-${raw.slice(2, 4)}-${raw.slice(4, 6)}` } : null;
+    // 素の数字だけのコードは、実在日付＋受付番号の検査数字を満たす場合だけ取引とする。
+    // GTIN-14 等の商品コードはここで取引に誤振り分けせず、商品パーサーへ渡す。
+    const dated = parseDatedPublicReference(raw);
+    return dated ? { kind: "transaction", reference: dated.publicReference, businessDate: dated.businessDate } : null;
   },
 ];
 
