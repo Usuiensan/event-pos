@@ -195,6 +195,11 @@ export function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto
   return draft;
 }
 
+export function cancelDraftAgeRequests(db: PosDatabase, draftId: string, canceledAt: string): void {
+  db.prepare("UPDATE age_confirmation_requests SET state='canceled',responded_at=? WHERE draft_id=? AND state IN ('requested','acknowledged')")
+    .run(canceledAt, draftId);
+}
+
 export function createSaleDraft(db: PosDatabase, input: { eventId: string; registerId: string; staffId: string; terminalId: string; businessDate: string; sessionNo?: number }): SaleDraftDto {
   if (!input.eventId || !input.registerId || !input.staffId || !input.terminalId || !/^\d{4}-\d{2}-\d{2}$/.test(input.businessDate)) throw new CheckoutError(400, "INVALID_DRAFT", "ドラフト開始情報が不正です");
   catalogFor(db, input.eventId);
@@ -213,8 +218,7 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
           AND NOT EXISTS (SELECT 1 FROM draft_payments p WHERE p.draft_id=d.draft_id)
           AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.claimed_draft_id=d.draft_id AND h.state='claimed')`).run(now, existing.draft_id);
       if (Number(canceled.changes) !== 1) throw new CheckoutError(409, "ACTIVE_DRAFTS_EXIST", "別の営業の未確定の会計が残っています");
-      db.prepare("UPDATE age_confirmation_requests SET state='canceled',responded_at=? WHERE draft_id=? AND state IN ('requested','acknowledged')")
-        .run(now, existing.draft_id);
+      cancelDraftAgeRequests(db, existing.draft_id, now);
     }
     const draftId = uuidV7();
     db.prepare(`INSERT INTO sale_drafts (draft_id,event_id,register_id,staff_id,terminal_id,business_date,session_no,cash_session_id,version,state,created_at,updated_at)
@@ -242,9 +246,11 @@ function assertMutable(db: PosDatabase, row: Record<string, unknown>, expectedVe
   if (register.cashSessionId !== row.cash_session_id) throw new CheckoutError(409, "BUSINESS_CLOSED", "この会計を開始した営業は終了しています");
 }
 
-function bump(db: PosDatabase, draftId: string, version: number, state?: "editing" | "payment"): void {
-  const result = db.prepare(`UPDATE sale_drafts SET version=version+1, updated_at=?, state=COALESCE(?, state) WHERE draft_id=? AND version=?`).run(new Date().toISOString(), state ?? null, draftId, version);
+function bump(db: PosDatabase, draftId: string, version: number, state?: "editing" | "payment" | "canceled"): string {
+  const updatedAt = new Date().toISOString();
+  const result = db.prepare(`UPDATE sale_drafts SET version=version+1, updated_at=?, state=COALESCE(?, state) WHERE draft_id=? AND version=?`).run(updatedAt, state ?? null, draftId, version);
   if (Number(result.changes) !== 1) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
+  return updatedAt;
 }
 
 function productByCode(db: PosDatabase, eventId: string, productCode: string): Record<string, unknown> {
@@ -459,8 +465,8 @@ export function cancelSaleDraft(db: PosDatabase, draftId: string, version: numbe
     const row = draftRow(db, draftId);
     if (row.state !== "parked") assertMutable(db, row, version);
     else if (Number(row.version) !== version) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
-    bump(db, draftId, version);
-    db.prepare("UPDATE sale_drafts SET state='canceled' WHERE draft_id=?").run(draftId);
+    const canceledAt = bump(db, draftId, version, "canceled");
+    cancelDraftAgeRequests(db, draftId, canceledAt);
     restoreHoldsForCanceledDraft(db, draftId, String(row.event_id));
     return updateProjection(db, draftId);
   });
