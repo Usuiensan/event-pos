@@ -3,7 +3,7 @@ import websocket from "@fastify/websocket";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
-import { createCashSession, createPrintJob, findCashJournalCandidates, findCashSessionSummary, getCashSessionSummary, getCashSettlementSummary, getCatalog, getPrintJob, getTheoreticalCash, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
+import { createCashSession, createPrintJob, findCashJournalCandidates, findCashSessionSummary, getCashSessionSummary, getCashSettlementSummary, getCatalog, getPrintJob, getTheoreticalCash, listCatalogs, reopenCashSession, saveCashCheck, saveCashMovement, saveReturnTransaction, saveSaleTransaction, saveCatalog, updatePrintJob, type PosDatabase } from "./db.js";
 import { createCashCheck, exportEventCatalog, importEventCatalog, isPrintJobState, parsePaymentSlipCode, type CashCheckKind, type EventCatalog, type PrintJobRequest, type PrintJobStateUpdate } from "@event-pos/contracts";
 import { bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
 import { registerCheckoutRoutes } from "./checkout-routes.js";
@@ -174,6 +174,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     options.database.prepare("INSERT INTO audit_log (action, entity_type, entity_id, detail_json, created_at) VALUES ('journal_candidate_confirm', 'cash_movement', ?, ?, ?)").run(String(request.body.candidateId), JSON.stringify({ sessionId: request.params.sessionId, note: request.body.note ?? "", actorId: auth.actorId ?? request.body.actorId, terminalId: request.body.terminalId }), now);
     return reply.code(201).send({ confirmed: true, candidateId: request.body.candidateId });
   });
+  app.get("/api/v1/event-catalogs", async () => ({
+    events: listCatalogs(options.database).map(({ eventId, updatedAt }) => ({ eventId, updatedAt })),
+  }));
   app.get<{ Params: { eventId: string } }>("/api/v1/events/:eventId/catalog", async (request, reply) => {
     const record = getCatalog(options.database, request.params.eventId);
     if (!record) return reply.code(404).send({ error: "catalog_not_found" });

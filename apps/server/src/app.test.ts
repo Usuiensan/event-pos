@@ -258,3 +258,20 @@ describe("server foundation", () => {
     expect((await app.inject("/api/v1/print-jobs/restart-job")).json()).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
   });
 });
+
+describe("event catalog listing", () => {
+  it("DBに保存されたカタログのイベント一覧を更新順に返す", async () => {
+    const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
+    const put = (eventId: string) => app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: { eventId, products: [], quickEntries: [], staffMembers: [{ responsibleNumber: "001", displayName: "担当", role: "operator" }] } });
+    expect((await put("demo-event-large")).statusCode).toBe(200);
+    expect((await put("real-event")).statusCode).toBe(200);
+    database.prepare("UPDATE event_catalogs SET updated_at = ? WHERE event_id = ?").run("2026-01-01T00:00:00.000Z", "real-event");
+    database.prepare("UPDATE event_catalogs SET updated_at = ? WHERE event_id = ?").run("2026-01-02T00:00:00.000Z", "demo-event-large");
+    const response = await app.inject({ method: "GET", url: "/api/v1/event-catalogs" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ events: [
+      { eventId: "demo-event-large", updatedAt: "2026-01-02T00:00:00.000Z" },
+      { eventId: "real-event", updatedAt: "2026-01-01T00:00:00.000Z" },
+    ] });
+  });
+});

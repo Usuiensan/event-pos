@@ -23,6 +23,7 @@ import { HoldOperations } from "./hold-operations.js";
 import { StockAdjustment } from "./stock-adjustment.js";
 import { DEFAULT_REASON, ReasonSelect } from "./reason-options.js";
 import { AdminSettings } from "./admin-settings.js";
+import { resolveActiveEventId } from "./active-event.js";
 import { createUuid } from "./uuid.js";
 import { loadStockDisplaySettings, normalizeStockDisplaySettings, stockIndicatorText, stockToneClass, storeStockDisplaySettings, type StockDisplaySettings } from "./stock-display-settings.js";
 import { classifyScan, nextInputBuffer, scanRouteFor } from "./scan-routing.js";
@@ -558,7 +559,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
    }, [checkoutLocked, lastAddedShortcut, role, selectedLine, showSignIn, total, catalog.products]);
-  useEffect(() => { fetch(apiUrl(`/api/v1/events/${encodeURIComponent(initialCatalog.eventId)}/catalog`)).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
+  useEffect(() => { void resolveActiveEventId().then((eventId) => fetch(apiUrl(`/api/v1/events/${encodeURIComponent(eventId)}/catalog`))).then(async (response) => response.ok ? (await response.json()).catalog as EventCatalog : initialCatalog).then(setCatalog).catch(() => { showSystemError("カタログを読み込めません。初期値を表示しています"); }); }, []);
   useEffect(() => {
     if (role !== "staff" || !authActor) return;
     inventoryRefreshRef.current = refreshInventory;
@@ -859,6 +860,17 @@ function Launcher() {
   return <main className={training ? "launcher-screen training-mode" : "launcher-screen"}>{training && TRAINING_BANNER}<section className="launcher-card"><div className="launcher-mark">POS</div><h1>ぽすりん</h1><p>使用するレジ番号と画面を選択してください。</p><fieldset><legend>レジ番号</legend><div className="register-selector">{[1, 2, 3, 4].map((number) => <button key={number} className={registerNumber === number ? "active" : ""} onClick={() => setRegisterNumber(number)}>レジ{number}</button>)}</div></fieldset><div className="role-selector"><button className="staff-launch" onClick={() => openRegister("staff")}><strong>店員側画面</strong><span>商品登録・会計操作</span></button><button className="customer-launch" onClick={() => openRegister("customer")}><strong>顧客側画面</strong><span>明細・合計・年齢確認</span></button><button className="admin-launch" onClick={() => window.location.assign("/?role=admin")}><strong>管理画面</strong><span>マスタ・帳票・運用設定</span></button></div><button className="training-launch" onClick={() => openRegister("staff", "training")}><strong>トレーニングモード</strong><span>本番DBを変更せず、会計・印刷を練習</span></button><small>ホーム画面から起動した場合も、この画面で使用するレジを選択します。</small></section></main>;
 }
 
+function AdminRoot() {
+  const [eventId, setEventId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    void resolveActiveEventId().then((resolved) => { if (!cancelled) setEventId(resolved); });
+    return () => { cancelled = true; };
+  }, []);
+  if (!eventId) return <main className="launcher-screen"><section className="launcher-card"><p>読み込み中…</p></section></main>;
+  return <AdminSettings eventId={eventId} />;
+}
+
 function Root() {
   const params = new URLSearchParams(window.location.search);
   const role = params.get("role");
@@ -884,7 +896,7 @@ function Root() {
     document.addEventListener("pointercancel", cancelTap, { capture: true });
     return () => { document.removeEventListener("pointerdown", rememberTapStart, { capture: true }); document.removeEventListener("pointerup", playTapFeedback, { capture: true }); document.removeEventListener("pointercancel", cancelTap, { capture: true }); };
   }, [registerNumber, role]);
-  if (role === "admin") return <AdminSettings eventId={initialCatalog.eventId} />;
+  if (role === "admin") return <AdminRoot />;
   if ((role !== "staff" && role !== "customer") || !Number.isInteger(registerNumber) || registerNumber < 1 || registerNumber > 4) return <Launcher />;
   return <App role={role} registerNumber={registerNumber} />;
 }

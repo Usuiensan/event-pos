@@ -105,6 +105,11 @@ export function getCatalog(db: PosDatabase, eventId: string): CatalogRecord | un
   return row ? { eventId: String(row.event_id), catalogJson: String(row.catalog_json), updatedAt: String(row.updated_at) } : undefined;
 }
 
+export function listCatalogs(db: PosDatabase): CatalogRecord[] {
+  const rows = db.prepare("SELECT event_id, catalog_json, updated_at FROM event_catalogs ORDER BY updated_at DESC, event_id ASC").all() as Array<Record<string, unknown>>;
+  return rows.map((row) => ({ eventId: String(row.event_id), catalogJson: String(row.catalog_json), updatedAt: String(row.updated_at) }));
+}
+
 export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: string, action = "upsert"): CatalogRecord {
   const updatedAt = new Date().toISOString();
   const catalog = importEventCatalog(catalogJson);
