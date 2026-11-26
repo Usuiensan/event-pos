@@ -7,6 +7,13 @@ if [[ "$(uname -s)" != Darwin || $# -lt 1 || $# -gt 2 ]]; then
 fi
 repo="$(cd -- "$(dirname -- "$0")/../.." && pwd -P)"
 target="$1"
+if [[ "${2:-}" == "universal" ]]; then
+  # 兼用キット: ランタイムとネイティブモジュールの取得は build.mjs 側が行う。
+  cd "$repo"
+  pnpm build
+  node deploy/usb-kit/build.mjs universal "$target" "$(command -v node)"
+  exit 0
+fi
 node_version="$(node --version)"
 build_arch="$(node -p 'process.arch')"
 node_arch="${2:-$build_arch}"
