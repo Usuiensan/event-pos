@@ -65,7 +65,7 @@ try {
   bundle("apps/server/src/initialize-usb-db.ts", "server/dist/initialize-usb-db.js");
   bundle("apps/printer-host/src/index.ts", "printer-host/dist/index.js", ["usb"]);
   const serverDist = join(stage, "server", "dist");
-  for (const name of ["start.mjs", "database.mjs"]) copyFileSync(join(repo, "deploy", "usb-kit", name), join(serverDist, name));
+  for (const name of ["start.mjs", "database.mjs", "lan.mjs"]) copyFileSync(join(repo, "deploy", "usb-kit", name), join(serverDist, name));
   if (windows || universal) {
     const helper = "watch-usb-kit-shutdown.ps1";
     copyFileSync(join(windowsFiles, helper), join(serverDist, helper));

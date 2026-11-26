@@ -66,6 +66,22 @@ describe("checkout API client", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/events/event-1/product-lookup/feedback", expect.objectContaining({ method: "POST", body: JSON.stringify({ productCode: "4901234567890", token: "ハンズ", feedback: "negative" }) }));
   });
 
+  it("接続案内を取得する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ host: "0.0.0.0", port: 3000, lanPublished: true, addresses: ["192.168.68.119"], urls: [], wifi: { ssid: "MyPhone", password: "password123" } }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const guide = await checkoutApi.getConnectionGuide();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/connection-guide", expect.anything());
+    expect(guide.lanPublished).toBe(true);
+    expect(guide.wifi.ssid).toBe("MyPhone");
+  });
+
+  it("Wi-Fi設定をPUTで保存する", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ wifi: { ssid: "MyPhone", password: "password123" } }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await checkoutApi.saveConnectionWifi({ ssid: "MyPhone", password: "password123" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/connection-guide/wifi", expect.objectContaining({ method: "PUT", body: JSON.stringify({ ssid: "MyPhone", password: "password123" }) }));
+  });
+
   it("在庫調整へ商品・目標数・理由を送る", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ productCode: "00000001", tracked: true, openingQuantity: 5, remaining: 7, reserved: 0, available: 7 }) });
     vi.stubGlobal("fetch", fetchMock);

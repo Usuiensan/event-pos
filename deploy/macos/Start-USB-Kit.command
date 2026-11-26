@@ -17,4 +17,4 @@ if [ ! -x "$node" ]; then
     exit 1
   fi
 fi
-exec "$node" "$kit/server/dist/start.mjs"
+exec "$node" "$kit/server/dist/start.mjs" "$@"

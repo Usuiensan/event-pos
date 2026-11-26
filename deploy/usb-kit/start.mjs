@@ -7,6 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import { createDatabaseSession, lockLocalDirectory } from "./database.mjs";
+import { serverHost } from "./lan.mjs";
 import { initializeUsbDatabase } from "./initialize-usb-db.js";
 
 const kit = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
@@ -225,8 +226,9 @@ async function run() {
     if (!await start("printer-host", {
       ...shared, ...printerEnv, HOST: "127.0.0.1", PRINTER_HOST_BIND: "127.0.0.1", PORT: "4318",
     })) return;
+    if (serverHost() === "0.0.0.0") console.log("LAN公開モードで起動します。他の端末からは管理画面の「接続案内」に表示されるQRコードで接続できます。");
     if (!await start("server", {
-      ...shared, PORT: "3000", POS_REQUIRE_HTTPS: "0", POS_REQUIRE_AUTH: "1",
+      ...shared, HOST: serverHost(), PORT: "3000", POS_REQUIRE_HTTPS: "0", POS_REQUIRE_AUTH: "1",
       POS_TRAINING_MODE: "0", POS_DATABASE_PATH: database.localDb, POS_ARTIFACT_ROOT: artifacts,
       POS_EVENT_CONFIG_DIR: config, REGISTER_WEB_DIST: join(kit, "web"),
       PRINTER_HOST_URL: "http://127.0.0.1:4318", DRAWER_ENABLED: "0",
