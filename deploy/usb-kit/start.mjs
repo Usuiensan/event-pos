@@ -226,7 +226,8 @@ async function run() {
     if (!await start("printer-host", {
       ...shared, ...printerEnv, HOST: "127.0.0.1", PRINTER_HOST_BIND: "127.0.0.1", PORT: "4318",
     })) return;
-    if (serverHost() === "0.0.0.0") console.log("LAN公開モードで起動します。他の端末からは管理画面の「接続案内」に表示されるQRコードで接続できます。");
+    if (serverHost() === "0.0.0.0") console.log("LAN公開モードで起動します（既定）。他の端末からは管理画面の「接続案内」に表示されるQRコードで接続できます。この端末のみに制限するには、環境変数 EVENT_POS_LAN=0 または起動引数 --no-lan を指定してください。");
+    else console.log("この端末のみで起動します（LAN公開は無効）。他の端末から接続できるようにするには、環境変数 EVENT_POS_LAN=1 または起動引数 --lan を指定してください。");
     if (!await start("server", {
       ...shared, HOST: serverHost(), PORT: "3000", POS_REQUIRE_HTTPS: "0", POS_REQUIRE_AUTH: "1",
       POS_TRAINING_MODE: "0", POS_DATABASE_PATH: database.localDb, POS_ARTIFACT_ROOT: artifacts,
