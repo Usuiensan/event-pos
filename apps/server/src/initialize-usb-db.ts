@@ -1,6 +1,6 @@
 import { buildCatalog, writeCatalog } from "@event-pos/catalog-config";
 import { exportEventCatalog, type EventCatalog } from "@event-pos/contracts";
-import { synchronizeCatalogStaff } from "./business-store.js";
+import { assertStaffChangeKeepsAdmin, synchronizeCatalogStaff } from "./business-store.js";
 import { openDatabase, saveCatalog } from "./db.js";
 
 type UsbSetup = {
@@ -39,6 +39,7 @@ export async function initializeUsbDatabase(dbPath: string, configPath: string, 
   const verified = await buildCatalog(configPath);
   const db = openDatabase(dbPath);
   try {
+    assertStaffChangeKeepsAdmin(db, verified);
     saveCatalog(db, eventId, exportEventCatalog(verified), "usb_kit_setup");
     synchronizeCatalogStaff(db, verified);
   } finally {

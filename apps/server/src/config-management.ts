@@ -5,7 +5,8 @@ import { buildCatalog, writeCatalog } from "@event-pos/catalog-config";
 import { exportEventCatalog, importEventCatalog, type EventCatalog } from "@event-pos/contracts";
 import { getCatalog, saveCatalog, type PosDatabase } from "./db.js";
 import { validateCatalogPrintability } from "./catalog-printability.js";
-import { getOpenBusinessSession, synchronizeCatalogStaff } from "./business-store.js";
+import { assertStaffChangeKeepsAdmin, getOpenBusinessSession, synchronizeCatalogStaff } from "./business-store.js";
+import { CheckoutError } from "./checkout-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
 import { loadGs1CompanyPrefixRegistry } from "./gs1-registry.js";
 import { fetchIsdnProduct } from "./isdn.js";
@@ -17,7 +18,7 @@ const exec = promisify(execFile);
 export type ConfigManagementOptions = { database: PosDatabase; configDirectory?: string; configRepository?: string; authRequired: boolean };
 
 function failure(reply: FastifyReply, error: unknown): unknown {
-  if (error instanceof AuthError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, details: {}, requestId: reply.request.id } });
+  if (error instanceof AuthError || error instanceof CheckoutError) return reply.code(error.status).send({ error: { code: error.code, message: error.message, details: {}, requestId: reply.request.id } });
   const message = error instanceof Error ? error.message : "設定を保存できません";
   const status = /営業中/.test(message) ? 409 : 400;
   return reply.code(status).send({ error: { code: "CONFIG_SAVE_FAILED", message, details: {}, requestId: reply.request.id } });
@@ -124,6 +125,7 @@ export function registerConfigManagementRoutes(app: FastifyInstance, options: Co
       if (getOpenBusinessSession(options.database, request.params.eventId)) throw new Error("営業中は設定を保存できません");
       const catalog = importEventCatalog(JSON.stringify(request.body?.catalog));
       if (catalog.eventId !== request.params.eventId || (options.authRequired && actor.eventId !== catalog.eventId)) throw new Error("eventIdが一致しません");
+      assertStaffChangeKeepsAdmin(options.database, catalog);
       // YAMLへ書き出す前に検証し、印字できない設定がファイル側へ先行公開されないようにする。
       validateCatalogPrintability(catalog);
       await writeCatalog(options.configDirectory, catalog);

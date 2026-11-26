@@ -153,3 +153,42 @@ describe("管理画面設定のGit確定", () => {
     expect(git(repository, ["status", "--porcelain", "--", configDirectory])).not.toBe("");
   });
 });
+
+describe("最後の管理者の保護（F-078）", () => {
+  async function fixture() {
+    const directory = mkdtempSync(join(tmpdir(), "event-pos-config-last-admin-"));
+    directories.push(directory);
+    const configDirectory = join(directory, "demo");
+    cpSync(resolve(import.meta.dirname, "../../../event-config/demo"), configDirectory, { recursive: true });
+    const database = openDatabase();
+    const app = buildApp({ database, requireAuth: false, eventConfigDirectory: configDirectory });
+    apps.push(app);
+    const reloaded = await app.inject({ method: "POST", url: "/api/v1/events/demo-event-large/catalog/reload", payload: {} });
+    expect(reloaded.statusCode).toBe(200);
+    return { app, database, configDirectory, catalog: reloaded.json().catalog as { eventId: string; staffMembers: Array<{ responsibleNumber: string; displayName: string; role?: string }> } };
+  }
+
+  it("管理画面保存で唯一の管理者001を降格すると拒否され、YAML・カタログ・割当が変わらない", async () => {
+    const { app, database, configDirectory, catalog } = await fixture();
+    const before = getCatalog(database, "demo-event-large")!;
+    const staffYamlBefore = readFileSync(join(configDirectory, "staff.yaml"), "utf8");
+    const demoted = structuredClone(catalog);
+    demoted.staffMembers = demoted.staffMembers.map((member) => member.responsibleNumber === "001" ? { ...member, role: "operator" } : member);
+    const rejected = await app.inject({ method: "PUT", url: "/api/v1/events/demo-event-large/management-config", payload: { catalog: demoted } });
+    expect(rejected.statusCode).toBe(409);
+    expect(rejected.json().error).toMatchObject({ code: "LAST_ACTIVE_ADMIN" });
+    expect(getCatalog(database, "demo-event-large")).toEqual(before);
+    expect(readFileSync(join(configDirectory, "staff.yaml"), "utf8")).toBe(staffYamlBefore);
+    expect(database.prepare("SELECT role FROM event_staff_assignments WHERE event_id='demo-event-large' AND responsible_number='001' AND active=1").get()).toEqual({ role: "admin" });
+  });
+
+  it("別の担当者を管理者へ昇格させる保存なら001を降格できる", async () => {
+    const { app, catalog } = await fixture();
+    const handedOver = structuredClone(catalog);
+    handedOver.staffMembers = handedOver.staffMembers.map((member) => member.responsibleNumber === "001" ? { ...member, role: "operator" } : { ...member, role: "admin" });
+    const saved = await app.inject({ method: "PUT", url: "/api/v1/events/demo-event-large/management-config", payload: { catalog: handedOver } });
+    expect(saved.statusCode).toBe(200);
+    const signIn = await app.inject({ method: "POST", url: "/api/v1/auth/sessions", payload: { eventId: "demo-event-large", responsibleNumber: "002", terminalId: "register-1" } });
+    expect(signIn.json().actor).toMatchObject({ responsibleNumber: "002", role: "admin" });
+  });
+});
