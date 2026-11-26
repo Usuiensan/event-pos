@@ -259,7 +259,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerConnectionGuideRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(options.listenInfo ? { listenInfo: options.listenInfo } : {}) });
   registerJournalRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false });
   const printerStatus = options.printerHost?.getStatus ? () => options.printerHost!.getStatus!() : undefined;
-  registerOperationsDashboard(app, { database: options.database, realtimeHub, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
+  registerOperationsDashboard(app, { database: options.database, realtimeHub, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}), ...(printerStatus ? { printerStatus } : {}) });
   registerPrintingRoutes(app, { database: options.database, authRequired: options.requireAuth ?? options.requireCashAuth ?? false, ...(printQueue ? { queue: printQueue } : {}), ...(printerStatus ? { printerStatus } : {}), ...(options.drawerEnabled === undefined ? {} : { drawerEnabled: options.drawerEnabled }) });
   printQueue?.trigger();
   backupArtifactWorker?.trigger();
