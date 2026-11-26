@@ -223,6 +223,16 @@ describe("durable checkout API", () => {
     expect(replay.json().transactionId).toBe(first.json().transactionId);
     expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 1 });
   });
+  it("例外返金の確定後に商品がマスタから消えても、同じキーの再送で記録済みの結果を返す", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const first = await refund("00000001");
+    expect(first.statusCode).toBe(201);
+    db.prepare("UPDATE event_products SET product_code='deleted-00000001' WHERE event_id=? AND product_code=?").run(catalog.eventId, "00000001");
+    const replay = await refund("00000001");
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().transactionId).toBe(first.json().transactionId);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 1 });
+  });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
