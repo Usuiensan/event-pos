@@ -220,6 +220,59 @@ describe("営業状態と担当者session", () => {
     expect(released.statusCode).toBe(200);
     expect((await closeBusiness()).statusCode).toBe(200);
   });
+
+  it("支払い保存後に最後の明細を取り消すと明細0件・支払1件が残って精算を妨げ、支払取消と登録中止で解消できる（F-079）", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const { eventId } = catalog;
+    const registerId = "register-1";
+    const businessDate = "2026-08-03";
+    await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: catalog });
+    const sessionId = await openRegisterForTest(app, eventId, businessDate, registerId);
+    const created = await app.inject({
+      method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`,
+      payload: { eventId, staffId: "001", terminalId: registerId, businessDate },
+    });
+    expect(created.statusCode).toBe(201);
+    const { draftId, version } = created.json();
+    const draftUrl = `/api/v1/sale-drafts/${draftId}`;
+    const added = await app.inject({
+      method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(version) }, payload: { productCode: "00000001" },
+    });
+    expect(added.statusCode).toBe(201);
+    const paid = await app.inject({
+      method: "POST", url: `${draftUrl}/payments`, headers: { "if-match": String(added.json().version) },
+      payload: { kind: "credit", amountYen: 100 },
+    });
+    expect(paid.statusCode).toBe(201);
+    expect(paid.json().payments).toHaveLength(1);
+    const canceledLine = await app.inject({
+      method: "DELETE", url: `${draftUrl}/lines/${added.json().lines[0].lineId}`,
+      headers: { "if-match": String(paid.json().version) },
+    });
+    expect(canceledLine.statusCode).toBe(200);
+    expect(canceledLine.json().lines.filter((line: { status: string }) => line.status === "active")).toHaveLength(0);
+    expect(canceledLine.json().payments).toHaveLength(1);
+
+    const closeCash = (key: string) => app.inject({
+      method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(sessionId)}/checks/closing`,
+      headers: { "idempotency-key": key }, payload: { counted: [], carryoverYen: 0, terminalId: registerId },
+    });
+    const blocked = await closeCash("payment-only-closing");
+    expect([blocked.statusCode, blocked.json().error?.code]).toEqual([409, "ACTIVE_DRAFTS_EXIST"]);
+
+    // 明細0件でも支払取消は受理される（画面からは小計経由で到達する）
+    const removed = await app.inject({
+      method: "DELETE", url: `${draftUrl}/payments/${paid.json().payments[0].paymentId}`,
+      headers: { "if-match": String(canceledLine.json().version) },
+    });
+    expect(removed.statusCode).toBe(200);
+    expect(removed.json().payments).toHaveLength(0);
+    const canceled = await app.inject({
+      method: "DELETE", url: draftUrl, headers: { "if-match": String(removed.json().version) },
+    });
+    expect(canceled.statusCode).toBe(200);
+    expect((await closeCash("payment-only-closing-2")).statusCode).toBe(201);
+  });
 });
 
 describe("営業番号の2桁対応（F-060）", () => {
