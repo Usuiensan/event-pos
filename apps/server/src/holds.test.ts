@@ -358,3 +358,15 @@ describe("取り置き",()=>{
     expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId, productId)).toMatchObject({ reserved: 4 });
   });
 });
+
+describe("長い商品名の取り置き票（F-061）", () => {
+  it("全角16文字の商品名でも取り置きを作成できる", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    const longCatalog = { eventId: "longname-hold-event", products: [{ productCode: "00000001", name: "あいうえおかきくけこさしすせそた", priceInclTax: 500, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }], quickEntries: [], staffMembers: catalog.staffMembers };
+    await app.inject({ method: "PUT", url: "/api/v1/events/longname-hold-event/catalog", payload: longCatalog });
+    await openRegisterForTest(app, "longname-hold-event", "2026-08-03", "register-1");
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: "longname-hold-event", registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE document_type='hold_ticket'").get()).toEqual({ count: 1 });
+  });
+});

@@ -289,3 +289,34 @@ describe("営業番号の2桁対応（F-060）", () => {
     }
   });
 });
+
+describe("長い商品名の帳票（F-061）", () => {
+  it("全角16文字の商品名でも領収書・中間計・精算が止まらない", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const eventId = "longname-event";
+    const longCatalog = {
+      eventId,
+      event: { name: "長名イベント", businessDate: "2026-08-02", seller: { circleName: "検証サークル", space: "A01", receiptIssuerName: "検証" }, locale: { language: "ja", currency: "JPY", timezone: "Asia/Tokyo" } },
+      products: [{ productCode: "00000001", name: "あいうえおかきくけこさしすせそた", priceInclTax: 100, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale" }],
+      quickEntries: [],
+      staffMembers: catalog.staffMembers,
+    };
+    expect((await app.inject({ method: "PUT", url: `/api/v1/events/${eventId}/catalog`, payload: longCatalog })).statusCode).toBe(200);
+    const registerId = "register-1";
+    const cashSessionId = await openRegisterForTest(app, eventId, "2026-08-02", registerId);
+    const draft = (await app.inject({ method: "POST", url: `/api/v1/registers/${registerId}/sale-drafts`, payload: { eventId, businessDate: "2026-08-02", staffId: "001", terminalId: registerId } })).json();
+    const line = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(line.statusCode).toBe(201);
+    const paid = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(line.json().version) }, payload: { kind: "cash", amountYen: 100, tenderedYen: 100 } });
+    expect(paid.statusCode).toBe(201);
+    const sale = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "longname-sale" }, payload: { version: paid.json().version } });
+    expect(sale.statusCode).toBe(201);
+    const receipt = await app.inject({ method: "POST", url: `/api/v1/transactions/${sale.json().transactionId}/official-receipts`, payload: { payeeName: "山田", memo: "商品代", terminalId: registerId } });
+    expect(receipt.statusCode).toBe(201);
+    const interim = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${cashSessionId}/checks/interim`, payload: { counted: [{ denomination: 100, quantity: 1 }], terminalId: registerId } });
+    expect(interim.statusCode).toBe(201);
+    const closing = await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${cashSessionId}/checks/closing`, headers: { "idempotency-key": "longname-closing" }, payload: { counted: [{ denomination: 100, quantity: 1 }], carryoverYen: 100, terminalId: registerId } });
+    expect(closing.statusCode).toBe(201);
+    expect((await app.inject(`/api/v1/cash-sessions/${cashSessionId}`)).json().state).toBe("closed");
+  });
+});
