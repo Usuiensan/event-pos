@@ -90,10 +90,13 @@ export function applyCheckoutSchema(db: PosDatabase): void {
       FOREIGN KEY(draft_id) REFERENCES sale_drafts(draft_id)
     );
     CREATE TABLE IF NOT EXISTS customer_display_states (
-      register_id TEXT PRIMARY KEY,
+      register_id TEXT NOT NULL,
+      cash_session_id TEXT NOT NULL DEFAULT '',
+      event_id TEXT,
       version INTEGER NOT NULL,
       public_projection_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (register_id, cash_session_id)
     );
     CREATE TABLE IF NOT EXISTS register_audio_settings (
       register_id TEXT PRIMARY KEY,
@@ -310,6 +313,31 @@ export function applyCheckoutSchema(db: PosDatabase): void {
     db.exec(`
       DROP INDEX ux_sale_drafts_active_register;
       CREATE UNIQUE INDEX ux_sale_drafts_active_register ON sale_drafts(register_id, cash_session_id) WHERE state IN ('editing','payment','finalizing');
+    `);
+  }
+  // 顧客表示をレジ単位からイベント・現金セッション単位へ（F-080）: 旧形式（register_id 主キー）の
+  // テーブルが残るDBでは作り替え、既存行は射影JSONの下書きIDから所属セッションを引いて引き継ぐ。
+  // 所属を特定できない行は cash_session_id='' の行として残し、イベント指定つき取得では返さない。
+  const displayTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='customer_display_states'").get() as { sql?: string } | undefined)?.sql ?? "";
+  if (displayTableSql && !displayTableSql.includes("cash_session_id")) {
+    db.exec(`
+      BEGIN;
+      CREATE TABLE customer_display_states_scoped (
+        register_id TEXT NOT NULL,
+        cash_session_id TEXT NOT NULL DEFAULT '',
+        event_id TEXT,
+        version INTEGER NOT NULL,
+        public_projection_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (register_id, cash_session_id)
+      );
+      INSERT INTO customer_display_states_scoped(register_id,cash_session_id,event_id,version,public_projection_json,updated_at)
+        SELECT s.register_id, COALESCE(d.cash_session_id,''), d.event_id, s.version, s.public_projection_json, s.updated_at
+        FROM customer_display_states s
+        LEFT JOIN sale_drafts d ON d.draft_id = json_extract(s.public_projection_json, '$.draftId');
+      DROP TABLE customer_display_states;
+      ALTER TABLE customer_display_states_scoped RENAME TO customer_display_states;
+      COMMIT;
     `);
   }
   const counterTableSql = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='public_reference_counters'").get() as { sql?: string } | undefined)?.sql ?? "";

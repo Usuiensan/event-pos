@@ -43,9 +43,9 @@ describe("在庫残数・領収書・会計保留", () => {
     const parkedJson = parked.json(); expect((await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(parkedJson.version ?? 2) }, payload: { productCode: "00000001" } })).statusCode).toBe(409);
     const fresh = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: "feature-event", staffId: "001", terminalId: "register-1", businessDate: "2026-08-02" } }); expect(fresh.statusCode).toBe(201); expect(fresh.json().draftId).not.toBe(draft.draftId);
     const freshLine = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${fresh.json().draftId}/lines`, headers: { "if-match": String(fresh.json().version) }, payload: { productCode: "00000001" } });
-    expect((await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { parkReference: parkedJson.parkReference, terminalId: "register-1" } })).json().error.code).toBe("PARK_RESUME_BLOCKED");
+    expect((await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { parkReference: parkedJson.parkReference, terminalId: "register-1", eventId: "feature-event" } })).json().error.code).toBe("PARK_RESUME_BLOCKED");
     await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${fresh.json().draftId}`, headers: { "if-match": String(freshLine.json().version) } });
-    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { parkReference: parkedJson.parkReference, terminalId: "register-1" } }); expect(resumed.statusCode).toBe(200); expect(resumed.json().draftId).toBe(draft.draftId); expect(resumed.json().lines).toHaveLength(1);
+    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { parkReference: parkedJson.parkReference, terminalId: "register-1", eventId: "feature-event" } }); expect(resumed.statusCode).toBe(200); expect(resumed.json().draftId).toBe(draft.draftId); expect(resumed.json().lines).toHaveLength(1);
   });
 
   it("確定売上だけ領収書を発行し、再発行を追記する", async () => {
@@ -125,7 +125,7 @@ describe("保留・呼戻しと顧客画面", () => {
     notify.mockClear();
     const resumed = await app.inject({
       method: "POST", url: `/api/v1/registers/${registerId}/parked-drafts/resume`,
-      payload: { parkReference: parked.json<{ parkReference: string }>().parkReference, terminalId: registerId },
+      payload: { parkReference: parked.json<{ parkReference: string }>().parkReference, terminalId: registerId, eventId: catalog.eventId },
     });
     expect(resumed.statusCode).toBe(200);
     const restored = resumed.json<SaleDraftDto>();

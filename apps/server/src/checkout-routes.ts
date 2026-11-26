@@ -15,7 +15,7 @@ import {
   createSaleDraft,
   finalizeSale,
   getCustomerDisplayProjection,
-  getCustomerDisplayVersion,
+  getCustomerDisplayVersionForDraft,
   getRegisterSaleDraft,
   getSaleDraft,
   getTransactionSnapshot,
@@ -60,7 +60,7 @@ function hasOnlyKeys(value: unknown, allowed: readonly string[]): boolean {
 
 export function notifyDraft(options: Pick<CheckoutRouteOptions, "database" | "realtimeHub">, draft: ReturnType<typeof getSaleDraft>): void {
   options.realtimeHub?.notify({ type: "sale-draft.changed", registerId: draft.registerId, version: draft.version });
-  const projectionVersion = getCustomerDisplayVersion(options.database, draft.registerId);
+  const projectionVersion = getCustomerDisplayVersionForDraft(options.database, draft.draftId);
   if (projectionVersion !== undefined) options.realtimeHub?.notify({ type: "customer-display.changed", registerId: draft.registerId, version: projectionVersion });
 }
 
@@ -116,8 +116,8 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
     return row ?? sendError(reply, new CheckoutError(404, "PRODUCT_NOT_FOUND", "商品コードが見つかりません"));
   });
 
-  app.get<{ Params: { registerId: string } }>("/api/v1/registers/:registerId/sale-draft", async (request, reply) => {
-    const draft = getRegisterSaleDraft(options.database, request.params.registerId);
+  app.get<{ Params: { registerId: string }; Querystring: { eventId?: string } }>("/api/v1/registers/:registerId/sale-draft", async (request, reply) => {
+    const draft = getRegisterSaleDraft(options.database, request.params.registerId, request.query.eventId);
     return draft ? draftReply(reply, draft) : sendError(reply, new CheckoutError(404, "DRAFT_NOT_FOUND", "販売ドラフトが見つかりません"));
   });
 
@@ -203,9 +203,9 @@ export function registerCheckoutRoutes(app: FastifyInstance, options: CheckoutRo
     return transaction;
   });
 
-  app.get<{ Params: { terminalId: string }; Querystring: { registerId?: string } }>("/api/v1/customer-displays/:terminalId", async (request, reply) => {
+  app.get<{ Params: { terminalId: string }; Querystring: { registerId?: string; eventId?: string } }>("/api/v1/customer-displays/:terminalId", async (request, reply) => {
     const registerId = request.query.registerId ?? request.params.terminalId;
-    const projection = getCustomerDisplayProjection(options.database, registerId);
+    const projection = getCustomerDisplayProjection(options.database, registerId, request.query.eventId);
     if (!projection) return { registerId, draftId: `customer-display:${registerId}`, version: 0, draftVersion: 0, state: "editing", lines: [], discounts: [], totals: { subtotalYen: 0, discountYen: 0, taxYen: 0, totalYen: 0 }, payment: { state: "waiting", kinds: [] } };
     reply.header("etag", `"customer-display:${registerId}:${String(projection.version)}"`).header("cache-control", "no-store");
     return projection;

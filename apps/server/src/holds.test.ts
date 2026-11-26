@@ -217,7 +217,7 @@ describe("取り置き",()=>{
     const empty = await startDraft();
     const resumed = await app.inject({
       method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume",
-      payload: { parkReference: parked.json().parkReference, terminalId: "register-1" },
+      payload: { parkReference: parked.json().parkReference, terminalId: "register-1", eventId: catalog.eventId },
     });
     expect(resumed.statusCode).toBe(200);
     expect(resumed.json()).toMatchObject({ draftId: draft.draftId, state: "editing" });
@@ -236,7 +236,7 @@ describe("取り置き",()=>{
       return response.json<{ parkReference: string }>().parkReference;
     };
     const resume = (parkReference: string) => app.inject({
-      method: "POST", url: `/api/v1/registers/${terminalId}/parked-drafts/resume`, payload: { parkReference, terminalId },
+      method: "POST", url: `/api/v1/registers/${terminalId}/parked-drafts/resume`, payload: { parkReference, terminalId, eventId: catalog.eventId },
     });
     const pickupReference = await park(draft.draftId);
     const otherDraft = await startDraft();

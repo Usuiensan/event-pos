@@ -343,7 +343,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     void checkoutApi.parkDraft(draft.draftId, terminalId).then((result) => { clearDraft(); setScanNotice(`保留しました（受付番号 ${result.parkReferenceDisplay}）`); refreshParkedDrafts(); onSuccess?.(); }).catch((error) => showSystemError(errorMessage(error), error));
   };
   const resumeParkedDraft = (parkReference: string) => {
-    void checkoutApi.resumeParkedDraft(registerId, parkReference, terminalId).then((draft) => { applyDraft(draft, true); setShowParkedDrafts(false); setScanNotice(`保留中の受付番号 ${parkReference} を呼び戻しました`); }).catch((error) => { if (error instanceof CheckoutApiError && error.status === 409) showOperationError("現在の会計に明細があるため、呼び戻せません。"); else showSystemError(errorMessage(error), error); });
+    void checkoutApi.resumeParkedDraft(registerId, parkReference, terminalId, catalog.eventId).then((draft) => { applyDraft(draft, true); setShowParkedDrafts(false); setScanNotice(`保留中の受付番号 ${parkReference} を呼び戻しました`); }).catch((error) => { if (error instanceof CheckoutApiError && error.code === "PARK_RESUME_BLOCKED") showOperationError("現在の会計に明細があるため、呼び戻せません。"); else showSystemError(errorMessage(error), error); });
   };
   const issueOfficialReceipt = () => {
     if (!currentTransactionId) return showOperationError("会計済み取引を取得できません。");
@@ -455,10 +455,12 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       const kind = projection.payment.kinds[0]; if (kind) setCompletedPaymentLabel(({ cash: "現金", credit: "クレジット", accounts_receivable: "売掛", no_charge: "無配" } as const)[kind]);
       if (projection.transactionId) void checkoutApi.getTransaction(projection.transactionId).catch(() => undefined);
     };
-    const refresh = () => { void checkoutApi.getCustomerProjection(registerId, terminalId).then((projection) => { setServerOnline(true); applyProjection(projection); }).catch(() => setServerOnline(false)); };
+    const refresh = () => { void checkoutApi.getCustomerProjection(registerId, terminalId, catalog.eventId).then((projection) => { setServerOnline(true); applyProjection(projection); }).catch(() => setServerOnline(false)); };
+    // 顧客表示の version はイベント・現金セッション単位で数え直されるため、対象が変わったら比較基準をリセットする（F-080）。
+    projectionVersionRef.current = 0;
     projectionRefreshRef.current = refresh; refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); projectionRefreshRef.current = () => undefined; };
-  }, [catalog.products, registerId, role, terminalId]);
+  }, [catalog.eventId, catalog.products, registerId, role, terminalId]);
   useEffect(() => {
     if (role !== "staff" || !authActor) return;
     let stopped = false;
@@ -468,7 +470,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
       if (previous && previous.state !== "completed" && !draftMatchesRegister(previous)) discardDraft();
       const requestedDraft = draftRef.current;
       const draftId = requestedDraft?.draftId;
-      void checkoutApi.getRegisterDraft(registerId).then(async (draft) => {
+      void checkoutApi.getRegisterDraft(registerId, catalog.eventId).then(async (draft) => {
         const current = draftRef.current;
         if (stopped || current?.draftId !== draftId) return;
         setServerOnline(true);
@@ -489,7 +491,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     };
     draftRefreshRef.current = refresh; refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); draftRefreshRef.current = () => undefined; };
-  }, [authActor, businessSession?.businessSessionId, businessSession?.state, catalog.products, registerId, registerState?.state, role]);
+  }, [authActor, businessSession?.businessSessionId, businessSession?.state, catalog.eventId, catalog.products, registerId, registerState?.state, role]);
   useEffect(() => {
     let stopped = false;
     const refresh = () => { void checkoutApi.getCustomerDisplayStatus(registerId).then((status) => {

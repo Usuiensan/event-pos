@@ -193,11 +193,15 @@ function publicProjection(draft: SaleDraftDto, projectionVersion: number): Recor
 
 export function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto {
   const draft = getSaleDraft(db, draftId);
-  const current = db.prepare("SELECT version FROM customer_display_states WHERE register_id=?").get(draft.registerId) as { version: number } | undefined;
+  // 顧客表示は下書きの属するイベント・現金セッション単位で保持する（F-080）。
+  // レジ番号だけで上書きすると、同時開局中の別イベントの下書きが顧客画面へ漏れる。
+  const scope = db.prepare("SELECT cash_session_id,event_id FROM sale_drafts WHERE draft_id=?").get(draftId) as { cash_session_id: string | null; event_id: string } | undefined;
+  const cashSessionId = scope?.cash_session_id ?? "";
+  const current = db.prepare("SELECT version FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(draft.registerId, cashSessionId) as { version: number } | undefined;
   const projectionVersion = (current?.version ?? 0) + 1;
-  db.prepare(`INSERT INTO customer_display_states (register_id, version, public_projection_json, updated_at) VALUES (?, ?, ?, ?)
-    ON CONFLICT(register_id) DO UPDATE SET version=excluded.version, public_projection_json=excluded.public_projection_json, updated_at=excluded.updated_at`)
-    .run(draft.registerId, projectionVersion, JSON.stringify(publicProjection(draft, projectionVersion)), draft.updatedAt);
+  db.prepare(`INSERT INTO customer_display_states (register_id, cash_session_id, event_id, version, public_projection_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(register_id, cash_session_id) DO UPDATE SET event_id=excluded.event_id, version=excluded.version, public_projection_json=excluded.public_projection_json, updated_at=excluded.updated_at`)
+    .run(draft.registerId, cashSessionId, scope?.event_id ?? draft.eventId, projectionVersion, JSON.stringify(publicProjection(draft, projectionVersion)), draft.updatedAt);
   return draft;
 }
 
@@ -241,22 +245,29 @@ export function createSaleDraft(db: PosDatabase, input: { eventId: string; regis
   });
 }
 
-export function getRegisterSaleDraft(db: PosDatabase, registerId: string): SaleDraftDto | undefined {
+export function getRegisterSaleDraft(db: PosDatabase, registerId: string, eventId?: string): SaleDraftDto | undefined {
   // 現在の営業セッション（このレジで開局中の最新の営業）の下書きだけを対象にする。
   // 別セッションの下書きは、そのセッションが現在の間は返さない（消しもしない）。
-  const current = db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
-    WHERE b.state='open' AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
-    ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`)
-    .get(registerId) as { session_id: string } | undefined;
+  // eventId が指定された場合はそのイベントの開局中セッションに限定する（F-080）。
+  // 同時開局中の別イベントが後から開局しても、先のイベントの画面は自分の下書きを引ける。
+  const current = (eventId
+    ? db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
+      WHERE b.state='open' AND b.event_id=? AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
+      ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`).get(eventId, registerId)
+    : db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
+      WHERE b.state='open' AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
+      ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`).get(registerId)) as { session_id: string } | undefined;
   if (current) {
     const row = db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND cash_session_id=?
       ORDER BY CASE WHEN state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, created_at DESC, rowid DESC LIMIT 1`)
       .get(registerId, current.session_id) as { draft_id: string } | undefined;
     return row ? getSaleDraft(db, row.draft_id) : undefined;
   }
-  const row = db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND state NOT IN ('editing','payment','finalizing')
-    ORDER BY created_at DESC, rowid DESC LIMIT 1`)
-    .get(registerId) as { draft_id: string } | undefined;
+  const row = (eventId
+    ? db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND event_id=? AND state NOT IN ('editing','payment','finalizing')
+      ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(registerId, eventId)
+    : db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND state NOT IN ('editing','payment','finalizing')
+      ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(registerId)) as { draft_id: string } | undefined;
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
 
@@ -742,11 +753,30 @@ export function getTransactionSnapshot(db: PosDatabase, transactionId: string): 
   };
 }
 
-export function getCustomerDisplayProjection(db: PosDatabase, registerId: string): Record<string, unknown> | undefined {
-  const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=?").get(registerId) as { public_projection_json: string } | undefined;
+export function getCustomerDisplayProjection(db: PosDatabase, registerId: string, eventId?: string): Record<string, unknown> | undefined {
+  // eventId 指定時はそのイベントの射影だけを返す（F-080）。開局中セッションの行を優先し、
+  // 無ければそのイベントの最新行（閉局後の完了表示）を返す。別イベントの行は返さない。
+  if (eventId) {
+    const open = db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
+      WHERE b.state='open' AND b.event_id=? AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
+      ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`).get(eventId, registerId) as { session_id: string } | undefined;
+    if (open) {
+      const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(registerId, open.session_id) as { public_projection_json: string } | undefined;
+      if (row) return JSON.parse(row.public_projection_json) as Record<string, unknown>;
+    }
+    const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? AND event_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId, eventId) as { public_projection_json: string } | undefined;
+    return row ? JSON.parse(row.public_projection_json) as Record<string, unknown> : undefined;
+  }
+  const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId) as { public_projection_json: string } | undefined;
   return row ? JSON.parse(row.public_projection_json) as Record<string, unknown> : undefined;
 }
 
 export function getCustomerDisplayVersion(db: PosDatabase, registerId: string): number | undefined {
-  return (db.prepare("SELECT version FROM customer_display_states WHERE register_id=?").get(registerId) as { version: number } | undefined)?.version;
+  return (db.prepare("SELECT version FROM customer_display_states WHERE register_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId) as { version: number } | undefined)?.version;
+}
+
+export function getCustomerDisplayVersionForDraft(db: PosDatabase, draftId: string): number | undefined {
+  const scope = db.prepare("SELECT register_id,cash_session_id FROM sale_drafts WHERE draft_id=?").get(draftId) as { register_id: string; cash_session_id: string | null } | undefined;
+  if (!scope) return undefined;
+  return (db.prepare("SELECT version FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(scope.register_id, scope.cash_session_id ?? "") as { version: number } | undefined)?.version;
 }
