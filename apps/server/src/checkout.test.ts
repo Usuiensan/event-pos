@@ -223,6 +223,16 @@ describe("durable checkout API", () => {
     expect(replay.json().transactionId).toBe(first.json().transactionId);
     expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 1 });
   });
+  it("例外返金の確定後に商品がマスタから消えても、同じキーの再送で記録済みの結果を返す", async () => {
+    const { db, refund } = await prepareManualRefund();
+    const first = await refund("00000001");
+    expect(first.statusCode).toBe(201);
+    db.prepare("UPDATE event_products SET product_code='deleted-00000001' WHERE event_id=? AND product_code=?").run(catalog.eventId, "00000001");
+    const replay = await refund("00000001");
+    expect(replay.statusCode).toBe(201);
+    expect(replay.json().transactionId).toBe(first.json().transactionId);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM transactions").get()).toEqual({ count: 1 });
+  });
   it("atomically finalizes exact cash and keeps immutable receipt snapshots", async () => {
     const { app, db } = makeApp(openDatabase(), undefined, true); await installCatalog(app);
     let draft = await startDraft(app); draft = await addLine(app, draft); draft = await addPayment(app, draft, "cash", 110, 110);
@@ -560,6 +570,46 @@ describe("durable checkout API", () => {
     expect(JSON.stringify(db.prepare("SELECT * FROM age_confirmation_requests").all())).not.toContain(canary);
     expect(JSON.stringify(db.prepare("SELECT * FROM draft_age_verifications").all())).not.toContain(canary);
     expect(JSON.stringify(db.prepare("SELECT * FROM age_verifications").all())).not.toContain(canary);
+  });
+
+  it("年齢制限付き取り置きの受取は、確認不足が下書きに示され、確認を記録すれば明細を変えずに確定できる (F-076)", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000003", quantity: 2 }] } });
+    expect(hold.statusCode).toBe(201);
+    const claimed = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/claim`, payload: { draftId: draft.draftId, version: draft.version } });
+    expect(claimed.statusCode).toBe(200);
+    draft = claimed.json();
+    // 受取直後の下書きは、確定時と同じ判定で「20歳の追加確認が必要」と示す。
+    expect(draft.pendingAgeVerification).toBe(20);
+    expect(draft.ageVerifications).toEqual([]);
+    const claimedLineIds = draft.lines.map((line: any) => line.lineId);
+    draft = await addPayment(app, draft, "credit", 440);
+    const rejected = await finalize(app, draft, "hold-age-unverified");
+    expect(rejected.statusCode).toBe(422);
+    expect(rejected.json().error.code).toBe("AGE_VERIFICATION_REQUIRED");
+    // 明細を追加し直さず、確認結果だけを同じ下書きへ記録する。
+    const verified = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/age-verifications`, headers: { "if-match": String(draft.version) }, payload: { minimumAge: 20, method: "id_visual", result: "passed", confirmerId: "staff-1", terminalId: "register-1" } });
+    expect(verified.statusCode).toBe(201);
+    draft = verified.json();
+    expect(draft.pendingAgeVerification).toBeNull();
+    expect(draft.lines.map((line: any) => line.lineId)).toEqual(claimedLineIds);
+    expect(draft.lines[0]).toMatchObject({ quantity: 2, status: "active" });
+    expect((await finalize(app, draft, "hold-age-verified")).statusCode).toBe(201);
+  });
+
+  it("取り置き受取後に年齢制限明細をすべて取り消すと追加確認は不要になる (F-076)", async () => {
+    const { app } = makeApp(); await installCatalog(app);
+    let draft = await startDraft(app);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000003", quantity: 1 }, { productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const claimed = await app.inject({ method: "POST", url: `/api/v1/holds/${hold.json().holdId}/claim`, payload: { draftId: draft.draftId, version: draft.version } });
+    draft = claimed.json();
+    expect(draft.pendingAgeVerification).toBe(20);
+    const ageLine = draft.lines.find((line: any) => line.productCode === "00000003");
+    const canceled = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${ageLine.lineId}`, headers: { "if-match": String(draft.version) } });
+    expect(canceled.statusCode).toBe(200);
+    expect(canceled.json().pendingAgeVerification).toBeNull();
   });
 
   it.each([
