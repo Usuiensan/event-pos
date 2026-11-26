@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { createPrintJob } from "./db.js";
 import type { PosDatabase } from "./db.js";
-import { CheckoutError, allocatePublicReference, getSaleDraft, restoreHoldsForCanceledDraft, updateProjection } from "./checkout-store.js";
+import { CheckoutError, allocatePublicReference, cancelDraftAgeRequests, getSaleDraft, restoreHoldsForCanceledDraft, updateProjection } from "./checkout-store.js";
 import { notifyDraft } from "./checkout-routes.js";
 import { assertRegisterOpen } from "./business-store.js";
 import { AuthError, requireAuthActor } from "./auth.js";
@@ -146,6 +146,7 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
         if (active) {
           const draftId = String(active.draft_id);
           options.database.prepare("UPDATE sale_drafts SET state='canceled',version=version+1,updated_at=? WHERE draft_id=?").run(now, draftId);
+          cancelDraftAgeRequests(options.database, draftId, now);
           restoreHoldsForCanceledDraft(options.database, draftId, String(active.event_id));
         }
         options.database.prepare("UPDATE sale_drafts SET state='editing',park_reference=NULL,parked_at=NULL,version=version+1,updated_at=? WHERE draft_id=?").run(now, parkedDraftId);

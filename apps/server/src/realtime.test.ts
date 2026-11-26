@@ -110,4 +110,84 @@ describe("顧客画面realtime境界", () => {
     expect(kept.state).toBe("canceled");
     expect(kept.lines.filter((line: { status: string }) => line.status === "active")).toHaveLength(1);
   });
+
+  it.each(["requested", "acknowledged"])("登録中止だけで顧客projectionを空にし、年齢確認要求（%s）を取り消す（F-056）", async (state) => {
+    const { app, draft } = await setup();
+    const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
+    const registerUrl = "/api/v1/registers/register-1";
+    const statusUrl = `${registerUrl}/customer-display-status`;
+    const added = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(added.statusCode).toBe(201);
+    const requested = await app.inject({ method: "POST", url: `${registerUrl}/age-confirmation-requests`, payload: { draftId: draft.draftId, minimumAge: 18 } });
+    expect(requested.statusCode).toBe(201);
+    const { requestId } = requested.json();
+    const answerYes = () => app.inject({ method: "POST", url: "/api/v1/customer-displays/customer-1/age-confirmations", payload: { registerId: "register-1", requestId, response: "yes" } });
+    if (state === "acknowledged") expect((await answerYes()).statusCode).toBe(201);
+    const before = (await app.inject(statusUrl)).json().ageConfirmation;
+    expect(before).toMatchObject({ requestId, draftId: draft.draftId, minimumAge: 18, state });
+
+    const cancel = (version: number) => app.inject({ method: "DELETE", url: draftUrl, headers: { "if-match": String(version) } });
+    const stale = await cancel(draft.version);
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().error.code).toBe("DRAFT_VERSION_CONFLICT");
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toEqual(before);
+
+    const draftCanceled = await cancel(added.json().version);
+    expect(draftCanceled.statusCode).toBe(200);
+    const projection = await app.inject("/api/v1/customer-displays/customer-1?registerId=register-1");
+    expect(projection.json()).toMatchObject({ draftId: draft.draftId, state: "canceled", lines: [], totals: { totalYen: 0 } });
+    const canceled = (await app.inject(statusUrl)).json().ageConfirmation;
+    expect(canceled).toMatchObject({ requestId, draftId: draft.draftId, minimumAge: 18, state: "canceled", respondedAt: draftCanceled.json().updatedAt });
+
+    const late = await answerYes();
+    expect(late.statusCode).toBe(409);
+    expect(late.json().error.code).toBe("AGE_CONFIRMATION_NOT_PENDING");
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toEqual(canceled);
+  });
+
+  it("同じレジの保留下書きを中止しても別の下書きの年齢確認要求は残る（F-056）", async () => {
+    const { app, draft } = await setup();
+    const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
+    const registerUrl = "/api/v1/registers/register-1";
+    const added = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(added.statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: "register-1" } })).statusCode).toBe(201);
+    const parked = (await app.inject(draftUrl)).json();
+    const next = await app.inject({ method: "POST", url: `${registerUrl}/sale-drafts`, payload: { eventId: catalog.eventId, staffId: "staff-1", businessDate: "2026-08-02" } });
+    expect(next.statusCode).toBe(201);
+    const requested = await app.inject({ method: "POST", url: `${registerUrl}/age-confirmation-requests`, payload: { draftId: next.json().draftId, minimumAge: 20 } });
+    expect(requested.statusCode).toBe(201);
+    expect((await app.inject({ method: "DELETE", url: draftUrl, headers: { "if-match": String(parked.version) } })).statusCode).toBe(200);
+    expect((await app.inject(`${registerUrl}/customer-display-status`)).json().ageConfirmation).toEqual(requested.json());
+  });
+
+  it("呼戻しで空の下書きを中止しても年齢確認要求が残らない（F-056・呼戻し経路）", async () => {
+    const { app, draft } = await setup();
+    const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
+    const registerUrl = "/api/v1/registers/register-1";
+    const statusUrl = `${registerUrl}/customer-display-status`;
+    const added = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(added.statusCode).toBe(201);
+    const parkedResponse = await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: "register-1" } });
+    expect(parkedResponse.statusCode).toBe(201);
+    const next = await app.inject({ method: "POST", url: `${registerUrl}/sale-drafts`, payload: { eventId: catalog.eventId, staffId: "staff-1", businessDate: "2026-08-02" } });
+    expect(next.statusCode).toBe(201);
+    const nextDraft = next.json();
+    const nextAdded = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${nextDraft.draftId}/lines`, headers: { "if-match": String(nextDraft.version) }, payload: { productCode: "00000001" } });
+    expect(nextAdded.statusCode).toBe(201);
+    const requested = await app.inject({ method: "POST", url: `${registerUrl}/age-confirmation-requests`, payload: { draftId: nextDraft.draftId, minimumAge: 18 } });
+    expect(requested.statusCode).toBe(201);
+    const { requestId } = requested.json();
+    const lineId = nextAdded.json().lines[0].lineId;
+    const deleted = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${nextDraft.draftId}/lines/${lineId}`, headers: { "if-match": String(nextAdded.json().version) } });
+    expect(deleted.statusCode).toBe(200);
+    const resumed = await app.inject({ method: "POST", url: `${registerUrl}/parked-drafts/resume`, payload: { parkReference: parkedResponse.json().parkReference, terminalId: "register-1" } });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json().draftId).toBe(draft.draftId);
+    const canceledDraft = (await app.inject(`/api/v1/sale-drafts/${nextDraft.draftId}`)).json();
+    expect(canceledDraft.state).toBe("canceled");
+    const ageConfirmation = (await app.inject(statusUrl)).json().ageConfirmation;
+    expect(ageConfirmation).toMatchObject({ requestId, draftId: nextDraft.draftId, minimumAge: 18, state: "canceled" });
+    expect(ageConfirmation.respondedAt).toBe(resumed.json().updatedAt);
+  });
 });
