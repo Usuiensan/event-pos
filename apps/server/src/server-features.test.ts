@@ -172,6 +172,63 @@ describe("在庫調整", () => {
     expect(db.prepare("SELECT on_hand FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001")).toEqual({ on_hand: 7 });
   });
 
+  it("期首3を5に訂正してから4に調整しても在庫投影とAPIの残数が一致する", async () => {
+    const db = openDatabase();
+    const app = buildApp({ database: db });
+    apps.push(app);
+    const url = "/api/v1/events/feature-event/catalog";
+    const initialCatalog = { ...catalog, products: catalog.products.map((product) =>
+      product.productCode === "00000001" ? { ...product, inventory: { openingQuantity: 3 } } : product) };
+    const balance = () => db.prepare("SELECT on_hand, version FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001");
+    const inventory = async () => {
+      const response = await app.inject("/api/v1/events/feature-event/inventory");
+      expect(response.statusCode).toBe(200);
+      return response.json().products;
+    };
+
+    expect((await app.inject({ method: "PUT", url, payload: initialCatalog })).statusCode).toBe(200);
+    expect(balance()).toEqual({ on_hand: 3, version: 1 });
+    expect((await app.inject({ method: "PUT", url, payload: catalog })).statusCode).toBe(200);
+    expect(await inventory()).toContainEqual(expect.objectContaining({ productCode: "00000001", openingQuantity: 5, remaining: 5 }));
+    expect(balance()).toEqual({ on_hand: 5, version: 2 });
+
+    const adjusted = await adjust(app, { productCode: "00000001", newOnHand: 4, reason: "棚卸し" });
+    expect(adjusted.statusCode).toBe(200);
+    expect(adjusted.json()).toMatchObject({ remaining: 4 });
+    expect(await inventory()).toContainEqual(expect.objectContaining({ productCode: "00000001", openingQuantity: 5, remaining: 4 }));
+    expect(balance()).toEqual({ on_hand: 4, version: 3 });
+    expect(db.prepare("SELECT type, quantity_delta FROM inventory_movements").all()).toEqual([{ type: "adjustment", quantity_delta: -1 }]);
+  });
+
+  it("再取込で販売の移動と引当を引き継ぎ、同じ期首の再取込で重複させない", async () => {
+    const { app, db } = await setup();
+    await sellOne(app);
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: {
+      eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 2 }],
+    } });
+    expect(hold.statusCode).toBe(201);
+    const balance = () => db.prepare("SELECT on_hand, reserved, version FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001");
+    const movements = () => db.prepare("SELECT inventory_movement_id, type, quantity_delta FROM inventory_movements").all();
+    const holdLines = () => db.prepare("SELECT hold_id, product_code, quantity FROM hold_lines").all();
+    const existingMovements = movements();
+    const existingHoldLines = holdLines();
+    expect(existingMovements).toEqual([{ inventory_movement_id: expect.any(String), type: "sale", quantity_delta: -1 }]);
+    expect(existingHoldLines).toEqual([{ hold_id: hold.json().holdId, product_code: "00000001", quantity: 2 }]);
+    expect(balance()).toEqual({ on_hand: 4, reserved: 2, version: 3 });
+
+    const correctedCatalog = { ...catalog, products: catalog.products.map((product) =>
+      product.productCode === "00000001" ? { ...product, inventory: { openingQuantity: 7 } } : product) };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect((await app.inject({ method: "PUT", url: "/api/v1/events/feature-event/catalog", payload: correctedCatalog })).statusCode).toBe(200);
+      const inventory = await app.inject("/api/v1/events/feature-event/inventory");
+      expect(inventory.statusCode).toBe(200);
+      expect(inventory.json().products).toContainEqual({ productCode: "00000001", tracked: true, openingQuantity: 7, remaining: 6, reserved: 2, available: 4 });
+      expect(balance()).toEqual({ on_hand: 6, reserved: 2, version: 4 });
+      expect(movements()).toEqual(existingMovements);
+      expect(holdLines()).toEqual(existingHoldLines);
+    }
+  });
+
   it("未追跡商品は400 INVENTORY_NOT_TRACKED", async () => {
     const { app } = await setup();
     const response = await adjust(app, { productCode: "00000002", newOnHand: 3, reason: "棚卸し" });

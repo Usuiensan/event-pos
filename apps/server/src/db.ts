@@ -111,13 +111,21 @@ export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: strin
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO event_catalogs (event_id, catalog_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET catalog_json = excluded.catalog_json, updated_at = excluded.updated_at").run(eventId, catalogJson, updatedAt);
+    const movements = db.prepare(`SELECT product_id, SUM(quantity_delta) AS total
+      FROM inventory_movements WHERE event_id = ? GROUP BY product_id`).all(eventId) as Array<{ product_id: string; total: number }>;
+    const movementTotals = new Map(movements.map(({ product_id, total }) => [product_id, total]));
+    const upsertBalance = db.prepare(`INSERT INTO inventory_balances (event_id, product_id, on_hand, reserved, version)
+      VALUES (?, ?, ?, 0, 1)
+      ON CONFLICT(event_id, product_id) DO UPDATE SET on_hand = excluded.on_hand, version = inventory_balances.version + 1
+      WHERE inventory_balances.on_hand <> excluded.on_hand`);
     for (const product of catalog.products) {
       const productId = `${eventId}:${product.productCode}`;
       db.prepare(`INSERT INTO event_products (product_id, event_id, product_code, name, price_incl_tax, price_excl_tax, tax_rate_bps, tax_category, age_requirement, sale_state, provisional, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
         ON CONFLICT(event_id, product_code) DO UPDATE SET name=excluded.name, price_incl_tax=excluded.price_incl_tax, price_excl_tax=excluded.price_excl_tax, tax_rate_bps=excluded.tax_rate_bps, tax_category=excluded.tax_category, age_requirement=excluded.age_requirement, sale_state=excluded.sale_state, provisional=0, updated_at=excluded.updated_at`)
         .run(productId, eventId, product.productCode, product.name, product.priceInclTax, product.priceExclTax ?? null, product.taxRate * 100, product.taxCategory, product.ageCheck === "18" ? 18 : product.ageCheck === "20" ? 20 : 0, product.saleState, updatedAt);
-      db.prepare("INSERT INTO inventory_balances (event_id, product_id, on_hand, reserved, version) VALUES (?, ?, ?, 0, 1) ON CONFLICT(event_id, product_id) DO NOTHING").run(eventId, productId, product.inventory?.openingQuantity ?? 0);
+      const onHand = (product.inventory?.openingQuantity ?? 0) + (movementTotals.get(productId) ?? 0);
+      upsertBalance.run(eventId, productId, onHand);
       db.prepare("UPDATE unregistered_product_scans SET status='registered' WHERE event_id=? AND product_code=? AND status='pending'").run(eventId, product.productCode);
     }
     db.prepare("INSERT INTO audit_log (event_id, action, entity_type, entity_id, detail_json, created_at) VALUES (?, ?, 'event_catalog', ?, ?, ?)").run(eventId, action, eventId, catalogJson, updatedAt);
