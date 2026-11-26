@@ -61,8 +61,11 @@ function Test-HttpOk {
   } catch { return $false }
 }
 
-# ビルド／ペイロードが上書きする範囲だけを退避・復旧の対象にする
-$scopedDirs = @('server\dist', 'printer-host\dist', 'printer-host\scripts', 'web', 'runtime', 'data', 'event-config\usb-kit-initial')
+# ビルド／ペイロードが上書きする範囲だけを退避・復旧の対象にする。
+# data（本番DB）は対象に含めない。更新が中断した後に営業が再開されていた場合、
+# 起動時復旧が data を退避時点へ戻すと、その間の売上が丸ごと消えるため（F-064）。
+# DB は更新経路のどこからも書き換えられず、変化は Compare-Protected で検出する。
+$scopedDirs = @('server\dist', 'printer-host\dist', 'printer-host\scripts', 'printer-host\node_modules', 'web', 'runtime', 'event-config\usb-kit-initial')
 $rootFiles = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', '.event-pos-usb-kit', 'printer-host.env', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env')
 
 function Backup-Scoped {
@@ -98,6 +101,8 @@ function Restore-Scoped {
   }
   $newFile = Join-Path $kit 'update-usb-kit.ps1.new'
   if (Test-Path -LiteralPath $newFile) { Remove-Item -LiteralPath $newFile -Force }
+  $newBat = Join-Path $kit 'Update-USB-Kit.bat.new'
+  if (Test-Path -LiteralPath $newBat) { Remove-Item -LiteralPath $newBat -Force }
 }
 
 function Get-ProtectedDigests {
@@ -174,14 +179,8 @@ function Invoke-LocalUpdate {
   Write-Host "ビルド元: $RepoRoot"
   Write-Host "更新先: $kit"
 
-  $protectedBefore = Get-ProtectedDigests
-  if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
-  New-Item -ItemType Directory -Path $backup -Force | Out-Null
-  Backup-Scoped
-  Write-State 'applying'
-
-  $runStarted = Get-Date
-  $problems = @()
+  # 前提チェックは 'applying' を書く前に終える。チェックで throw すると
+  # 中断扱いの状態だけが残り、次回起動時の自動復旧が走ってしまうため（F-064）。
   if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
     if (-not (Get-Command corepack -ErrorAction SilentlyContinue)) { throw 'pnpm と corepack のどちらも見つかりません。ビルド元PCの Node.js 環境を確認してください。' }
     $shimDir = Join-Path $env:TEMP "event-pos-pnpm-shim-$([guid]::NewGuid().ToString('N'))"
@@ -190,6 +189,15 @@ function Invoke-LocalUpdate {
     $env:PATH = "$shimDir;$env:PATH"
     Write-Host 'pnpm が PATH にないため、corepack 経由のシムを使います。'
   }
+
+  $protectedBefore = Get-ProtectedDigests
+  if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force }
+  New-Item -ItemType Directory -Path $backup -Force | Out-Null
+  Backup-Scoped
+  Write-State 'applying'
+
+  $runStarted = Get-Date
+  $problems = @()
   # ビルドは別プロセスで実行する。同一セッションで呼ぶと PowerShell 5.1 が
   # pnpm の標準エラー出力をエラー扱いし、終了コード 0 でも失敗と誤判定するため。
   $buildLogDir = Join-Path $env:TEMP "event-pos-build-$([guid]::NewGuid().ToString('N'))"
@@ -407,11 +415,13 @@ try {
   $marker = Join-Path $kit '.event-pos-usb-kit'
   if (-not (Test-Path -LiteralPath $marker)) { throw "このフォルダーはUSBキットではありません: $kit" }
 
-  # 前回の更新が適用途中で止まっていたら、退避から復旧してから始める
+  # 前回の更新が適用途中で止まっていたら、退避から復旧してから始める。
+  # 状態と退避は PC ローカルに1か所だけのため、対象キットが一致する場合だけ復旧する
+  # （別キットの退避を復旧すると、そのキットのプログラムで上書きしてしまう。F-064）。
   if (Test-Path -LiteralPath $statePath) {
     try {
       $st = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
-      if ($st.status -eq 'applying' -and (Test-Path -LiteralPath $backup)) {
+      if ($st.status -eq 'applying' -and $st.kit -eq $kit -and (Test-Path -LiteralPath $backup)) {
         Write-Host '前回の更新が途中で止まっていたため、更新前の状態へ復旧します。'
         Restore-Scoped
       }
