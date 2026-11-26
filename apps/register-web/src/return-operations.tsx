@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { createUuid } from "./uuid.js";
 import { checkoutApi, CheckoutApiError, type ReturnableTransactionDto } from "./checkout-api.js";
 import { DEFAULT_REASON, ReasonSelect } from "./reason-options.js";
+import { manualRefundKeyFor, releaseManualRefundKey } from "./return-idempotency.js";
 
-type ManualRefundRequest = { input: Parameters<typeof checkoutApi.createManualRefund>[0]; key: string };
+type ManualRefundRequest = { input: Parameters<typeof checkoutApi.createManualRefund>[0]; key: string; storageKey: string };
 
 export function ReturnOperations({ eventId, businessDate, cashboxId, actorId, terminalId, onClose, initialQuery = "" }: { eventId: string; businessDate: string; cashboxId: string; actorId: string; terminalId: string; onClose: () => void; initialQuery?: string }) {
   const [mode,setMode]=useState<"original"|"manual">("original"); const [query,setQuery]=useState(""); const [items,setItems]=useState<ReturnableTransactionDto[]>([]); const [selected,setSelected]=useState<ReturnableTransactionDto|null>(null); const [description,setDescription]=useState(""); const [amount,setAmount]=useState(""); const [productCode,setProductCode]=useState(""); const [quantity,setQuantity]=useState("1"); const [paymentKind,setPaymentKind]=useState<"cash"|"credit"|"accounts_receivable">("cash"); const [busy,setBusy]=useState(false); const [error,setError]=useState(""); const [completed,setCompleted]=useState<{publicReferenceDisplay:string;printJobId:string}|null>(null); const [fullReason,setFullReason]=useState(DEFAULT_REASON); const [manualReason,setManualReason]=useState(DEFAULT_REASON);
@@ -21,16 +22,24 @@ export function ReturnOperations({ eventId, businessDate, cashboxId, actorId, te
     setError("");
     let submission = confirmation;
     try {
-      submission ??= {
-        input: {
+      if (!submission) {
+        const input = {
           eventId, cashSessionId: (await currentSession()).sessionId, terminalId,
           description: description.trim(), amountYen, paymentKind, reason: manualReason,
           ...(productCode.trim() ? { productCode: productCode.trim(), quantity: Number(quantity) || 1 } : {}),
-        },
-        key: createUuid(),
-      };
+        };
+        // 応答喪失に備え、送信内容と同じ内容の再試行では同じキーを使う（サーバーが記録済みの結果を返す）
+        const pending = manualRefundKeyFor(localStorage, input, actorId);
+        submission = { input, key: pending.key, storageKey: pending.storageKey };
+      }
       const { input, key } = submission;
       const result = await checkoutApi.createManualRefund(confirmation ? { ...input, confirmWithoutProductCode: true } : input, actorId, key);
+      if (!result?.transactionId || !result?.printJobId) {
+        // 201でも本文を読めなかった場合は結果不明。キーと入力を保持し、同じ内容の再送信で記録済みの結果を受け取る
+        setError("返金結果を確認できませんでした。内容を変えずに再送信すると、記録済みの結果が返ります");
+        return;
+      }
+      releaseManualRefundKey(localStorage, submission);
       setManualConfirmation(null);
       setCompleted(result);
       setDescription("");

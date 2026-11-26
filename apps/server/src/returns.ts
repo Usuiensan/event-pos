@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ReceiptSnapshot } from "@event-pos/receipt-template";
 import type { PosDatabase } from "./db.js";
+import { parseDatedPublicReference } from "@event-pos/contracts";
 import { allocatePublicReference, businessDateYYMMDD, CheckoutError, uuidV7 } from "./checkout-store.js";
 import { renderReceipt } from "./receipt-store.js";
 
@@ -8,18 +9,14 @@ type ExternalResult = "completed" | "failed" | "unknown";
 type ReturnInput = { originalTransactionId: string; cashSessionId: string; actorId: string; terminalId: string; reason: string; idempotencyKey: string; externalResults?: Record<string, ExternalResult> };
 export function searchReturnableTransactions(db: PosDatabase, eventId: string, query: string) {
   const trimmed = query.trim();
-  const barcode = /^(\d{6})(\d{8})$/.exec(trimmed);
+  const barcode = parseDatedPublicReference(trimmed);
   if (barcode) {
-    const compactDate = barcode[1]!; const publicReference = barcode[2]!;
-    const businessDate = `20${compactDate.slice(0, 2)}-${compactDate.slice(2, 4)}-${compactDate.slice(4, 6)}`;
-    const parsedDate = new Date(`${businessDate}T00:00:00.000Z`);
-    if (!Number.isNaN(parsedDate.valueOf()) && parsedDate.toISOString().slice(0, 10) === businessDate) {
-      return db.prepare(`SELECT t.transaction_id AS transactionId,t.public_reference_display AS publicReferenceDisplay,t.register_id AS registerId,t.staff_id AS staffId,t.total_yen AS totalYen,t.payment_kind AS paymentKind,t.created_at AS createdAt,
+    const { businessDate, publicReference } = barcode;
+    return db.prepare(`SELECT t.transaction_id AS transactionId,t.public_reference_display AS publicReferenceDisplay,t.register_id AS registerId,t.staff_id AS staffId,t.total_yen AS totalYen,t.payment_kind AS paymentKind,t.created_at AS createdAt,
         CASE WHEN r.transaction_id IS NULL THEN 1 ELSE 0 END AS returnable,r.transaction_id AS returnTransactionId
         FROM transactions t JOIN cash_sessions cs ON cs.session_id=t.session_id LEFT JOIN transactions r ON r.original_transaction_id=t.transaction_id AND r.type='return'
         WHERE t.event_id=? AND t.type='sale' AND cs.business_date=? AND t.public_reference=?
         ORDER BY t.created_at DESC LIMIT 20`).all(eventId, businessDate, publicReference).map((row) => ({ ...row as Record<string, unknown>, returnable: Boolean((row as { returnable: number }).returnable) }));
-    }
   }
   const pattern = `%${trimmed}%`;
   return db.prepare(`SELECT t.transaction_id AS transactionId,t.public_reference_display AS publicReferenceDisplay,t.register_id AS registerId,t.staff_id AS staffId,t.total_yen AS totalYen,t.payment_kind AS paymentKind,t.created_at AS createdAt,
@@ -69,11 +66,7 @@ export function createManualRefund(db: PosDatabase, input: ManualRefundInput) {
   if (!input.description.trim()) throw new CheckoutError(400, "REFUND_DESCRIPTION_REQUIRED", "商品名または返金内容が必要です");
   if (!Number.isSafeInteger(input.amountYen) || input.amountYen <= 0) throw new CheckoutError(400, "REFUND_AMOUNT_INVALID", "返金額は1円以上の整数で入力してください");
   if (!input.idempotencyKey.trim()) throw new CheckoutError(400, "IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Keyが必要です");
-  const product = input.productCode ? db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, input.productCode) as { product_id: string; product_code: string; name: string } | undefined : undefined;
-  const productCodeNotFound = !!input.productCode && !product;
-  if (productCodeNotFound && input.confirmWithoutProductCode !== true) throw new CheckoutError(400, "PRODUCT_CODE_NOT_FOUND", `商品コード「${input.productCode}」は商品マスタに存在しません`);
   const requestedQuantity = input.productCode ? Math.max(1, Math.trunc(input.quantity ?? 1)) : 1;
-  const quantity = product ? requestedQuantity : 1;
   const selectedReason = input.reason?.trim() || null; const reasonText = selectedReason ?? "紙面へ手書き"; const movementReason = selectedReason ?? "例外返金";
   // 商品マスタが変わっても同じリクエストのハッシュは変えない。
   const requestHash = createHash("sha256").update(JSON.stringify({ ...input, quantity: requestedQuantity })).digest("hex");
@@ -81,6 +74,11 @@ export function createManualRefund(db: PosDatabase, input: ManualRefundInput) {
   try {
     const replay = db.prepare("SELECT request_hash,response_json FROM idempotency_records WHERE scope='manual-refund' AND idempotency_key=?").get(input.idempotencyKey) as { request_hash: string; response_json: string } | undefined;
     if (replay) { if (replay.request_hash !== requestHash) throw new CheckoutError(409, "IDEMPOTENCY_KEY_REUSED", "同じIdempotency-Keyが異なる返金に使用されています"); db.exec("COMMIT"); return JSON.parse(replay.response_json); }
+    // 商品の存在確認は冪等リプレイ照合の後に行う。確定後に商品がマスタから消えても、記録済みの結果を再送で受け取れるようにするため。
+    const product = input.productCode ? db.prepare("SELECT product_id,product_code,name FROM event_products WHERE event_id=? AND product_code=?").get(input.eventId, input.productCode) as { product_id: string; product_code: string; name: string } | undefined : undefined;
+    const productCodeNotFound = !!input.productCode && !product;
+    if (productCodeNotFound && input.confirmWithoutProductCode !== true) throw new CheckoutError(400, "PRODUCT_CODE_NOT_FOUND", `商品コード「${input.productCode}」は商品マスタに存在しません`);
+    const quantity = product ? requestedQuantity : 1;
     const session = db.prepare("SELECT c.event_id,c.business_date,c.state,c.opening_yen,b.session_no AS session_no FROM cash_sessions c LEFT JOIN business_sessions b ON b.business_session_id=c.business_session_id WHERE c.session_id=?").get(input.cashSessionId) as { event_id: string; business_date: string; state: string; opening_yen: number | null; session_no: number | null } | undefined;
     if (!session || session.event_id !== input.eventId || session.state !== "open" || session.opening_yen === null) throw new CheckoutError(409, "CASH_SESSION_NOT_OPEN", "開局中の現金セッションが必要です");
     const now = new Date().toISOString(); const transactionId = uuidV7(); const printJobId = uuidV7(); const operationId = uuidV7();

@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import type { PrinterStatusObservation } from "@event-pos/contracts";
 import type { PosDatabase } from "./db.js";
 import type { RealtimeHub } from "./realtime.js";
+import { AuthError, requireAuthActor } from "./auth.js";
 
 const unknownObservation = (reason: string): PrinterStatusObservation => ({ observedAt: new Date().toISOString(), reachable: { support: "unknown", reason }, online: { support: "unknown", reason }, coverOpen: { support: "unknown", reason }, drawerOpen: { support: "unknown", reason }, paper: { support: "unknown", reason }, error: { support: "unknown", reason }, raw: null });
 async function capacity(path: string | undefined) {
@@ -13,10 +14,16 @@ async function capacity(path: string | undefined) {
   catch (error) { return { state: "unknown" as const, path: resolve(path), freeBytes: null, totalBytes: null, reason: error instanceof Error ? error.message : "容量を取得できません" }; }
 }
 
-export function registerOperationsDashboard(app: FastifyInstance, options: { database: PosDatabase; realtimeHub: RealtimeHub; artifactRoot?: string; printerStatus?: () => Promise<PrinterStatusObservation> }): void {
+export function registerOperationsDashboard(app: FastifyInstance, options: { database: PosDatabase; realtimeHub: RealtimeHub; artifactRoot?: string; printerStatus?: () => Promise<PrinterStatusObservation>; authRequired?: boolean }): void {
   app.get<{ Querystring: { eventId?: string; businessDate?: string } }>("/api/v1/operations/dashboard", async (request, reply) => {
-    const actorId = request.headers["x-pos-actor-id"]; const role = request.headers["x-pos-role"];
-    if (!actorId || role !== "manager") return reply.code(role ? 403 : 401).send({ error: { code: "DASHBOARD_MANAGER_REQUIRED", message: "責任者権限が必要です" } });
+    if (options.authRequired) {
+      // 認証必須時はセッション担当者を正とし、旧ヘッダーは見ない
+      try { requireAuthActor(options.database, request, "manager", true); }
+      catch (err) { return reply.code(err instanceof AuthError ? err.status : 401).send({ error: { code: err instanceof AuthError ? err.code : "AUTH_REQUIRED", message: err instanceof Error ? err.message : "責任者をサインオンしてください" } }); }
+    } else {
+      const actorId = request.headers["x-pos-actor-id"]; const role = request.headers["x-pos-role"];
+      if (!actorId || role !== "manager") return reply.code(role ? 403 : 401).send({ error: { code: "DASHBOARD_MANAGER_REQUIRED", message: "責任者権限が必要です" } });
+    }
     if (!request.query.eventId || !request.query.businessDate) return reply.code(400).send({ error: { code: "DASHBOARD_SCOPE_REQUIRED", message: "eventIdとbusinessDateが必要です" } });
     let databaseState: "ready" | "not_ready" = "ready"; let databaseReason: string | null = null;
     try { const result = options.database.prepare("PRAGMA quick_check").get() as { quick_check?: string }; if (result.quick_check !== "ok") { databaseState = "not_ready"; databaseReason = result.quick_check ?? "quick_check失敗"; } }

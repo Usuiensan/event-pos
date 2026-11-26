@@ -62,14 +62,26 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
 }
 
 export function registerPrintingRoutes(app: FastifyInstance, options: { database: PosDatabase; queue?: PersistentPrintQueue; printerStatus?: () => Promise<PrinterStatusObservation>; drawerEnabled?: boolean; authRequired?: boolean }): void {
+  // 店員操作の実行者確認。認証必須時はセッション担当者（役割＋CSRF）を正とし、旧ヘッダーは見ない。
+  // 認証無効時（開発・テスト）は従来どおり x-pos-role / x-pos-actor-id ヘッダーで識別する。
+  const managerActorId = (request: { method: string; headers: Record<string, string | string[] | undefined> }, legacyCode: string): { actorId: string } | { failure: { status: number; code: string; message: string } } => {
+    if (options.authRequired) {
+      try { return { actorId: requireAuthActor(options.database, request, "manager", true).responsibleNumber }; }
+      catch (err) { return { failure: { status: err instanceof AuthError ? err.status : 401, code: err instanceof AuthError ? err.code : "AUTH_REQUIRED", message: err instanceof Error ? err.message : "責任者をサインオンしてください" } }; }
+    }
+    const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
+    if (!actorId || role !== "manager") return { failure: { status: role ? 403 : 401, code: legacyCode, message: "責任者権限が必要です" } };
+    return { actorId };
+  };
   const editor = (request: any) => {
     requireAuthActor(options.database, request, "manager", options.authRequired ?? false);
     if (options.authRequired && options.database.prepare("SELECT 1 FROM business_sessions WHERE state='open' LIMIT 1").get()) throw new AuthError(409, "CONFIGURATION_LOCKED", "営業中はレシート設定を変更できません");
   };
   app.post<{ Body: { profile?: DrawerPulseProfile } }>("/api/v1/device-jobs/drawer", async (request, reply) => {
     if (!options.drawerEnabled) return error(reply, 409, "DRAWER_NOT_ACCEPTED", "ドロアー実機受入が完了するまで駆動できません");
-    const actorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
-    if (!actorId || role !== "manager") return error(reply, role ? 403 : 401, "DRAWER_MANAGER_REQUIRED", "責任者権限が必要です");
+    const manager = managerActorId(request, "DRAWER_MANAGER_REQUIRED");
+    if ("failure" in manager) return error(reply, manager.failure.status, manager.failure.code, manager.failure.message);
+    const actorId = manager.actorId;
     if (!options.queue || !options.printerStatus) return error(reply, 409, "PRINTER_HOST_NOT_CONFIGURED", "プリンターとドロアーを操作するPrinterHostが設定されていません");
     const printer = await options.printerStatus().catch(() => null);
     if (!printer || printer.reachable.support !== "supported" || printer.reachable.value !== true) return error(reply, 503, "PRINTER_HOST_UNAVAILABLE", "PrinterHostへ接続できません。接続を確認してから再試行してください");
@@ -115,6 +127,8 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     return { attempts: options.database.prepare("SELECT attempt_no AS attemptNo,phase,started_at AS startedAt,ended_at AS endedAt,compiler_bytes_sha256 AS compilerBytesSha256,adapter_bytes_sha256 AS adapterBytesSha256,write_bytes_sha256 AS writeBytesSha256,accepted_bytes AS acceptedBytes,result,error_code AS errorCode,error_message AS errorMessage,transport_evidence_json AS transportEvidenceJson,status_snapshot_json AS statusObservationJson FROM print_attempts WHERE job_id=? ORDER BY attempt_no").all(request.params.jobId) };
   });
   app.post<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId/cancel", async (request, reply) => {
+    try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); }
+    catch (err) { return error(reply, err instanceof AuthError ? err.status : 401, err instanceof AuthError ? err.code : "AUTH_REQUIRED", err instanceof Error ? err.message : "責任者をサインオンしてください"); }
     const operation = options.database.prepare("SELECT * FROM printer_operations WHERE payload_ref=?").get(request.params.jobId) as Record<string, unknown> | undefined;
     if (!operation) return error(reply, 404, "PRINT_JOB_NOT_FOUND", "印刷jobが見つかりません");
     if (operation.state !== "pending" && operation.state !== "retry_wait") return error(reply, 409, "PRINT_JOB_NOT_CANCELABLE", "待機または再試行待ちだけ取消できます");
@@ -123,8 +137,9 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     return getPrintJob(options.database, request.params.jobId);
   });
   app.post<{ Params: { transactionId: string }; Body: ReprintBody }>("/api/v1/transactions/:transactionId/reprints", async (request, reply) => {
-    const executorId = header(request, "x-pos-actor-id"); const role = header(request, "x-pos-role");
-    if (!executorId || role !== "manager") return error(reply, role ? 403 : 401, "REPRINT_MANAGER_REQUIRED", "責任者権限が必要です");
+    const manager = managerActorId(request, "REPRINT_MANAGER_REQUIRED");
+    if ("failure" in manager) return error(reply, manager.failure.status, manager.failure.code, manager.failure.message);
+    const executorId = manager.actorId;
     try { const job = insertReprint(options.database, request.params.transactionId, request.body, executorId); options.queue?.trigger(); return reply.code(201).send(job); }
     catch (err) { const code = err instanceof Error ? err.message : "REPRINT_FAILED"; return error(reply, code.includes("NOT_FOUND") ? 404 : 409, code, ({ REPRINT_INPUT_REQUIRED: "再印刷の理由と実物結果が必要です", REPRINT_RISK_APPROVAL_REQUIRED: "二重印刷リスク承認と責任者承認が必要です" } as Record<string, string>)[code] ?? code); }
   });
@@ -132,5 +147,13 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, drawerOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };
     return { printerId: "receipt-1", observation, queue: getPrintQueueStatus(options.database), drawerEnabled: options.drawerEnabled ?? false };
   });
-  app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => options.queue?.resumeDeviceFault(request.body?.actorId ?? "") ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"));
+  app.post<{ Body: { actorId: string } }>("/api/v1/printer/resume", async (request, reply) => {
+    let actorId = request.body?.actorId ?? "";
+    if (options.authRequired) {
+      try { actorId = requireAuthActor(options.database, request, "manager", true).responsibleNumber; }
+      catch (err) { return error(reply, err instanceof AuthError ? err.status : 401, err instanceof AuthError ? err.code : "AUTH_REQUIRED", err instanceof Error ? err.message : "責任者をサインオンしてください"); }
+    }
+    try { return options.queue?.resumeDeviceFault(actorId) ? { resumed: true } : error(reply, 409, "PRINTER_NOT_BLOCKED", "device faultで停止していません"); }
+    catch (err) { return error(reply, 400, "PRINTER_RESUME_INVALID", err instanceof Error ? err.message : "印刷を再開できません"); }
+  });
 }

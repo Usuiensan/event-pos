@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cashDenominations, calculateCashActual, type CashCount, type CashDenomination } from "@event-pos/contracts";
 import { checkoutApi, type BackupArtifactDto, type CashSessionDto, type CashSettlementSummary } from "./checkout-api.js";
-import { idempotencyKeyFor } from "./cash-idempotency.js";
+import { executeCashSave, executePlainSave, type CashOperationOutcome } from "./cash-operation-flow.js";
 import { ReasonSelect, DEFAULT_REASON, cashMovementReasonOptions } from "./reason-options.js";
 
 type CheckKind = "opening" | "interim" | "closing";
@@ -60,6 +60,7 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
     if (!pending || submitting) return;
     setSubmitting(true); setError("");
     try {
+      let outcome: CashOperationOutcome;
       if (pending.kind === "check") {
         let current = session;
         if (!current) {
@@ -68,32 +69,55 @@ export function CashOperations({ eventId, businessSessionId, businessDate, cashb
           current = refreshed.session;
         }
         if (!current) throw new Error("レジの準備を開始できませんでした");
-        const storageKey = `event-pos-cash-check-${current.sessionId}-${pending.checkKind}`;
+        const target = current;
+        const check = pending;
+        const storageKey = `event-pos-cash-check-${target.sessionId}-${check.checkKind}`;
         // サーバーが冪等照合に使う内容（セッション・種別・金種・翌日残し）とフィンガープリントを対にしてキーを管理する
-        const fingerprint = JSON.stringify({ sessionId: current.sessionId, kind: pending.checkKind, counted: pending.counted, carryoverYen: pending.carryoverYen ?? 0 });
-        const idempotencyKey = idempotencyKeyFor(localStorage, storageKey, fingerprint);
-        const result = await checkoutApi.saveCashCheck(current.sessionId, pending.checkKind, { counted: pending.counted, ...(pending.carryoverYen === undefined ? {} : { carryoverYen: pending.carryoverYen }), terminalId }, actorId, idempotencyKey);
-        localStorage.removeItem(storageKey);
-        if (result.backupArtifact) { setLastArtifact(result.backupArtifact); onArtifact?.(result.backupArtifact); }
-        if (pending.checkKind !== "opening") setSettlementSummary(await checkoutApi.getCashSettlementSummary(current.sessionId));
+        const fingerprint = JSON.stringify({ sessionId: target.sessionId, kind: check.checkKind, counted: check.counted, carryoverYen: check.carryoverYen ?? 0 });
+        outcome = await executeCashSave({
+          storage: localStorage, storageKey, fingerprint,
+          save: async (idempotencyKey) => {
+            const result = await checkoutApi.saveCashCheck(target.sessionId, check.checkKind, { counted: check.counted, ...(check.carryoverYen === undefined ? {} : { carryoverYen: check.carryoverYen }), terminalId }, actorId, idempotencyKey);
+            if (result.backupArtifact) { setLastArtifact(result.backupArtifact); onArtifact?.(result.backupArtifact); }
+          },
+          refreshDisplay: async () => {
+            if (check.checkKind !== "opening") setSettlementSummary(await checkoutApi.getCashSettlementSummary(target.sessionId));
+            await refresh();
+          },
+        });
       } else if (pending.kind === "movement") {
         if (!session) throw new Error("営業開始後に入出金してください");
-        const storageKey = `event-pos-cash-movement-${session.sessionId}`;
+        const target = session;
+        const movement = pending;
+        const storageKey = `event-pos-cash-movement-${target.sessionId}`;
         // サーバーが冪等照合に使う内容（セッション・種別・金額・理由）とフィンガープリントを対にしてキーを管理する
-        const fingerprint = JSON.stringify({ sessionId: session.sessionId, type: pending.movementType, amountYen: pending.amountYen, reason: pending.reason });
-        const idempotencyKey = idempotencyKeyFor(localStorage, storageKey, fingerprint);
-        await checkoutApi.saveCashMovement(session.sessionId, { type: pending.movementType, amountYen: pending.amountYen, reason: pending.reason, idempotencyKey, terminalId }, actorId); localStorage.removeItem(storageKey);
+        const fingerprint = JSON.stringify({ sessionId: target.sessionId, type: movement.movementType, amountYen: movement.amountYen, reason: movement.reason });
+        outcome = await executeCashSave({
+          storage: localStorage, storageKey, fingerprint,
+          save: async (idempotencyKey) => {
+            await checkoutApi.saveCashMovement(target.sessionId, { type: movement.movementType, amountYen: movement.amountYen, reason: movement.reason, idempotencyKey, terminalId }, actorId);
+          },
+          refreshDisplay: refresh,
+        });
       } else {
         if (!session) throw new Error("現金セッションがありません");
-        await checkoutApi.reopenCashSession(session.sessionId, pending.reason, terminalId, actorId);
+        const target = session;
+        const reopen = pending;
+        outcome = await executePlainSave({
+          save: async () => { await checkoutApi.reopenCashSession(target.sessionId, reopen.reason, terminalId, actorId); },
+          refreshDisplay: refresh,
+        });
       }
-      await refresh(); setPending(null); setCheckKind(null); setMovementType(null); setMovementAmount(""); setReason(""); setMovementReason(DEFAULT_REASON); setCounts({}); setCarryover("");
+      if (outcome.status === "failed") { setError(outcome.error); return; }
+      // 保存成功時点で操作は完了。確認画面と入力を閉じ、表示更新の失敗は再保存せず知らせるだけにする
+      setPending(null); setCheckKind(null); setMovementType(null); setMovementAmount(""); setReason(""); setMovementReason(DEFAULT_REASON); setCounts({}); setCarryover("");
+      if (outcome.displayError) setError(`操作は記録されましたが、表示の更新に失敗しました（${outcome.displayError}）。現金管理を開き直して表示を確認してください`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "現金操作に失敗しました"); }
     finally { setSubmitting(false); }
   };
 
   const latestCheck = session?.checks[0];
-  return <div className="modal-backdrop cash-operations-layer"><section className="cash-operations" aria-label="現金管理"><header><div><h2>現金管理</h2><p>{eventId}／{businessDate}／{cashboxId}</p></div><button type="button" onClick={onClose}>閉じる</button></header>
+  return <div className="modal-backdrop cash-operations-layer"><section className="cash-operations" aria-label="現金管理"><header><div><h2>現金管理</h2><p>{eventId}／{businessDate}／{cashboxId}</p></div><button type="button" disabled={submitting} onClick={onClose}>閉じる</button></header>
     {loading ? <p>現金セッションを確認しています…</p> : <>
       <div className="cash-summary"><div><span>状態</span><strong>{!session ? "未開局" : session.state === "closed" ? "精算済み" : session.openingYen === null ? "準備金未登録" : "営業中"}</strong></div><div><span>理論現金</span><strong>{yen(theoreticalYen)}</strong></div><div><span>直近過不足</span><strong className={(latestCheck?.differenceYen ?? 0) === 0 ? "cash-ok" : "cash-warning"}>{latestCheck ? yen(latestCheck.differenceYen) : "—"}</strong></div></div>
       {lastArtifact && <div className="cash-artifact-result"><strong>成果物: {lastArtifact.state === "completed" ? "成功" : lastArtifact.state === "failed" ? "失敗" : "生成待ち"}</strong><span>成果物ID {lastArtifact.artifactId}</span></div>}

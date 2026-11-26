@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { idempotencyKeyFor, type IdempotencyStorage } from "./cash-idempotency.js";
+import { idempotencyKeyFor, idempotencyStorageKey, releaseIdempotencyKey, type IdempotencyStorage } from "./cash-idempotency.js";
 
 function memoryStorage(initial: Record<string, string> = {}): IdempotencyStorage & { entries: Map<string, string> } {
   const entries = new Map(Object.entries(initial));
@@ -52,5 +52,52 @@ describe("idempotencyKeyFor", () => {
     const first = idempotencyKeyFor(storage, "k", "fp-1000");
     storage.removeItem("k");
     expect(idempotencyKeyFor(storage, "k", "fp-1000")).not.toBe(first);
+  });
+});
+
+describe("idempotencyStorageKey（F-073: 操作内容ごとの枠分離）", () => {
+  it("同じ内容では同じ枠、異なる内容では異なる枠になる", () => {
+    expect(idempotencyStorageKey("base", "fp-1000")).toBe(idempotencyStorageKey("base", "fp-1000"));
+    expect(idempotencyStorageKey("base", "fp-1000")).not.toBe(idempotencyStorageKey("base", "fp-2000"));
+    expect(idempotencyStorageKey("base", "fp-1000")).not.toBe(idempotencyStorageKey("other", "fp-1000"));
+  });
+
+  it("別操作（別タブ）が自分の枠を使っても、保留中のキーは上書きされない", () => {
+    const storage = memoryStorage();
+    const keyA = idempotencyKeyFor(storage, idempotencyStorageKey("base", "fp-A"), "fp-A");
+    const keyB = idempotencyKeyFor(storage, idempotencyStorageKey("base", "fp-B"), "fp-B");
+    expect(keyA).not.toBe(keyB);
+    // どちらのキーもそれぞれの枠に残っている
+    expect(idempotencyKeyFor(storage, idempotencyStorageKey("base", "fp-A"), "fp-A")).toBe(keyA);
+    expect(idempotencyKeyFor(storage, idempotencyStorageKey("base", "fp-B"), "fp-B")).toBe(keyB);
+  });
+});
+
+describe("releaseIdempotencyKey（F-073: 自分のキーだけを解放）", () => {
+  it("枠にあるキーが自分のキーなら削除する", () => {
+    const storage = memoryStorage();
+    const slot = idempotencyStorageKey("base", "fp-A");
+    const key = idempotencyKeyFor(storage, slot, "fp-A");
+    releaseIdempotencyKey(storage, slot, key);
+    expect(storage.entries.has(slot)).toBe(false);
+  });
+
+  it("枠にあるキーが別操作のものなら削除しない", () => {
+    const storage = memoryStorage();
+    const slot = idempotencyStorageKey("base", "fp-A");
+    const otherKey = idempotencyKeyFor(storage, slot, "fp-A");
+    releaseIdempotencyKey(storage, slot, "00000000-0000-4000-8000-000000000000");
+    expect(idempotencyKeyFor(storage, slot, "fp-A")).toBe(otherKey);
+  });
+
+  it("別操作の枠は解放の対象にならない", () => {
+    const storage = memoryStorage();
+    const slotA = idempotencyStorageKey("base", "fp-A");
+    const slotB = idempotencyStorageKey("base", "fp-B");
+    const keyA = idempotencyKeyFor(storage, slotA, "fp-A");
+    const keyB = idempotencyKeyFor(storage, slotB, "fp-B");
+    releaseIdempotencyKey(storage, slotA, keyA);
+    expect(storage.entries.has(slotA)).toBe(false);
+    expect(idempotencyKeyFor(storage, slotB, "fp-B")).toBe(keyB);
   });
 });

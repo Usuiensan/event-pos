@@ -87,6 +87,18 @@ describe("server foundation", () => {
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(400);
     expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s1/movements", payload: { ...movement, idempotencyKey: "after-close" } })).statusCode).toBe(400);
   });
+  it("精算後の入出金の同キー再送は記録済み結果を返し、内容違いは拒否する（F-073）", async () => {
+    const database = openDatabase(); const app = buildApp({ database }); apps.push(app);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions", payload: { sessionId: "s2", eventId: "e1", businessDate: "2026-08-02" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s2/checks/opening", payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(201);
+    const movement = { type: "pay_in", amountYen: 100, reason: "追加準備金", idempotencyKey: "pay-in-after-close" };
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s2/movements", payload: movement })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s2/checks/closing", payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000 } })).statusCode).toBe(201);
+    // 保存後の応答喪失→精算→同じキーで再送: 状態エラーではなく記録済みの結果が返る
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s2/movements", payload: movement })).statusCode).toBe(201);
+    expect(database.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE session_id='s2'").get()).toEqual({ count: 1 });
+    expect((await app.inject({ method: "POST", url: "/api/v1/cash-sessions/s2/movements", payload: { ...movement, amountYen: 200 } })).statusCode).toBe(409);
+  });
   it("restores cash session, ledger, check, and closed state after SQLite reopen", async () => {
     const databasePath = "./.cash-persistence-test.sqlite";
     rmSync(databasePath, { force: true }); rmSync(`${databasePath}-wal`, { force: true }); rmSync(`${databasePath}-shm`, { force: true });
@@ -98,7 +110,9 @@ describe("server foundation", () => {
     await app.close(); apps.splice(apps.indexOf(app), 1);
     const reopenedDatabase = openDatabase(databasePath); const app2 = buildApp({ database: reopenedDatabase }); apps.push(app2);
     const replay = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/movements", payload: { type: "sale", amountYen: 500, reason: "sale", idempotencyKey: "persist-sale" } });
-    expect(replay.statusCode).toBe(400);
+    // 精算後でも、同じキーの再送は記録済みの結果を返し二重記録しない（F-073。saveCashCheck と同じ照合順序）
+    expect(replay.statusCode).toBe(201);
+    expect(reopenedDatabase.prepare("SELECT COUNT(*) AS count FROM cash_movements WHERE session_id='persist-1'").get()).toEqual({ count: 1 });
     const migratedBusiness = (reopenedDatabase.prepare("SELECT business_session_id FROM business_sessions WHERE event_id='e1'").get() as { business_session_id: string }).business_session_id;
     expect((await app2.inject({ method: "POST", url: `/api/v1/business-sessions/${encodeURIComponent(migratedBusiness)}/reopen`, payload: { reason: "旧DB復旧確認", terminalId: "register-1" } })).statusCode).toBe(200);
     const reopen = await app2.inject({ method: "POST", url: "/api/v1/cash-sessions/persist-1/reopen", payload: { reason: "確認のため再開", actorId: "manager-1", terminalId: "register-1" } });

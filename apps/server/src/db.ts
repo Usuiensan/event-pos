@@ -12,6 +12,7 @@ import { applyBackupArtifactSchema, getBackupArtifact, reserveAutomaticBackupArt
 import { applyBusinessSchema } from "./business-schema.js";
 import { applyHoldSchema } from "./hold-schema.js";
 import { applyProductAssistSchema } from "./product-assist-schema.js";
+import { validateCatalogPrintability } from "./catalog-printability.js";
 
 export type PosDatabase = DatabaseSync;
 
@@ -113,6 +114,7 @@ export function listCatalogs(db: PosDatabase): CatalogRecord[] {
 export function saveCatalog(db: PosDatabase, eventId: string, catalogJson: string, action = "upsert"): CatalogRecord {
   const updatedAt = new Date().toISOString();
   const catalog = importEventCatalog(catalogJson);
+  validateCatalogPrintability(catalog);
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO event_catalogs (event_id, catalog_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET catalog_json = excluded.catalog_json, updated_at = excluded.updated_at").run(eventId, catalogJson, updatedAt);
@@ -335,10 +337,9 @@ export const saveReturnTransaction = (db: PosDatabase, sale: SaleTransaction) =>
 
 export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashMovement {
   if (!Number.isSafeInteger(movement.amountYen) || movement.amountYen <= 0 || !movement.reason.trim()) throw new Error("現金移動が不正です");
-  const session = db.prepare("SELECT event_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(movement.sessionId) as { event_id: string; state: string; opening_yen: number | null } | undefined;
-  if (!session) throw new Error("cash session not found");
-  if (session.state !== "open") throw new Error("cash session is closed");
-  if (session.opening_yen === null) throw new Error("opening check is required");
+  // 冪等照合はセッション状態チェックより先に行う（saveCashCheck と同じ順序）。
+  // 保存後に応答を失い、その間に精算された場合でも、同じキーの再送は記録済みの
+  // 結果を返し、状態エラーで再試行不能にならない。
   if (movement.idempotencyKey) {
     const existing = db.prepare("SELECT * FROM cash_movements WHERE idempotency_key = ?").get(movement.idempotencyKey) as Record<string, unknown> | undefined;
     if (existing) {
@@ -347,6 +348,10 @@ export function saveCashMovement(db: PosDatabase, movement: CashMovement): CashM
       return movement;
     }
   }
+  const session = db.prepare("SELECT event_id, state, opening_yen FROM cash_sessions WHERE session_id = ?").get(movement.sessionId) as { event_id: string; state: string; opening_yen: number | null } | undefined;
+  if (!session) throw new Error("cash session not found");
+  if (session.state !== "open") throw new Error("cash session is closed");
+  if (session.opening_yen === null) throw new Error("opening check is required");
   db.exec("BEGIN;");
   try {
     db.prepare("INSERT INTO cash_movements (session_id, type, amount_yen, transaction_id, reason, idempotency_key, actor_id, terminal_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(movement.sessionId, movement.type, movement.amountYen, movement.transactionId ?? null, movement.reason, movement.idempotencyKey ?? null, movement.actorId ?? null, movement.terminalId ?? null, movement.createdAt);
