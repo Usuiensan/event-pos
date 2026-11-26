@@ -70,8 +70,15 @@ public static class EventPosDleEot {
   static IntPtr NewOverlapped() { IntPtr p = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(OVERLAPPED))); Marshal.StructureToPtr(new OVERLAPPED { hEvent = CreateEvent(IntPtr.Zero, true, false, null) }, p, false); return p; }
   static IntPtr EventOf(IntPtr p) { return Marshal.PtrToStructure<OVERLAPPED>(p).hEvent; }
   static void FreeOverlapped(IntPtr p) { var ov = Marshal.PtrToStructure<OVERLAPPED>(p); CloseHandle(ov.hEvent); Marshal.FreeHGlobal(p); }
-  public static bool Write(IntPtr handle, byte[] bytes, out string error) {
-    error = null; IntPtr ov = NewOverlapped(); try { if (!WriteFile(handle, bytes, bytes.Length, IntPtr.Zero, ov) && Marshal.GetLastWin32Error() != ERROR_IO_PENDING) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; } int count; if (!GetOverlappedResult(handle, ov, out count, true) || count != bytes.Length) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; } return true; } finally { FreeOverlapped(ov); }
+  public static bool Write(IntPtr handle, byte[] bytes, int timeoutMs, out string error) {
+    error = null; IntPtr ov = NewOverlapped(); try {
+      if (!WriteFile(handle, bytes, bytes.Length, IntPtr.Zero, ov)) { int code = Marshal.GetLastWin32Error(); if (code != ERROR_IO_PENDING) { error = new Win32Exception(code).Message; return false; } }
+      uint wait = WaitForSingleObject(EventOf(ov), (uint)timeoutMs);
+      if (wait == WAIT_TIMEOUT) { CancelIo(handle); error = "timeout"; return false; }
+      if (wait != WAIT_OBJECT_0) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
+      int count; if (!GetOverlappedResult(handle, ov, out count, false) || count != bytes.Length) { error = new Win32Exception(Marshal.GetLastWin32Error()).Message; return false; }
+      return true;
+    } finally { FreeOverlapped(ov); }
   }
   public static bool ReadByte(IntPtr handle, int timeoutMs, out byte value, out string error) {
     value = 0; error = null; byte[] buffer = new byte[1]; IntPtr ov = NewOverlapped(); try {
@@ -100,7 +107,7 @@ try {
     $requestHex = [BitConverter]::ToString($request).Replace('-', '').ToLowerInvariant()
     if ($openError) { $observations += [pscustomobject]@{ requestHex = $requestHex; responseHex = $null; normalized = 'unknown'; timeoutMs = $TimeoutMs; error = $openError }; continue }
     $writeError = $null
-    if (-not [EventPosDleEot]::Write($handle, $request, [ref]$writeError)) { $observations += [pscustomobject]@{ requestHex = $requestHex; responseHex = $null; normalized = 'unknown'; timeoutMs = $TimeoutMs; error = $writeError }; continue }
+    if (-not [EventPosDleEot]::Write($handle, $request, $TimeoutMs, [ref]$writeError)) { $observations += [pscustomobject]@{ requestHex = $requestHex; responseHex = $null; normalized = 'unknown'; timeoutMs = $TimeoutMs; error = $writeError }; continue }
     [byte]$response = 0; $readError = $null
     if ([EventPosDleEot]::ReadByte($handle, $TimeoutMs, [ref]$response, [ref]$readError)) { $observations += [pscustomobject]@{ requestHex = $requestHex; responseHex = ('{0:x2}' -f $response); normalized = 'unknown'; timeoutMs = $TimeoutMs } }
     else { $observations += [pscustomobject]@{ requestHex = $requestHex; responseHex = $null; normalized = 'unknown'; timeoutMs = $TimeoutMs; error = $readError } }

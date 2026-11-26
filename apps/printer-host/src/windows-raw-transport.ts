@@ -26,7 +26,7 @@ export class WindowsRawTransport implements PrinterTransport {
     try {
       if (this.options.statusBackend === "opos") return await this.getOposStatus();
       if (this.options.statusBackend === "dle-eot") return await this.getDleEotStatus();
-      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bundledStatusScript, "-PrinterName", this.options.printerName], { windowsHide: true, maxBuffer: 1024 * 1024 });
+      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bundledStatusScript, "-PrinterName", this.options.printerName], { windowsHide: true, maxBuffer: 1024 * 1024, timeout: 15_000 });
       const raw = JSON.parse(String(result.stdout)) as { normalized?: "ready" | "offline" | "unknown" };
       const unknown = (reason: string) => ({ support: "unknown" as const, reason });
       const observation: PrinterStatusObservation = {
@@ -49,14 +49,15 @@ export class WindowsRawTransport implements PrinterTransport {
     try {
       const args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.dleEotScript ?? bundledDleEotScript, "-VendorId", String(vendorId), "-ProductId", String(productId), "-TimeoutMs", String(this.options.dleEotTimeoutMs ?? 1_000)];
       if (this.options.usbSerialNumber) args.push("-SerialNumber", this.options.usbSerialNumber);
-      const result = await execFileAsync("powershell.exe", args, { windowsHide: true, maxBuffer: 1024 * 1024 });
+      // スクリプト側は4リクエスト×（書込＋読取）を各 TimeoutMs で打ち切るため、その上限より長く取る
+      const result = await execFileAsync("powershell.exe", args, { windowsHide: true, maxBuffer: 1024 * 1024, timeout: Math.max(15_000, (this.options.dleEotTimeoutMs ?? 1_000) * 10) });
       const observations = JSON.parse(String(result.stdout)) as RawStatusObservation[];
       return { ...decodeDleEot(observations), raw: { adapter: "windows-dle-eot", statusProbe: observations, vendorId, productId } };
     } catch (error) { return statusObservation("unknown", { adapter: "windows-dle-eot", error: error instanceof Error ? error.message : String(error) }); }
   }
   private async getOposStatus(): Promise<PrinterStatusObservation> {
     if (!this.options.oposLogicalName) return statusObservation("unknown", { adapter: "windows-opos", reason: "PRINTER_OPOS_LOGICAL_NAMEが未設定" });
-    const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bundledOposStatusScript, "-LogicalName", this.options.oposLogicalName, "-ClaimTimeoutMs", String(this.options.oposClaimTimeoutMs ?? 3_000)], { windowsHide: true, maxBuffer: 1024 * 1024 });
+    const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", bundledOposStatusScript, "-LogicalName", this.options.oposLogicalName, "-ClaimTimeoutMs", String(this.options.oposClaimTimeoutMs ?? 3_000)], { windowsHide: true, maxBuffer: 1024 * 1024, timeout: (this.options.oposClaimTimeoutMs ?? 3_000) + 10_000 });
     const raw = JSON.parse(String(result.stdout)) as { state?: string; coverOpen?: unknown; receiptEmpty?: unknown; receiptNearEnd?: unknown; errorLevel?: string; errorStation?: string; errorString?: string; [key: string]: unknown };
     const bool = (value: unknown) => typeof value === "boolean" ? { support: "supported" as const, value } : { support: "unknown" as const, reason: "OPOS応答のboolean値が不正です" };
     const errorText = `${raw.errorLevel ?? ""} ${raw.errorStation ?? ""}`.toLowerCase();
@@ -79,7 +80,9 @@ export class WindowsRawTransport implements PrinterTransport {
     const path = join(dir, "job.bin");
     try {
       await writeFile(path, bytes);
-      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript ?? bundledRawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "ぽすりん print job"], { windowsHide: true, maxBuffer: 1024 * 1024 });
+      // スプーラーが応答しない場合に mutex を握ったまま永久停止しないよう、送信にも上限を設ける
+      // （タイムアウト時は結果不明として扱われ、自動再送はされない）
+      const result = await execFileAsync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", this.options.rawPrintScript ?? bundledRawPrintScript, "-PrinterName", this.options.printerName, "-Path", path, "-DocumentName", "ぽすりん print job"], { windowsHide: true, maxBuffer: 1024 * 1024, timeout: 30_000 });
       const receipt = JSON.parse(String(result.stdout)) as { acceptedBytes?: unknown; spoolerJobId?: unknown; api?: unknown; documentName?: unknown };
       if (!Number.isSafeInteger(receipt.acceptedBytes) || Number(receipt.acceptedBytes) < 0 || Number(receipt.acceptedBytes) > bytes.length) throw new Error("RAW spooler returned invalid acceptedBytes");
       return { acceptedBytes: Number(receipt.acceptedBytes), transportEvidence: { adapter: "windows-raw-spooler", printerName: this.options.printerName, acceptedBytes: Number(receipt.acceptedBytes), ...(Number.isSafeInteger(receipt.spoolerJobId) ? { spoolerJobId: Number(receipt.spoolerJobId) } : {}), ...(typeof receipt.api === "string" ? { api: receipt.api } : {}) } };
