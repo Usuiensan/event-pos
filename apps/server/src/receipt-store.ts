@@ -1,8 +1,8 @@
 import { canonicalizeReceiptDocument } from "@event-pos/receipt-ir";
-import { BUILTIN_FONT, DEFAULT_FINISHING_POLICY, bytesSha256, receiptDocumentToEscPos } from "@event-pos/escpos";
+import { BUILTIN_FONT, DEFAULT_FINISHING_POLICY, bytesSha256, ESCPOS_RENDERER_VERSION, ESCPOS_RENDERER_VERSION_ROTATE180, receiptDocumentToEscPos, type EscPosRenderOptions } from "@event-pos/escpos";
 import { compileReceiptTemplate, DEFAULT_RECEIPT_TEMPLATE, DEFAULT_RECEIPT_TEMPLATE_VERSION, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V2, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V3, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V4, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V5, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V6, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V7, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V8, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V9, sha256Hex, validateReceiptTemplate, type ReceiptAssetDescriptor, type ReceiptSnapshot } from "@event-pos/receipt-template";
 import type { PosDatabase } from "./db.js";
-import { receiptRenderOptions, receiptRendererVersion } from "./receipt-render-config.js";
+import { receiptRenderOptions } from "./receipt-render-config.js";
 
 export type ReceiptTemplateRecord = {
   templateKey: string;
@@ -118,13 +118,16 @@ export function activateReceiptTemplate(db: PosDatabase, templateKey: string, ve
   return getReceiptTemplate(db, templateKey, version)!;
 }
 
-export function renderReceipt(db: PosDatabase, snapshot: ReceiptSnapshot, templateRef?: { templateKey: string; version: number }): ReceiptArtifacts {
+export function renderReceipt(db: PosDatabase, snapshot: ReceiptSnapshot, templateRef?: { templateKey: string; version: number }, renderOptions?: EscPosRenderOptions): ReceiptArtifacts {
   const template = templateRef ? getReceiptTemplate(db, templateRef.templateKey, templateRef.version) : getActiveReceiptTemplate(db);
   if (!template) throw new Error("templateが見つかりません");
   if (!template.validatedSourceSha256 || template.validatedSourceSha256 !== template.sourceSha256) throw new Error("template sourceがvalidate済みhashと一致しません");
   const compiled = compileReceiptTemplate(template.sourceText, snapshot, template.assets); const canonicalIr = canonicalizeReceiptDocument(compiled.document); const irSha256 = sha256Hex(canonicalIr);
-  const escposBytes = receiptDocumentToEscPos(compiled.document, template.assets, receiptRenderOptions()); const outputHash = bytesSha256(escposBytes);
-  return { templateKey: template.templateKey, templateVersion: template.version, templateSourceSha256: template.sourceSha256, assets: template.assets, fontId: BUILTIN_FONT.id, fontVersion: BUILTIN_FONT.version, fontSha256: BUILTIN_FONT.sha256, rendererVersion: receiptRendererVersion(), finishingPolicyId: DEFAULT_FINISHING_POLICY.id, finishingPolicyVersion: DEFAULT_FINISHING_POLICY.version, snapshot, canonicalIr, irSha256, escposBytes, bytesSha256: outputHash, humanReadable: compiled.humanReadable, warnings: compiled.warnings };
+  // 描画版は向きと一体にする。再印刷で元ジョブの向きを指定した場合は
+  // その向きの版になる（F-086）。指定が無い場合は現行の回転設定を使う。
+  const options = renderOptions ?? receiptRenderOptions();
+  const escposBytes = receiptDocumentToEscPos(compiled.document, template.assets, options); const outputHash = bytesSha256(escposBytes);
+  return { templateKey: template.templateKey, templateVersion: template.version, templateSourceSha256: template.sourceSha256, assets: template.assets, fontId: BUILTIN_FONT.id, fontVersion: BUILTIN_FONT.version, fontSha256: BUILTIN_FONT.sha256, rendererVersion: options.rotate180 ? ESCPOS_RENDERER_VERSION_ROTATE180 : ESCPOS_RENDERER_VERSION, finishingPolicyId: DEFAULT_FINISHING_POLICY.id, finishingPolicyVersion: DEFAULT_FINISHING_POLICY.version, snapshot, canonicalIr, irSha256, escposBytes, bytesSha256: outputHash, humanReadable: compiled.humanReadable, warnings: compiled.warnings };
 }
 
 export function previewReceiptTemplate(db: PosDatabase, templateKey: string, version: number, snapshot: ReceiptSnapshot): { canonicalIr: string; irSha256: string; bytesSha256: string; warnings: string[]; humanReadable: string } {

@@ -9,7 +9,7 @@ import { getPrintQueueStatus, type PersistentPrintQueue } from "./print-queue.js
 import { activateReceiptTemplate, createReceiptTemplateDraft, getReceiptTemplate, listReceiptTemplates, previewReceiptTemplate, renderReceipt, sampleReceiptSnapshot, validateReceiptTemplateVersion } from "./receipt-store.js";
 import { createPrintJob } from "./db.js";
 import { AuthError, requireAuthActor } from "./auth.js";
-import { bytesSha256 } from "@event-pos/escpos";
+import { bytesSha256, ESCPOS_RENDERER_VERSION_ROTATE180 } from "@event-pos/escpos";
 
 type PhysicalOutcome = "printed" | "not_printed" | "indeterminate";
 type ReprintBody = { sourcePrintJobId: string; reason: string; physicalOutcome: PhysicalOutcome; riskAccepted: boolean; approval?: { approverId: string; approvedAt: string } };
@@ -42,7 +42,10 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   const catalogRecord = transaction?.event_id ? getCatalog(db, transaction.event_id) : undefined;
   const catalog = catalogRecord ? importEventCatalog(catalogRecord.catalogJson) : undefined;
   const snapshot: ReceiptSnapshot = { ...sourceSnapshot, isReprint: true, reprintLabel: catalog?.receiptSettings?.commonText?.reprintLabel ?? "再印刷", reprintNo, originalReceiptNumber: sourceSnapshot.publicReference };
-  const artifacts = renderReceipt(db, snapshot, { templateKey: String(sourceRow.template_key), version: Number(sourceRow.template_version) });
+  // 再印刷は元ジョブと同じ向きで描画する（F-086）。回転設定の変更は
+  // renderer_version の差異として扱わない。未知の描画版は従来どおり拒否する。
+  const sourceRotate180 = String(sourceRow.renderer_version) === ESCPOS_RENDERER_VERSION_ROTATE180;
+  const artifacts = renderReceipt(db, snapshot, { templateKey: String(sourceRow.template_key), version: Number(sourceRow.template_version) }, { rotate180: sourceRotate180 });
   const assetManifest = JSON.stringify(artifacts.assets.map(({ rasterBase64: _raster, mime: _mime, ...asset }) => asset));
   if (artifacts.templateSourceSha256 !== sourceRow.template_source_sha256 || assetManifest !== sourceRow.asset_manifest_json || artifacts.rendererVersion !== sourceRow.renderer_version || artifacts.fontId !== sourceRow.font_id || artifacts.fontVersion !== sourceRow.font_version || artifacts.fontSha256 !== sourceRow.font_sha256 || artifacts.finishingPolicyId !== sourceRow.finishing_policy_id || artifacts.finishingPolicyVersion !== sourceRow.finishing_policy_version) throw new Error("SOURCE_VERSION_MISMATCH");
   const jobId = uuidV7(); const operationId = uuidV7(); const approvalId = body.approval ? uuidV7() : null; const now = new Date().toISOString(); const selfApproved = body.approval?.approverId === executorId;
