@@ -199,10 +199,37 @@ export function updateProjection(db: PosDatabase, draftId: string): SaleDraftDto
   const cashSessionId = scope?.cash_session_id ?? "";
   const current = db.prepare("SELECT version FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(draft.registerId, cashSessionId) as { version: number } | undefined;
   const projectionVersion = (current?.version ?? 0) + 1;
+  // 射影に属する営業の識別情報も一緒に保存する（F-087）。顧客画面はこれで
+  // 営業の切り替えと遅れて届いた前営業の応答を見分ける。
+  const session = cashSessionId ? sessionOrderFor(db, cashSessionId) : undefined;
+  const projection = publicProjection(draft, projectionVersion);
+  const stored = session ? { ...projection, ...session } : projection;
   db.prepare(`INSERT INTO customer_display_states (register_id, cash_session_id, event_id, version, public_projection_json, updated_at) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(register_id, cash_session_id) DO UPDATE SET event_id=excluded.event_id, version=excluded.version, public_projection_json=excluded.public_projection_json, updated_at=excluded.updated_at`)
-    .run(draft.registerId, cashSessionId, scope?.event_id ?? draft.eventId, projectionVersion, JSON.stringify(publicProjection(draft, projectionVersion)), draft.updatedAt);
+    .run(draft.registerId, cashSessionId, scope?.event_id ?? draft.eventId, projectionVersion, JSON.stringify(stored), draft.updatedAt);
   return draft;
+}
+
+// 顧客表示の属する営業を識別する情報。現金セッションIDは営業ごとに変わるが
+// 辞書順では新旧が分からないため、営業日＋営業番号をゼロ埋めした順序文字列も付ける（F-087）。
+function sessionOrderFor(db: PosDatabase, cashSessionId: string): { cashSessionId: string; sessionOrder: string } | undefined {
+  const row = db.prepare(`SELECT b.business_date AS businessDate, b.session_no AS sessionNo
+    FROM cash_sessions c JOIN business_sessions b ON b.business_session_id=c.business_session_id
+    WHERE c.session_id=?`).get(cashSessionId) as { businessDate: string; sessionNo: number } | undefined;
+  if (!row) return undefined;
+  return { cashSessionId, sessionOrder: `${row.businessDate}:${String(row.sessionNo).padStart(6, "0")}` };
+}
+
+// まだ何も表示していない営業の空の射影。draftId は「顧客表示そのもの」を表す識別子で、
+// 前営業の下書きIDを入れない（F-087）。
+function emptyProjection(registerId: string, session: { cashSessionId: string; sessionOrder: string }): Record<string, unknown> {
+  return {
+    registerId, draftId: `customer-display:${registerId}`, version: 0, draftVersion: 0, state: "editing",
+    lines: [], discounts: [],
+    totals: { subtotalYen: 0, discountYen: 0, taxYen: 0, totalYen: 0 },
+    payment: { state: "waiting", kinds: [] },
+    ...session,
+  };
 }
 
 export function cancelDraftAgeRequests(db: PosDatabase, draftId: string, canceledAt: string): void {
@@ -770,21 +797,29 @@ export function getTransactionSnapshot(db: PosDatabase, transactionId: string): 
 }
 
 export function getCustomerDisplayProjection(db: PosDatabase, registerId: string, eventId?: string): Record<string, unknown> | undefined {
-  // eventId 指定時はそのイベントの射影だけを返す（F-080）。開局中セッションの行を優先し、
-  // 無ければそのイベントの最新行（閉局後の完了表示）を返す。別イベントの行は返さない。
+  // eventId 指定時はそのイベントの射影だけを返す（F-080）。
+  const withSession = (row: { cash_session_id: unknown; public_projection_json: string }): Record<string, unknown> => {
+    const projection = JSON.parse(row.public_projection_json) as Record<string, unknown>;
+    const session = sessionOrderFor(db, String(row.cash_session_id));
+    return session ? { ...projection, ...session } : projection;
+  };
   if (eventId) {
     const open = db.prepare(`SELECT c.session_id FROM business_sessions b JOIN cash_sessions c ON c.business_session_id=b.business_session_id
       WHERE b.state='open' AND b.event_id=? AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
       ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`).get(eventId, registerId) as { session_id: string } | undefined;
     if (open) {
-      const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(registerId, open.session_id) as { public_projection_json: string } | undefined;
-      if (row) return JSON.parse(row.public_projection_json) as Record<string, unknown>;
+      const row = db.prepare("SELECT cash_session_id, public_projection_json FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(registerId, open.session_id) as { cash_session_id: unknown; public_projection_json: string } | undefined;
+      if (row) return withSession(row);
+      // 開局済みだがまだ射影が無い営業では、前営業の完了会計を出さず空の射影を返す（F-087）。
+      const session = sessionOrderFor(db, open.session_id);
+      return session ? emptyProjection(registerId, session) : undefined;
     }
-    const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? AND event_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId, eventId) as { public_projection_json: string } | undefined;
-    return row ? JSON.parse(row.public_projection_json) as Record<string, unknown> : undefined;
+    // 開局中の営業が無い場合は、そのイベントの最新行（閉局後の完了表示）を返す。
+    const row = db.prepare("SELECT cash_session_id, public_projection_json FROM customer_display_states WHERE register_id=? AND event_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId, eventId) as { cash_session_id: unknown; public_projection_json: string } | undefined;
+    return row ? withSession(row) : undefined;
   }
-  const row = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId) as { public_projection_json: string } | undefined;
-  return row ? JSON.parse(row.public_projection_json) as Record<string, unknown> : undefined;
+  const row = db.prepare("SELECT cash_session_id, public_projection_json FROM customer_display_states WHERE register_id=? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(registerId) as { cash_session_id: unknown; public_projection_json: string } | undefined;
+  return row ? withSession(row) : undefined;
 }
 
 export function getCustomerDisplayVersion(db: PosDatabase, registerId: string): number | undefined {

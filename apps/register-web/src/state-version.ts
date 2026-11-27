@@ -24,3 +24,18 @@ export function shouldApplyDraft(current: CheckoutDraft | null, incoming: Checko
 export function shouldApplyProjection(currentVersion: number, incoming: Pick<CustomerProjection, "version">): boolean {
   return incoming.version >= currentVersion;
 }
+
+// 顧客表示の射影が属する営業の識別情報。sessionOrder は「営業日:営業番号
+// （ゼロ埋め）」で、新しい営業ほど大きい。現金セッションIDだけでは新旧が分からない。
+// exactOptionalPropertyTypes のため undefined の代入可を明示する。
+export type ProjectionSession = { cashSessionId?: string | undefined; sessionOrder?: string | undefined };
+
+export function projectionSessionSwitch(
+  current: ProjectionSession | null,
+  incoming: ProjectionSession,
+): "same" | "newer" | "older" | "unknown" {
+  if (!incoming.cashSessionId || !incoming.sessionOrder) return "unknown";
+  if (!current?.cashSessionId || !current.sessionOrder) return "newer";
+  if (incoming.cashSessionId === current.cashSessionId) return "same";
+  return incoming.sessionOrder > current.sessionOrder ? "newer" : "older";
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CheckoutDraft } from "./checkout-api.js";
-import { draftMatchesBusiness, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
+import { draftMatchesBusiness, projectionSessionSwitch, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
 
 describe("REST状態の巻き戻り防止", () => {
   it("開局中の同じイベント・営業日・セッション番号の下書きだけを引き継ぐ", () => {
@@ -51,5 +51,16 @@ describe("REST状態の巻き戻り防止", () => {
     expect(shouldApplyProjection(8, { version: 7 })).toBe(false);
     expect(shouldApplyProjection(8, { version: 8 })).toBe(true);
     expect(shouldApplyProjection(8, { version: 9 })).toBe(true);
+  });
+
+  it("顧客projectionは営業の切り替えで基準をリセットし、遅れた前営業の応答を捨てる (F-087)", () => {
+    const first = { cashSessionId: "checkout:event:2026-08-02:register-1", sessionOrder: "2026-08-02:000001" };
+    const second = { cashSessionId: "checkout:event:2026-08-02:2:register-1", sessionOrder: "2026-08-02:000002" };
+    expect(projectionSessionSwitch(null, first)).toBe("newer");
+    expect(projectionSessionSwitch(first, first)).toBe("same");
+    expect(projectionSessionSwitch(first, second)).toBe("newer");
+    expect(projectionSessionSwitch(second, first)).toBe("older");
+    expect(projectionSessionSwitch(first, {})).toBe("unknown");
+    expect(projectionSessionSwitch(null, {})).toBe("unknown");
   });
 });

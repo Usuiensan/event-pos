@@ -157,6 +157,33 @@ describe("durable checkout API", () => {
   });
 
 
+  it("新しい営業では前営業の完了会計を顧客表示に出さず、空の射影を返す（F-087）", async () => {
+    const { app } = makeApp();
+    await installCatalog(app);
+    const firstCash = await openRegisterForTest(app, catalog.eventId, "2026-08-02", "register-1");
+    let draft = await addLine(app, await startDraft(app), "00000001", 1);
+    draft = await addPayment(app, draft, "cash", 110, 110);
+    const finalized = await finalize(app, draft, "f087-first");
+    expect(finalized.statusCode).toBe(201);
+    const display = () => app.inject({ method: "GET", url: `/api/v1/customer-displays/customer-1?registerId=register-1&eventId=${catalog.eventId}` });
+    const before = (await display()).json();
+    expect(before).toMatchObject({ draftId: draft.draftId, totals: { totalYen: 110 }, payment: { state: "completed" }, cashSessionId: firstCash, sessionOrder: "2026-08-02:000001" });
+    const session = (await app.inject({ method: "GET", url: `/api/v1/business-sessions/current?eventId=${catalog.eventId}` })).json().session;
+    expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${firstCash}/checks/closing`, payload: { counted: [], terminalId: "register-1" } })).statusCode).toBe(201);
+    expect((await app.inject({ method: "POST", url: `/api/v1/business-sessions/${session.businessSessionId}/close`, payload: { terminalId: "register-1" } })).statusCode).toBe(200);
+    const secondCash = await openRegisterForTest(app, catalog.eventId, "2026-08-02", "register-1");
+    expect(secondCash).not.toBe(firstCash);
+    // 新しい営業で下書きを作る前は、前営業の完了会計ではなく空の射影を返す
+    const empty = (await display()).json();
+    expect(empty.draftId).not.toBe(draft.draftId);
+    expect(empty).toMatchObject({ version: 0, totals: { totalYen: 0 }, payment: { state: "waiting" }, cashSessionId: secondCash, sessionOrder: "2026-08-02:000002" });
+    // 新しい営業の会計は新しい射影として返る
+    const next = await addLine(app, await startDraft(app), "00000002", 1);
+    const after = (await display()).json();
+    expect(after).toMatchObject({ draftId: next.draftId, totals: { totalYen: 108 }, cashSessionId: secondCash, sessionOrder: "2026-08-02:000002" });
+  });
+
+
   it("返品対象検索は認証必須でイベントを越えて検索できない", async () => {
     const database = openDatabase();
     const app = buildApp({ database, requireAuth: true }); apps.push(app);

@@ -69,6 +69,9 @@ export type CustomerProjection = {
   draftVersion: number;
   state: CheckoutDraft["state"];
   transactionId?: string;
+  // 属する営業の識別情報（F-087）。無い射影（旧版サーバー等）は営業不明として扱う。
+  cashSessionId?: string;
+  sessionOrder?: string;
   lines: Array<{ lineId: string; productCode: string; name: string; quantity: number; unitPriceYen: number; taxCategory: TaxCategory; netYen: number }>;
   discounts: Array<{ label: string; amountYen: number }>;
   totals: { subtotalYen: number; discountYen: number; taxYen: number; totalYen: number };

@@ -13,7 +13,7 @@ import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type Aud
 import { connectRealtime } from "./realtime-client.js";
 import { AgeConfirmationActions, type AgeFlowState } from "./age-confirmation-actions.js";
 import { ageRequirement, isAgeRestricted } from "./age-requirement.js";
-import { draftMatchesBusiness, isActiveDraft, shouldApplyDraft, shouldApplyProjection } from "./state-version.js";
+import { draftMatchesBusiness, isActiveDraft, projectionSessionSwitch, shouldApplyDraft, shouldApplyProjection, type ProjectionSession } from "./state-version.js";
 import { ErrorDialog, type PosError } from "./error-dialog.js";
 import { createErrorReportMailto, createSystemErrorReport, toPosSystemError } from "./error-report.js";
 import { formatPrintStatus, printerAlert } from "./print-status.js";
@@ -213,6 +213,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const draftMutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const paymentSubmittingRef = useRef(false);
   const projectionVersionRef = useRef(0);
+  const projectionSessionRef = useRef<ProjectionSession | null>(null);
   const audioSequenceRef = useRef(0);
   const audioRefreshRef = useRef<() => void>(() => undefined);
   const projectionRefreshRef = useRef<() => void>(() => undefined);
@@ -448,7 +449,16 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     if (role !== "customer") return;
     let stopped = false;
     const applyProjection = (projection: CustomerProjection) => {
-      if (stopped || !shouldApplyProjection(projectionVersionRef.current, projection)) return;
+      if (stopped) return;
+      // 営業が切り替わったら version の比較基準をリセットする。遅れて届いた
+      // 前営業の応答は捨てる（F-087）。営業不明の射影は従来どおり version だけで判定する。
+      const sessionSwitch = projectionSessionSwitch(projectionSessionRef.current, projection);
+      if (sessionSwitch === "older") return;
+      if (sessionSwitch === "newer") {
+        projectionSessionRef.current = { cashSessionId: projection.cashSessionId, sessionOrder: projection.sessionOrder };
+        projectionVersionRef.current = 0;
+      }
+      if (!shouldApplyProjection(projectionVersionRef.current, projection)) return;
       projectionVersionRef.current = projection.version;
       setCart(projection.lines.map((line) => ({ lineId: line.lineId, product: productForLine({ ...line, priceInclTax: line.unitPriceYen, taxRate: line.taxCategory.endsWith("_8") ? 8 : line.taxCategory.endsWith("_10") ? 10 : 0 }), quantity: line.quantity })));
       setAuthoritativeTotal(projection.totals.totalYen); setProjectedDiscounts(projection.discounts); setPaymentFinished(projection.payment.state === "completed"); setShowPayment(projection.payment.state === "entered"); setReceived(projection.payment.tenderedYen ?? 0); setCompletedPaymentSummary(paymentSummaryFromTotals(projection.payment.tenderedYen, projection.payment.changeYen));
@@ -458,6 +468,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     const refresh = () => { void checkoutApi.getCustomerProjection(registerId, terminalId, catalog.eventId).then((projection) => { setServerOnline(true); applyProjection(projection); }).catch(() => setServerOnline(false)); };
     // 顧客表示の version はイベント・現金セッション単位で数え直されるため、対象が変わったら比較基準をリセットする（F-080）。
     projectionVersionRef.current = 0;
+    projectionSessionRef.current = null;
     projectionRefreshRef.current = refresh; refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); projectionRefreshRef.current = () => undefined; };
   }, [catalog.eventId, catalog.products, registerId, role, terminalId]);
