@@ -255,6 +255,17 @@ describe("在庫調整", () => {
     expect(JSON.parse(row.detail_json)).toMatchObject({ productCode: "00000001", before: 5, after: 8, delta: 3, reason: "棚卸し" });
   });
 
+  it("数量が変わらない棚卸確認も監査に記録され、移動行は作らない（F-088）", async () => {
+    const { app, db } = await setup();
+    const response = await adjust(app, { productCode: "00000001", newOnHand: 5, reason: "棚卸で現物5点を確認" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ productCode: "00000001", tracked: true, openingQuantity: 5, remaining: 5, reserved: 0, available: 5 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM inventory_movements WHERE type='adjustment'").get()).toEqual({ count: 0 });
+    const row = db.prepare("SELECT action,detail_json FROM audit_log WHERE action='inventory_adjustment'").get() as { action: string; detail_json: string };
+    expect(JSON.parse(row.detail_json)).toMatchObject({ productCode: "00000001", before: 5, after: 5, delta: 0, reason: "棚卸で現物5点を確認" });
+    expect(db.prepare("SELECT on_hand, reserved, version FROM inventory_balances WHERE event_id=? AND product_id=?").get("feature-event", "feature-event:00000001")).toEqual({ on_hand: 5, reserved: 0, version: 1 });
+  });
+
   it("reservedは不変でavailableが連動する", async () => {
     const { app, db } = await setup();
     db.prepare("UPDATE inventory_balances SET reserved=1 WHERE event_id=? AND product_id=?").run("feature-event", "feature-event:00000001");

@@ -75,8 +75,9 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
           db.prepare("INSERT INTO inventory_movements (inventory_movement_id,event_id,product_id,type,quantity_delta,transaction_line_id,actor_id,created_at) VALUES (?,?,?,'adjustment',?,NULL,?,?)").run(uuidV7(), eventId, productId, delta, actorId(request, options.authRequired, auth), now);
           const updated = db.prepare("UPDATE inventory_balances SET on_hand=on_hand+?,version=version+1 WHERE event_id=? AND product_id=?").run(delta, eventId, productId);
           if (Number(updated.changes) === 0) db.prepare("INSERT INTO inventory_balances (event_id, product_id, on_hand, reserved, version) VALUES (?,?,?,0,1)").run(eventId, productId, newOnHand);
-          db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'inventory_adjustment','product',?,?,?)").run(eventId, productId, JSON.stringify({ productCode: product.productCode, before, after: newOnHand, delta, reason }), now);
         }
+        // 数量が変わらない棚卸確認も、理由付きの監査として記録する（F-088）。移動行は作らない。
+        db.prepare("INSERT INTO audit_log (event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'inventory_adjustment','product',?,?,?)").run(eventId, productId, JSON.stringify({ productCode: product.productCode, before, after: newOnHand, delta, reason }), now);
         db.exec("COMMIT");
         return { productCode: product.productCode, tracked: true, openingQuantity: opening, remaining: newOnHand, reserved, available: newOnHand - reserved };
       } catch (e) { db.exec("ROLLBACK"); throw e; }
