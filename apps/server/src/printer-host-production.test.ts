@@ -49,13 +49,15 @@ describe("POSから本番PrinterHostまでの統合", () => {
     const saleResponse = await pos.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "production-path-sale" }, payload: { version: draft.version } });
     expect(saleResponse.statusCode, saleResponse.body).toBe(201);
     const sale = saleResponse.json();
-    const reprintResponse = await pos.inject({ method: "POST", url: `/api/v1/transactions/${sale.transactionId}/reprints`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { sourcePrintJobId: sale.printJobId, reason: "統合試験", physicalOutcome: "not_printed", riskAccepted: false } });
-    expect(reprintResponse.statusCode, reprintResponse.body).toBe(201);
     expect((await pos.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(cashSessionId)}/checks/interim`, payload: { counted: [{ denomination: 1000, quantity: 1 }] } })).statusCode).toBe(201);
     expect((await pos.inject({ method: "POST", url: `/api/v1/cash-sessions/${encodeURIComponent(cashSessionId)}/checks/closing`, headers: { "x-pos-role": "manager" }, payload: { counted: [{ denomination: 1000, quantity: 1 }], carryoverYen: 1000 } })).statusCode).toBe(201);
 
-    expect(database.prepare("SELECT kind FROM print_jobs ORDER BY rowid").all()).toEqual([{ kind: "opening" }, { kind: "original" }, { kind: "reprint" }, { kind: "interim" }, { kind: "closing" }]);
     releaseFirst();
+    // 再印刷は元ジョブの完了後に受け付ける（F-094）。完了を待ってから登録する。
+    await vi.waitFor(() => expect(database.prepare("SELECT state FROM print_jobs WHERE job_id=?").get(sale.printJobId)).toEqual({ state: "completed" }), { timeout: 5_000 });
+    const reprintResponse = await pos.inject({ method: "POST", url: `/api/v1/transactions/${sale.transactionId}/reprints`, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: { sourcePrintJobId: sale.printJobId, reason: "統合試験", physicalOutcome: "not_printed", riskAccepted: false } });
+    expect(reprintResponse.statusCode, reprintResponse.body).toBe(201);
+    expect(database.prepare("SELECT kind FROM print_jobs ORDER BY rowid").all()).toEqual([{ kind: "opening" }, { kind: "original" }, { kind: "interim" }, { kind: "closing" }, { kind: "reprint" }]);
     await vi.waitFor(() => expect(database.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE state='completed'").get()).toEqual({ count: 5 }), { timeout: 5_000 });
 
     const acceptedEvents = hostEvents.filter((event) => event.event === "transport_accepted");
