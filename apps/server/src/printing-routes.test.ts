@@ -336,6 +336,38 @@ describe("print job cancel kicks the queue (F-037)", () => {
   });
 });
 
+describe("print job cancel is atomic (F-104)", () => {
+  it("ジョブ側の書き込みが失敗したら両方とも取り消されず、再試行で取消できる", async () => {
+    const { app, db } = makeApp();
+    const { printJobId } = await finalizeSale(app);
+    const jobUrl = `/api/v1/print-jobs/${printJobId}`;
+    const operationState = () => (db.prepare("SELECT state FROM printer_operations WHERE payload_ref=?").get(printJobId) as { state: string } | undefined)?.state;
+    const jobState = async () => (await app.inject({ method: "GET", url: jobUrl })).json().state as string;
+    const waitingJobs = async () => (await app.inject({ method: "GET", url: "/api/v1/printer/status" })).json().queue.waitingJobs as number;
+    expect(operationState()).toBe("pending");
+    expect(await jobState()).toBe("pending");
+    const beforeWaiting = await waitingJobs();
+
+    // キュー側に続くジョブ側の書き込みだけが落ちる、一時的なSQLiteエラー。
+    db.exec(`CREATE TEMP TRIGGER fail_job_cancel BEFORE UPDATE OF state ON print_jobs
+      WHEN NEW.state='canceled' BEGIN SELECT RAISE(ABORT, 'test job update failure'); END`);
+    const failed = await app.inject({ method: "POST", url: `${jobUrl}/cancel` });
+    db.exec("DROP TRIGGER fail_job_cancel");
+    expect(failed.statusCode).toBe(500);
+    // どちらか片方だけ canceled になってはならず、待機件数も変わらない。
+    expect(operationState()).toBe("pending");
+    expect(await jobState()).toBe("pending");
+    expect(await waitingJobs()).toBe(beforeWaiting);
+
+    const retried = await app.inject({ method: "POST", url: `${jobUrl}/cancel` });
+    expect(retried.statusCode, retried.body).toBe(200);
+    expect(retried.json().state).toBe("canceled");
+    expect(operationState()).toBe("canceled");
+    expect(await jobState()).toBe("canceled");
+    expect(await waitingJobs()).toBe(beforeWaiting - 1);
+  });
+});
+
 describe("印刷操作は認証必須時にセッション担当者を要求する (F-069)", () => {
   const reachableStatus = async () => ({ observedAt: new Date().toISOString(), reachable: { support: "supported" as const, value: true }, online: { support: "unknown" as const, reason: "n/a" }, coverOpen: { support: "unknown" as const, reason: "n/a" }, drawerOpen: { support: "unknown" as const, reason: "n/a" }, paper: { support: "unknown" as const, reason: "n/a" }, error: { support: "unknown" as const, reason: "n/a" }, raw: null });
   const acceptOk = async (job: { jobId: string; expectedBytesLength?: number | null; bytesSha256?: string | null }) => ({ jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!, bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted" as const, duplicate: false });

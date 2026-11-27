@@ -134,12 +134,31 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
   app.post<{ Params: { jobId: string } }>("/api/v1/print-jobs/:jobId/cancel", async (request, reply) => {
     try { requireAuthActor(options.database, request, "operator", options.authRequired ?? false); }
     catch (err) { return error(reply, err instanceof AuthError ? err.status : 401, err instanceof AuthError ? err.code : "AUTH_REQUIRED", err instanceof Error ? err.message : "責任者をサインオンしてください"); }
-    const operation = options.database.prepare("SELECT * FROM printer_operations WHERE payload_ref=?").get(request.params.jobId) as Record<string, unknown> | undefined;
-    if (!operation) return error(reply, 404, "PRINT_JOB_NOT_FOUND", "印刷jobが見つかりません");
-    if (operation.state !== "pending" && operation.state !== "retry_wait") return error(reply, 409, "PRINT_JOB_NOT_CANCELABLE", "待機または再試行待ちだけ取消できます");
-    const now = new Date().toISOString(); options.database.prepare("UPDATE printer_operations SET state='canceled',updated_at=? WHERE operation_id=?").run(now, String(operation.operation_id)); options.database.prepare("UPDATE print_jobs SET state='canceled',updated_at=? WHERE job_id=?").run(now, request.params.jobId);
+    // 取消の2更新は同一トランザクションで行う。片方だけ残ると、ジョブは待機表示のまま
+    // キューから外れ、再試行も状態チェックで拒否されて回復できない（F-104）。
+    // queue.trigger() はコミット後に呼ぶ。
+    const db = options.database;
+    let outcome: "ok" | "not_found" | "not_cancelable";
+    try {
+      db.exec("BEGIN IMMEDIATE");
+      const operation = db.prepare("SELECT * FROM printer_operations WHERE payload_ref=?").get(request.params.jobId) as Record<string, unknown> | undefined;
+      if (!operation) outcome = "not_found";
+      else if (operation.state !== "pending" && operation.state !== "retry_wait") outcome = "not_cancelable";
+      else {
+        const now = new Date().toISOString();
+        db.prepare("UPDATE printer_operations SET state='canceled',updated_at=? WHERE operation_id=?").run(now, String(operation.operation_id));
+        db.prepare("UPDATE print_jobs SET state='canceled',updated_at=? WHERE job_id=?").run(now, request.params.jobId);
+        outcome = "ok";
+      }
+      db.exec(outcome === "ok" ? "COMMIT" : "ROLLBACK");
+    } catch (err) {
+      try { db.exec("ROLLBACK"); } catch { /* 既にロールバック済みの場合は無視する */ }
+      throw err;
+    }
+    if (outcome === "not_found") return error(reply, 404, "PRINT_JOB_NOT_FOUND", "印刷jobが見つかりません");
+    if (outcome === "not_cancelable") return error(reply, 409, "PRINT_JOB_NOT_CANCELABLE", "待機または再試行待ちだけ取消できます");
     options.queue?.trigger();
-    return getPrintJob(options.database, request.params.jobId);
+    return getPrintJob(db, request.params.jobId);
   });
   app.post<{ Params: { transactionId: string }; Body: ReprintBody }>("/api/v1/transactions/:transactionId/reprints", async (request, reply) => {
     const manager = managerActorId(request, "REPRINT_MANAGER_REQUIRED");
