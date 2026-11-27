@@ -206,11 +206,12 @@ try {
     "Start-USB-Kit.bat", "start-usb-kit.ps1", "Update-USB-Kit.bat", "update-usb-kit.ps1",
     "Recover-USB-Kit-DB.bat", "Recover-USB-Kit-DB.ps1",
   ];
+  const macosRootFiles = ["Start-USB-Kit.command", "Update-USB-Kit.command", "update-usb-kit.mjs"];
   const rootFiles = windows
     ? windowsRootFiles.map((name) => [name, windowsFiles])
     : universal
-      ? [...windowsRootFiles.map((name) => [name, windowsFiles]), ["Start-USB-Kit.command", macosFiles]]
-      : [["Start-USB-Kit.command", macosFiles]];
+      ? [...windowsRootFiles.map((name) => [name, windowsFiles]), ...macosRootFiles.map((name) => [name, macosFiles])]
+      : macosRootFiles.map((name) => [name, macosFiles]);
   for (const [name, dir] of rootFiles) {
     const destination = join(target, name);
     copyFileSync(join(dir, name), destination);

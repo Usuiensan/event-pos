@@ -18,14 +18,13 @@
 
 使うOS側のファイルを編集してください。
 
-## アップデート（Windows側）
+## アップデート
 
-キット内の `Update-USB-Kit.bat` をダブルクリックすると、GitHub の配布リリースから新しいプログラムを取得して反映します。DBと初期設定（`event-config\usb-kit-initial`）は保護され、変化していたら更新前の状態へ自動で戻します。Mac側のファイル（`Start-USB-Kit.command`、`printer-host-macos.env`、Mac用ランタイム）も更新で消えません。
+Windows はキット内の `Update-USB-Kit.bat`、Mac は `Update-USB-Kit.command` をダブルクリックすると、GitHub の配布リリースから新しいプログラムを取得して反映します。DBと初期設定（`event-config\usb-kit-initial`）は保護され、変化していたら更新前の状態へ自動で戻します。もう一方のOS側のファイル（`Start-USB-Kit.command`、`printer-host-macos.env`、Mac用ランタイム等）も更新で消えません。
 
-- 「アップデーターだけを先に更新しました」と出た場合は、そのままもう一度 `Update-USB-Kit.bat` を実行してください
-- 更新前のプログラム一式はそのPCの `%LOCALAPPDATA%\EventPos\UsbKit\update-backup` に残ります
-
-Mac側には自動アップデーターはありません。Macで更新する場合は、ビルド元で兼用キットを再ビルドして同じフォルダーへ上書きしてください（DB・初期設定・プリンター設定は引き継がれます）。
+- 「アップデーターだけを先に更新しました」と出た場合は、そのままもう一度アップデーターを実行してください
+- 更新前のプログラム一式はそのPCの更新バックアップに残ります（Windows: `%LOCALAPPDATA%\EventPos\UsbKit\update-backup`、Mac: `~/Library/Application Support/EventPos/UsbKit/update-backup`）
+- Mac の現場ごとの設定（DRAWER_ENABLED 等）は、キット内の `kit-local-macos.env` に書いてください。このファイルは配布対象外で、更新でも上書きされません
 
 ## 終了・シャットダウン時の動作
 
