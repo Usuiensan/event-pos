@@ -382,6 +382,58 @@ describe("取り置き",()=>{
     expect(allowed.json().lines.reduce((sum: number, line: { shortage: number }) => sum + line.shortage, 0)).toBe(1);
     expect(db.prepare("SELECT reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId, productId)).toMatchObject({ reserved: 4 });
   });
+
+  it("カタログから削除した商品の取り置きは404で拒否され、引当は増えない（F-103）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    const twoProductCatalog = { ...catalog, products: [
+      { ...catalog.products[0], inventory: { openingQuantity: 10 } },
+      { productCode: "00000002", name: "削除予定商品", priceInclTax: 300, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", inventory: { openingQuantity: 1 } },
+    ] };
+    await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: twoProductCatalog });
+    await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    const createHold = (productCode: string, quantity: number, allowShortage = false) => app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", allowShortage, lines: [{ productCode, quantity }] } });
+    // 対照：現行品の在庫不足は 409 で拒否される。
+    const control = await createHold("00000002", 2);
+    expect(control.statusCode).toBe(409); expect(control.json().error.code).toBe("HOLD_STOCK_SHORTAGE");
+    // 商品をカタログから削除して再取込する。
+    expect((await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: trackedCatalog })).statusCode).toBe(200);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM event_products WHERE event_id=? AND product_code=?").get(catalog.eventId, "00000002")).toEqual({ count: 1 });
+    const removed = await createHold("00000002", 1);
+    expect(removed.statusCode).toBe(404); expect(removed.json().error.code).toBe("PRODUCT_NOT_FOUND");
+    const removedWithShortage = await createHold("00000002", 1, true);
+    expect(removedWithShortage.statusCode).toBe(404);
+    expect(db.prepare("SELECT on_hand, reserved FROM inventory_balances WHERE event_id=? AND product_id=?").get(catalog.eventId, "hold-event:00000002")).toMatchObject({ on_hand: 1, reserved: 0 });
+    // 現行品の取り置きは再取込後も作れる。
+    const kept = await createHold("00000001", 1);
+    expect(kept.statusCode).toBe(201);
+  });
+
+  it("取り置き票の印刷ジョブは状態・作成時刻・出所が正しく記録され、待機件数に数えられる（F-105）", async () => {
+    const db = openDatabase(); const app = buildApp({ database: db }); apps.push(app);
+    await app.inject({ method: "PUT", url: "/api/v1/events/hold-event/catalog", payload: trackedCatalog });
+    await openRegisterForTest(app, catalog.eventId, "2026-08-03", "register-1");
+    const queue = async () => (await app.inject({ method: "GET", url: "/api/v1/printer/status" })).json().queue.waitingJobs as number;
+    const dashboard = async () => {
+      const response = await app.inject({ url: `/api/v1/operations/dashboard?eventId=${catalog.eventId}&businessDate=2026-08-03`, headers: { "x-pos-actor-id": "001", "x-pos-role": "manager" } });
+      expect(response.statusCode).toBe(200);
+      return response.json().printJobs.pending as number;
+    };
+    const beforeQueue = await queue();
+    const beforeDashboard = await dashboard();
+    const hold = await app.inject({ method: "POST", url: "/api/v1/holds", payload: { eventId: catalog.eventId, registerId: "register-1", terminalId: "register-1", lines: [{ productCode: "00000001", quantity: 1 }] } });
+    expect(hold.statusCode).toBe(201);
+    const job = (await app.inject({ method: "GET", url: `/api/v1/print-jobs/${hold.json().printJobId}` })).json();
+    expect(job.documentType).toBe("hold_ticket");
+    expect(job.state).toBe("pending");
+    expect(Number.isFinite(Date.parse(job.createdAt))).toBe(true);
+    expect(job.createdAt).not.toBe("pending");
+    expect(Number.isFinite(Date.parse(job.updatedAt))).toBe(true);
+    expect(job.updatedAt).not.toBe("event-pos");
+    expect(job.source).toBe("event-pos");
+    expect(db.prepare("SELECT state FROM printer_operations WHERE payload_ref=?").get(hold.json().printJobId)).toMatchObject({ state: "pending" });
+    expect(await queue()).toBe(beforeQueue + 1);
+    expect(await dashboard()).toBe(beforeDashboard + 1);
+  });
 });
 
 describe("長い商品名の取り置き票（F-061）", () => {
