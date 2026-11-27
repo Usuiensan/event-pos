@@ -185,6 +185,40 @@ describe("persistent print queue", () => {
     expect(db.prepare("SELECT action,detail_json FROM audit_log WHERE action='printer_resume'").get()).toMatchObject({ action: "printer_resume" });
   });
 
+  it("送信開始の記録に失敗すると未送信で停止し、責任者の再開後に先頭から送る", async () => {
+    const db = database(); enqueueRaw(db, "head"); enqueueRaw(db, "tail");
+    db.exec(`CREATE TRIGGER fail_dispatch_start BEFORE UPDATE OF phase ON print_attempts
+      WHEN NEW.phase = 'dispatch_started'
+      BEGIN SELECT RAISE(ABORT, '送信開始の記録障害'); END`);
+    const order: string[] = [];
+    const queue = new PersistentPrintQueue(db, { accept: async (job) => {
+      order.push(job.jobId); return accepted(job);
+    } }); queues.push(queue);
+
+    queue.trigger();
+    await queue.waitForIdle();
+    expect(order).toEqual([]);
+    expect(getPrintQueueStatus(db)).toEqual({
+      blocked: true, blockReason: "device_fault", jobId: "head",
+      errorMessage: "印刷送信前の処理に失敗しました", waitingJobs: 2,
+    });
+    expect(getPrintJob(db, "head")).toMatchObject({ state: "retry_wait", deliveryCertainty: "not_sent" });
+    expect(getPrintJob(db, "tail")).toMatchObject({ state: "pending" });
+    expect(db.prepare("SELECT phase,ended_at,result,accepted_bytes,error_message FROM print_attempts WHERE job_id='head' AND attempt_no=1").get())
+      .toEqual({ phase: "prepared", ended_at: expect.any(String), result: "device_fault", accepted_bytes: 0, error_message: "印刷送信前の処理に失敗しました" });
+
+    db.exec("DROP TRIGGER fail_dispatch_start");
+    queue.trigger();
+    await queue.waitForIdle();
+    expect(order).toEqual([]);
+    expect(queue.resumeDeviceFault("manager-1")).toBe(true);
+    await queue.waitForIdle();
+    expect(order).toEqual(["head", "tail"]);
+    expect(getPrintJob(db, "head")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+    expect(getPrintJob(db, "tail")).toMatchObject({ state: "completed", deliveryCertainty: "accepted" });
+    expect(getPrintQueueStatus(db)).toMatchObject({ blocked: false, waitingJobs: 0 });
+  });
+
   it("device faultは4回目以降もFIFO headを解除せず、責任者resumeまで待機する", async () => {
     const db = database(); enqueueRaw(db, "blocked"); enqueueRaw(db, "later");
     const queue = new PersistentPrintQueue(db, { accept: async () => { throw failure({ code: "PAPER_OUT", deviceFault: true }); } }); queues.push(queue);

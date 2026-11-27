@@ -115,9 +115,7 @@ export class PersistentPrintQueue {
       this.db.prepare("UPDATE printer_operations SET state='sending',attempt_count=?,block_reason=NULL,updated_at=? WHERE operation_id=?").run(attemptNo, startedAt, String(operation.operation_id));
       this.db.prepare("UPDATE print_jobs SET state='sending',delivery_certainty='not_sent',updated_at=?,error_message=NULL WHERE job_id=?").run(startedAt, job.jobId);
     });
-    transaction(this.db, () => {
-      updateAttempt(this.db, job.jobId, attemptNo, { phase: "dispatch_started", adapterHash: compilerHash, writeHash: compilerHash });
-    });
+    let hostCalled = false;
     try {
       // 取り置き票は描画済みバイトを escpos_bytes 列にだけ持ち、payload には含まない。
       // Host の描画は payload.escposBase64 を必須とするため、送信時に保存済みバイト
@@ -125,7 +123,12 @@ export class PersistentPrintQueue {
       const dispatchJob = job.documentType === "hold_ticket" && row.escpos_bytes
         ? { ...job, payload: { ...(job.payload as Record<string, unknown>), escposBase64: Buffer.from(row.escpos_bytes).toString("base64") } }
         : job;
-      const result = await this.host.accept({ ...dispatchJob, state: "sending", updatedAt: startedAt });
+      const sendingJob = { ...dispatchJob, state: "sending" as const, updatedAt: startedAt };
+      transaction(this.db, () => {
+        updateAttempt(this.db, job.jobId, attemptNo, { phase: "dispatch_started", adapterHash: compilerHash, writeHash: compilerHash });
+      });
+      hostCalled = true;
+      const result = await this.host.accept(sendingJob);
       if (result.bytesSha256 !== compilerHash || result.payloadLength !== payloadLength || result.acceptedBytes !== payloadLength) {
         return this.finishFailure(operation, job, attemptNo, { code: "SHORT_WRITE_OR_HASH_MISMATCH", message: "acceptedBytesまたはbytes hashが一致しません", acceptedBytes: result.acceptedBytes, notSentProven: false, retryable: false, deviceFault: false });
       }
@@ -140,6 +143,13 @@ export class PersistentPrintQueue {
       });
       return "processed";
     } catch (error) {
+      if (!hostCalled) {
+        return this.finishFailure(operation, job, attemptNo, {
+          code: "PRINT_DISPATCH_PREPARATION_FAILED",
+          message: "印刷送信前の処理に失敗しました",
+          acceptedBytes: 0, notSentProven: true, retryable: false, deviceFault: true,
+        });
+      }
       const failure = error instanceof PrinterHostFailure ? error.failure : { code: "PRINTER_HOST_RESULT_UNKNOWN", message: error instanceof Error ? error.message : "PrinterHost応答が不明です", acceptedBytes: 0, notSentProven: false, retryable: false, deviceFault: false };
       return this.finishFailure(operation, job, attemptNo, failure);
     }
@@ -157,8 +167,7 @@ export class PersistentPrintQueue {
   private finishFailure(operation: Record<string, unknown>, job: PrintJob, attemptNo: number, failure: PrinterDispatchFailure): QueueRunResult {
     const now = this.clock(); const endedAt = now.toISOString(); const maxAttempts = Number(operation.max_attempts ?? 4);
     const safeRetry = failure.retryable && failure.notSentProven && failure.acceptedBytes === 0 && !failure.deviceFault && attemptNo < maxAttempts;
-    // A physical fault is not a transient retry budget.  Keep the FIFO head
-    // blocked until an observation or an accountable manager resumes it.
+    // 送信前の障害では、責任者が再開するまで先頭ジョブを保持する。
     const deviceBlock = failure.deviceFault && failure.notSentProven && failure.acceptedBytes === 0;
     const backoff = [2, 5, 15][attemptNo - 1] ?? 15; const availableAt = new Date(now.getTime() + backoff * 1000).toISOString();
     transaction(this.db, () => {
