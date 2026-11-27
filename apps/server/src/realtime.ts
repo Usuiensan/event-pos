@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 import type { PosDatabase } from "./db.js";
-import { CheckoutError, getRegisterSaleDraft, uuidV7 } from "./checkout-store.js";
+import { CheckoutError, getRegisterSaleDraft, immediate, uuidV7 } from "./checkout-store.js";
 import { requireAuthActor } from "./auth.js";
 
 export const CUSTOMER_HEARTBEAT_TTL_MS = 5_000;
@@ -104,26 +104,43 @@ function saveAudioSettings(db: PosDatabase, registerId: string, input: Omit<Audi
   return audioSettings(db, registerId);
 }
 
-function currentAgeRequest(db: PosDatabase, registerId: string): Record<string, unknown> | undefined {
-  return db.prepare("SELECT request_id AS requestId,register_id AS registerId,draft_id AS draftId,minimum_age AS minimumAge,state,requested_at AS requestedAt,responded_at AS respondedAt FROM age_confirmation_requests WHERE register_id=? ORDER BY requested_at DESC LIMIT 1").get(registerId) as Record<string, unknown> | undefined;
+const ageRequestColumns = `request_id AS requestId,register_id AS registerId,draft_id AS draftId,
+  minimum_age AS minimumAge,state,requested_at AS requestedAt,responded_at AS respondedAt`;
+
+function currentAgeRequest(db: PosDatabase, registerId: string, eventId: string): Record<string, unknown> | undefined {
+  return db.prepare(`SELECT ${ageRequestColumns} FROM age_confirmation_requests
+    WHERE register_id=? AND draft_id IN (
+      SELECT d.draft_id FROM sale_drafts d
+      JOIN cash_sessions c ON c.session_id=d.cash_session_id
+      JOIN business_sessions b ON b.business_session_id=c.business_session_id AND b.event_id=d.event_id
+      WHERE d.register_id=? AND d.event_id=? AND c.cashbox_id=d.register_id
+        AND b.state='open' AND c.state='open' AND c.opening_yen IS NOT NULL
+    ) ORDER BY requested_at DESC, rowid DESC LIMIT 1`).get(registerId, registerId, eventId);
 }
 
 function createAgeRequest(db: PosDatabase, registerId: string, draftId: string, minimumAge: 18 | 20): Record<string, unknown> {
-  const draft = getRegisterSaleDraft(db, registerId);
-  if (!draft || draft.draftId !== draftId || !["editing", "payment"].includes(draft.state)) throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "年齢確認を要求できる販売ドラフトがありません");
-  if (![18, 20].includes(minimumAge)) throw new CheckoutError(400, "INVALID_AGE_REQUIREMENT", "年齢確認条件が不正です");
-  const now = new Date().toISOString();
-  db.prepare("UPDATE age_confirmation_requests SET state='canceled',responded_at=? WHERE register_id=? AND state IN ('requested','acknowledged')").run(now, registerId);
-  const requestId = uuidV7();
-  db.prepare("INSERT INTO age_confirmation_requests (request_id,register_id,draft_id,minimum_age,state,requested_at) VALUES (?,?,?,?,'requested',?)").run(requestId, registerId, draftId, minimumAge, now);
-  return currentAgeRequest(db, registerId)!;
+  return immediate(db, () => {
+    const scope = db.prepare("SELECT event_id,cash_session_id FROM sale_drafts WHERE draft_id=? AND register_id=?")
+      .get(draftId, registerId) as { event_id: string; cash_session_id: string | null } | undefined;
+    const draft = scope && getRegisterSaleDraft(db, registerId, scope.event_id);
+    if (!scope || !draft || draft.draftId !== draftId || !["editing", "payment"].includes(draft.state)) throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "年齢確認を要求できる販売ドラフトがありません");
+    if (![18, 20].includes(minimumAge)) throw new CheckoutError(400, "INVALID_AGE_REQUIREMENT", "年齢確認条件が不正です");
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE age_confirmation_requests SET state='canceled',responded_at=?
+      WHERE register_id=? AND state IN ('requested','acknowledged') AND draft_id IN (
+        SELECT draft_id FROM sale_drafts WHERE register_id=? AND event_id=? AND cash_session_id=?
+      )`).run(now, registerId, registerId, scope.event_id, scope.cash_session_id);
+    return db.prepare(`INSERT INTO age_confirmation_requests (request_id,register_id,draft_id,minimum_age,state,requested_at)
+      VALUES (?,?,?,?,'requested',?) RETURNING ${ageRequestColumns}`).get(uuidV7(), registerId, draftId, minimumAge, now)!;
+  });
 }
 
 function acknowledgeAgeRequest(db: PosDatabase, registerId: string, requestId: string): Record<string, unknown> {
-  const now = new Date().toISOString();
-  const result = db.prepare("UPDATE age_confirmation_requests SET state='acknowledged',responded_at=? WHERE request_id=? AND register_id=? AND state='requested'").run(now, requestId, registerId);
-  if (Number(result.changes) !== 1) throw new CheckoutError(409, "AGE_CONFIRMATION_NOT_PENDING", "年齢確認要求はすでに更新されています");
-  return currentAgeRequest(db, registerId)!;
+  const request = db.prepare(`UPDATE age_confirmation_requests SET state='acknowledged',responded_at=?
+    WHERE request_id=? AND register_id=? AND state='requested' RETURNING ${ageRequestColumns}`)
+    .get(new Date().toISOString(), requestId, registerId);
+  if (!request) throw new CheckoutError(409, "AGE_CONFIRMATION_NOT_PENDING", "年齢確認要求はすでに更新されています");
+  return request;
 }
 
 function sendError(reply: { code(status: number): { send(value: unknown): unknown }; request: { id: string } }, error: unknown): unknown {
@@ -148,11 +165,15 @@ export function registerRealtimeRoutes(app: FastifyInstance, database: PosDataba
     return reply.code(204).send();
   });
 
-  app.get<{ Params: { registerId: string } }>("/api/v1/registers/:registerId/customer-display-status", async (request) => ({
-    registerId: request.params.registerId,
-    ...hub.availability(request.params.registerId),
-    ageConfirmation: currentAgeRequest(database, request.params.registerId) ?? null,
-  }));
+  app.get<{ Params: { registerId: string }; Querystring: { eventId?: string } }>("/api/v1/registers/:registerId/customer-display-status", async (request) => {
+    const { registerId } = request.params;
+    const { eventId } = request.query;
+    return {
+      registerId,
+      ...hub.availability(registerId),
+      ageConfirmation: eventId ? currentAgeRequest(database, registerId, eventId) ?? null : null,
+    };
+  });
 
   app.get<{ Params: { registerId: string } }>("/api/v1/registers/:registerId/audio-settings", async (request, reply) => {
     const settings = audioSettings(database, request.params.registerId);

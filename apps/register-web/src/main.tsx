@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { calculateAutoDiscounts, exportEventCatalog, importEventCatalog, formatJapaneseYenSpeech, parseBarcode, validatePublicReference, taxCategoryLabel, type EventCatalog, type PrinterStatusObservation, type ProductDefinition, type QuickEntry } from "@event-pos/contracts";
 import { createSpeechPlayer, playOperationSound, previewSystemErrorSound, speakAgeCheckRequired, speakChangeReady, speakEmergencyAlertReceived, speakIdentityMayBeRequested, speakProductPrice, speakReceiptReady, speakSubtotal, stopOperationSound, type SpeechPlayer } from "./speech.js";
@@ -6,7 +6,7 @@ import { demoCatalog } from "./demo-catalog.js";
 import { normalizeResponsibleNumber } from "./responsible-number.js";
 import { convertToTenThousands } from "./tender-input.js";
 import { EMPTY_PAYMENT_SUMMARY, paymentSummaryFromTotals, summarizePayments, type PaymentSummary } from "./payment-summary.js";
-import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CheckoutDraftPayment, type CustomerProjection, type ParkedDraftDto, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
+import { CheckoutApiError, apiUrl, checkoutApi, type AuthActor, type BackupArtifactDto, type BusinessSessionDto, type CheckoutDraft, type CheckoutDraftPayment, type CustomerDisplayStatus, type CustomerProjection, type ParkedDraftDto, type PaymentKind, type PrintJobDto, type RegisterStateDto } from "./checkout-api.js";
 import { RegisteredPayments } from "./registered-payments.js";
 import { canCancelDraftRegistration, canOpenDraftPayment } from "./draft-resolution.js";
 import { loadAudioSettings, normalizeAudioSettings, storeAudioSettings, type AudioSettings } from "./audio-settings.js";
@@ -158,9 +158,6 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [ageFlowState, setAgeFlowState] = useState<AgeFlowState>("idle");
   const [ageVerified, setAgeVerified] = useState(false);
   const [ageVerifiedMinimum, setAgeVerifiedMinimum] = useState<0 | 18 | 20>(0);
-  const [customerAgeNotice, setCustomerAgeNotice] = useState<"required" | "verified" | null>(null);
-  const [customerAgeMinimum, setCustomerAgeMinimum] = useState<18 | 20>(20);
-  const [customerAgeAcknowledged, setCustomerAgeAcknowledged] = useState(false);
   const [received, setReceived] = useState(0);
   const [inputBuffer, setInputBuffer] = useState("");
   const [scanNotice, setScanNotice] = useState("");
@@ -185,7 +182,8 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [backupArtifactsError, setBackupArtifactsError] = useState("");
   const [regeneratingArtifactId, setRegeneratingArtifactId] = useState<string | null>(null);
   const [customerDisplayAvailable, setCustomerDisplayAvailable] = useState(false);
-  const [ageConfirmationRequest, setAgeConfirmationRequest] = useState<{ requestId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled" } | null>(null);
+  const [ageConfirmationRequest, setAgeConfirmationRequest] = useState<CustomerDisplayStatus["ageConfirmation"]>(null);
+  const ageConfirmationSignalRef = useRef<AbortSignal | null>(null);
   const staffAgeRequestRef = useRef<{ id: Promise<string | null>; confirming: boolean; quantity?: number } | null>(null);
   const registerId = `register-${registerNumber}`;
   const [terminalId] = useState(() => {
@@ -302,7 +300,6 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const canOpenPayment = canOpenDraftPayment(serverDraft) && !checkoutLocked;
   const autoDiscounts = calculateAutoDiscounts(activeCart.reduce((quantities, line) => quantities.set(line.product.productCode, (quantities.get(line.product.productCode) ?? 0) + line.quantity), new Map<string, number>()), catalog.autoDiscountRules ?? []);
   const autoDiscountYen = autoDiscounts.reduce((sum, discount) => sum + discount.discountYen, 0);
-  const customerRequiresAge = activeCart.some((line) => isAgeRestricted(line.product)) && customerAgeNotice !== "verified" && !customerAgeAcknowledged;
   const visibleProducts = catalog.products.filter((product) => productTab === "all" || product.tabId === productTab);
   const total = authoritativeTotal ?? activeCart.reduce((sum, line) => sum + line.product.priceInclTax * line.quantity, 0) - autoDiscountYen;
   const totalDiscountYen = role === "customer" ? projectedDiscounts.reduce((sum, discount) => sum + discount.amountYen, 0) : serverDraft?.calculation.discountTotalYen ?? autoDiscountYen;
@@ -503,25 +500,38 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     draftRefreshRef.current = refresh; refresh(); const timer = window.setInterval(refresh, 1_000);
     return () => { stopped = true; window.clearInterval(timer); draftRefreshRef.current = () => undefined; };
   }, [authActor, businessSession?.businessSessionId, businessSession?.state, catalog.eventId, catalog.products, registerId, registerState?.state, role]);
-  useEffect(() => {
-    let stopped = false;
-    const refresh = () => { void checkoutApi.getCustomerDisplayStatus(registerId).then((status) => {
-      if (stopped) return;
-      setServerOnline(true); setCustomerDisplayAvailable(status.available);
-      const request = status.ageConfirmation && status.ageConfirmation.state !== "canceled" ? status.ageConfirmation : null;
-      setAgeConfirmationRequest(request);
-      if (request) { setCustomerAgeMinimum(request.minimumAge); setCustomerAgeNotice(request.state === "acknowledged" ? "verified" : "required"); }
-      else if (role === "customer") setCustomerAgeNotice(null);
-      if (role === "staff" && (ageProduct || ageOnlyCheck) && request?.state === "acknowledged") {
-        const pendingRequest = staffAgeRequestRef.current;
-        void pendingRequest?.id.then((requestId) => {
-          if (!stopped && staffAgeRequestRef.current === pendingRequest && request.requestId === requestId) setAgeFlowState("staff_pending");
-        });
-      }
-    }).catch(() => { if (!stopped) { setServerOnline(false); setCustomerDisplayAvailable(false); } }); };
+  useLayoutEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    ageConfirmationSignalRef.current = signal;
+    setAgeConfirmationRequest(null);
+    staffAgeRequestRef.current = null;
+    setAgeProduct(null);
+    setAgeOnlyCheck(null);
+    setAgeFlowState("idle");
+    let sequence = 0;
+    let appliedSequence = 0;
+    const refresh = () => {
+      const sentSequence = ++sequence;
+      void checkoutApi.getCustomerDisplayStatus(registerId, catalog.eventId, signal).then((status) => {
+        if (signal.aborted || sentSequence < appliedSequence) return;
+        appliedSequence = sentSequence;
+        setServerOnline(true); setCustomerDisplayAvailable(status.available);
+        const request = status.ageConfirmation?.state === "canceled" ? null : status.ageConfirmation;
+        setAgeConfirmationRequest(request);
+        if (role === "staff" && request?.state === "acknowledged") {
+          const pendingRequest = staffAgeRequestRef.current;
+          void pendingRequest?.id.then((requestId) => {
+            if (!signal.aborted && sentSequence === appliedSequence && staffAgeRequestRef.current === pendingRequest && request.requestId === requestId) setAgeFlowState("staff_pending");
+          });
+        }
+      }).catch(() => {
+        if (!signal.aborted && sentSequence >= appliedSequence) { setServerOnline(false); setCustomerDisplayAvailable(false); }
+      });
+    };
     refresh(); const timer = window.setInterval(refresh, 1_000);
-    return () => { stopped = true; window.clearInterval(timer); };
-  }, [ageProduct, ageOnlyCheck, registerId, role]);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, [catalog.eventId, registerId, role]);
   useEffect(() => {
     if (role !== "customer") return;
     const heartbeat = () => { void checkoutApi.heartbeatCustomerDisplay(terminalId, registerId).then(() => setServerOnline(true)).catch(() => setServerOnline(false)); };
@@ -853,6 +863,15 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const closePriceChange = () => { setShowPriceChange(false); setDiscountMode(null); setDiscountInput(""); };
    const applySelectedDiscount = () => { if (checkoutLocked || draftRef.current?.state === "completed") return showOperationError("この取引は会計済みです。売価・値引きは変更できません。"); if (!selectedLineItem?.lineId || selectedLine === null || priceChangePreview === null || !discountMode) return showOperationError(discountMode === "percent" ? "値引率は0～100％で入力してください。" : "値引額は現在の単価以下で入力してください。"); const value = Number(discountInput); void runDraftMutation((draft) => checkoutApi.updateLine(draft.draftId, selectedLineItem.lineId!, draft.version, { manualDiscount: { kind: discountMode === "percent" ? "rate" : "amount", value } })).then((next) => { if (!next) return; highlightLine(selectedLineItem.product.productCode, selectedLineItem.cancelled ? "cancelled" : "active"); closePriceChange(); setSelectedLine(null); }); };
   useEffect(() => { if (!showPriceChange) return; const onDiscountKey = (event: KeyboardEvent) => { if (/^[0-9]$/.test(event.key)) { event.preventDefault(); setDiscountInput((current) => `${current}${event.key}`.replace(/^0+(?=\d)/, "").slice(0, 7)); } else if (event.key === "Backspace") { event.preventDefault(); setDiscountInput((current) => current.slice(0, -1)); } else if (event.key === "Escape") { event.preventDefault(); closePriceChange(); } else if (event.key === "Enter" && discountMode) { event.preventDefault(); applySelectedDiscount(); } }; window.addEventListener("keydown", onDiscountKey); return () => window.removeEventListener("keydown", onDiscountKey); }, [showPriceChange, discountMode, discountInput, priceChangePreview, selectedLine]);
+  const acknowledgeCustomerAge = () => {
+    const signal = ageConfirmationSignalRef.current;
+    if (!signal || signal.aborted || ageConfirmationRequest?.state !== "requested") return;
+    void checkoutApi.acknowledgeAgeConfirmation(terminalId, registerId, ageConfirmationRequest.requestId).then((acknowledged) => {
+      if (signal.aborted) return;
+      setAgeConfirmationRequest((current) => current?.requestId === acknowledged.requestId ? acknowledged : current);
+      speakIdentityMayBeRequested(speech);
+    }).catch((error) => { if (!signal.aborted) showSystemError(errorMessage(error)); });
+  };
   const closeAgeConfirmation = () => {
     const pendingRequest = staffAgeRequestRef.current;
     staffAgeRequestRef.current = null;
@@ -943,9 +962,16 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
      {showOfficialReceipt && <div className="modal-backdrop"><form className="official-receipt-modal" onSubmit={(event) => { event.preventDefault(); issueOfficialReceipt(); }}><h2>領収書を発行</h2><p>宛名・但し書きは、印刷された領収書に手書きで記入してください。</p><div><button type="submit" disabled={officialReceiptBusy}>{officialReceiptBusy ? "発行中…" : "発行する"}</button><button type="button" onClick={() => setShowOfficialReceipt(false)}>戻る</button></div></form></div>}
    </>;
    const training = isTrainingMode();
+   const customerAgeAcknowledged = ageConfirmationRequest?.state === "acknowledged";
+   const customerAgeNotice = ageConfirmationRequest && (
+     <div className={`age-notice ${customerAgeAcknowledged ? "verified" : "customer-age-prompt required"}`}>
+       <strong>{customerAgeAcknowledged ? `年齢確認済み（${ageConfirmationRequest.minimumAge}歳以上）` : `あなたは${ageConfirmationRequest.minimumAge}歳以上ですか？`}</strong>
+       {!customerAgeAcknowledged && <button className="customer-age-yes" onPointerUp={acknowledgeCustomerAge}>はい</button>}
+     </div>
+   );
   if (catalogStatus === "loading") return <main className="launcher-screen"><section className="launcher-card"><p>読み込み中…</p></section></main>;
   if (catalogStatus === "error") return <main className="launcher-screen"><section className="launcher-card"><h1>カタログを読み込めません</h1><p>サーバーに接続できませんでした。接続を確認して、再試行してください。</p><button onClick={() => setBootAttempt((current) => current + 1)}>再試行</button></section></main>;
-   if (role === "customer") return <main className={`pos-screen customer-screen${training ? " training-mode" : ""}`}>{training && TRAINING_BANNER}<section className="customer-lines">{(customerAgeNotice || customerRequiresAge) && <div className={`age-notice ${customerAgeNotice === "verified" ? "" : "customer-age-prompt"} ${customerAgeNotice ?? "required"}`}><strong>{customerAgeNotice === "verified" ? `年齢確認済み（${customerAgeMinimum}歳以上）` : `あなたは${customerAgeMinimum}歳以上ですか？`}</strong>{customerAgeNotice !== "verified" && <button className="customer-age-yes" onPointerUp={() => { if (!ageConfirmationRequest || ageConfirmationRequest.state !== "requested") return; void checkoutApi.acknowledgeAgeConfirmation(terminalId, registerId, ageConfirmationRequest.requestId).then(() => { setCustomerAgeAcknowledged(true); setCustomerAgeNotice("verified"); speakIdentityMayBeRequested(speech); }).catch((error) => showSystemError(errorMessage(error))); }}>はい</button>}</div>}{cart.length === 0 ? <div className="customer-empty customer-welcome">{catalog.customerWelcome?.imageUrl && <img src={catalog.customerWelcome.imageUrl} alt="" />}{catalog.customerWelcome?.circleName && <strong>{catalog.customerWelcome.circleName}</strong>}{catalog.customerWelcome?.space && <span>{catalog.customerWelcome.space}</span>}<p>{catalog.customerWelcome?.message ?? "いらっしゃいませ"}</p></div> : <><div className="customer-line customer-line-head"><span>商品名</span><span>税区分</span><span>点数</span></div>{cart.map((line, index) => <div data-product-code={line.product.productCode} className={`customer-line ${lineClassName(line)}`} key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{taxCategoryLabel(line.product.taxCategory)}</span><span>{isQuantityAnimated(line) ? <span className="line-quantity-change">{line.quantity}</span> : line.quantity}点</span></div>)}</>}{displayDiscounts.map((discount, index) => <div className="customer-discount" key={`${discount.label}-${index}`}><span>{discount.label}</span><strong>-{discount.amountYen.toLocaleString()}円</strong></div>)}</section><footer className="customer-total"><span>{customerCheckoutStatus ?? `合計 ${activeCart.reduce((sum, line) => sum + line.quantity, 0)}点`}</span><strong>{total.toLocaleString()}円</strong></footer>{emergencyModal}</main>;
+   if (role === "customer") return <main className={`pos-screen customer-screen${training ? " training-mode" : ""}`}>{training && TRAINING_BANNER}<section className="customer-lines">{customerAgeNotice}{cart.length === 0 ? <div className="customer-empty customer-welcome">{catalog.customerWelcome?.imageUrl && <img src={catalog.customerWelcome.imageUrl} alt="" />}{catalog.customerWelcome?.circleName && <strong>{catalog.customerWelcome.circleName}</strong>}{catalog.customerWelcome?.space && <span>{catalog.customerWelcome.space}</span>}<p>{catalog.customerWelcome?.message ?? "いらっしゃいませ"}</p></div> : <><div className="customer-line customer-line-head"><span>商品名</span><span>税区分</span><span>点数</span></div>{cart.map((line, index) => <div data-product-code={line.product.productCode} className={`customer-line ${lineClassName(line)}`} key={`${line.product.productCode}-${index}`}><span>{line.product.name}</span><span>{taxCategoryLabel(line.product.taxCategory)}</span><span>{isQuantityAnimated(line) ? <span className="line-quantity-change">{line.quantity}</span> : line.quantity}点</span></div>)}</>}{displayDiscounts.map((discount, index) => <div className="customer-discount" key={`${discount.label}-${index}`}><span>{discount.label}</span><strong>-{discount.amountYen.toLocaleString()}円</strong></div>)}</section><footer className="customer-total"><span>{customerCheckoutStatus ?? `合計 ${activeCart.reduce((sum, line) => sum + line.quantity, 0)}点`}</span><strong>{total.toLocaleString()}円</strong></footer>{emergencyModal}</main>;
   if (!authActor || businessSession?.state !== "open" || registerState?.state !== "open") return <main className={`pos-screen lifecycle-shell${training ? " training-mode" : ""}`}>
     {training && TRAINING_BANNER}
     <header className="lifecycle-header"><strong>ぽすりん</strong>{training && <span className="training-mode-badge">トレーニング</span>}<span>{catalog.eventId}</span><span>{registerId}</span><span className={serverOnline ? "status-online" : "status-offline"}>{serverOnline ? "サーバー接続" : "サーバー未接続"}</span><a className="lifecycle-top-link" href="/">トップページへ</a></header>

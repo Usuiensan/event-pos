@@ -115,7 +115,7 @@ describe("顧客画面realtime境界", () => {
     const { app, draft } = await setup();
     const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
     const registerUrl = "/api/v1/registers/register-1";
-    const statusUrl = `${registerUrl}/customer-display-status`;
+    const statusUrl = `${registerUrl}/customer-display-status?eventId=${catalog.eventId}`;
     const added = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
     expect(added.statusCode).toBe(201);
     const requested = await app.inject({ method: "POST", url: `${registerUrl}/age-confirmation-requests`, payload: { draftId: draft.draftId, minimumAge: 18 } });
@@ -158,14 +158,14 @@ describe("顧客画面realtime境界", () => {
     const requested = await app.inject({ method: "POST", url: `${registerUrl}/age-confirmation-requests`, payload: { draftId: next.json().draftId, minimumAge: 20 } });
     expect(requested.statusCode).toBe(201);
     expect((await app.inject({ method: "DELETE", url: draftUrl, headers: { "if-match": String(parked.version) } })).statusCode).toBe(200);
-    expect((await app.inject(`${registerUrl}/customer-display-status`)).json().ageConfirmation).toEqual(requested.json());
+    expect((await app.inject(`${registerUrl}/customer-display-status?eventId=${catalog.eventId}`)).json().ageConfirmation).toEqual(requested.json());
   });
 
   it("呼戻しで空の下書きを中止しても年齢確認要求が残らない（F-056・呼戻し経路）", async () => {
     const { app, draft } = await setup();
     const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
     const registerUrl = "/api/v1/registers/register-1";
-    const statusUrl = `${registerUrl}/customer-display-status`;
+    const statusUrl = `${registerUrl}/customer-display-status?eventId=${catalog.eventId}`;
     const added = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
     expect(added.statusCode).toBe(201);
     const parkedResponse = await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: "register-1" } });

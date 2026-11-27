@@ -39,18 +39,25 @@ describe("営業状態と担当者session", () => {
     const old = first.json();
     expect(old).toMatchObject({ lines: [], payments: [] });
     const ageUrl = `${registerUrl}/age-confirmation-requests`;
+    const statusUrl = `${registerUrl}/customer-display-status?eventId=${eventId}`;
     const requestAge = (draftId: string) => app.inject({ method: "POST", url: ageUrl, payload: { draftId, minimumAge: 18 } });
     const ageRequest = await requestAge(old.draftId);
     expect(ageRequest.statusCode).toBe(201);
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toEqual(ageRequest.json());
     expect((await app.inject({ method: "POST", url: `/api/v1/cash-sessions/${cashSessionId}/checks/closing`, payload: { counted: [], terminalId: registerId } })).statusCode).toBe(201);
     expect((await app.inject({ method: "POST", url: `/api/v1/business-sessions/${business.businessSessionId}/close`, payload: { terminalId: registerId } })).statusCode).toBe(200);
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toBeNull();
     const whileClosed = await start(firstDate);
     expect(whileClosed.statusCode).toBe(409);
     expect(whileClosed.json()).toMatchObject({ error: { code: "REGISTER_NOT_OPEN" } });
 
     await openRegisterForTest(app, eventId, nextDate, registerId);
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toBeNull();
     expect((await app.inject(`${registerUrl}/sale-draft`)).statusCode).toBe(404);
     expect((await requestAge(old.draftId)).json().error.code).toBe("DRAFT_NOT_EDITABLE");
+    const lateAnswer = await app.inject({ method: "POST", url: "/api/v1/customer-displays/customer-1/age-confirmations", payload: { registerId, requestId: ageRequest.json().requestId, response: "yes" } });
+    expect(lateAnswer.statusCode).toBe(409);
+    expect(lateAnswer.json().error.code).toBe("AGE_CONFIRMATION_NOT_PENDING");
     const oldUrl = `/api/v1/sale-drafts/${old.draftId}`;
     const add = (draftId: string, version: number) => app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draftId}/lines`, headers: { "if-match": String(version) }, payload: { productCode: "00000001" } });
     expect((await add(old.draftId, old.version)).json().error.code).toBe("BUSINESS_CLOSED");
@@ -64,7 +71,7 @@ describe("営業状態と担当者session", () => {
     expect(created[1]!.json().draftId).toBe(next.draftId);
     expect((await app.inject(oldUrl)).json()).toMatchObject({ state: "canceled", version: old.version + 1 });
     expect((await add(old.draftId, old.version + 1)).json().error.code).toBe("DRAFT_NOT_EDITABLE");
-    expect((await app.inject(`${registerUrl}/customer-display-status`)).json().ageConfirmation).toMatchObject({ requestId: ageRequest.json().requestId, state: "canceled" });
+    expect((await app.inject(statusUrl)).json().ageConfirmation).toBeNull();
     expect((await app.inject(`/api/v1/customer-displays/customer-1?registerId=${registerId}`)).json()).toMatchObject({ draftId: next.draftId, lines: [], totals: { totalYen: 0 } });
     expect((await add(next.draftId, next.version)).statusCode).toBe(201);
   });
