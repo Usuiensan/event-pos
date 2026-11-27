@@ -3,6 +3,13 @@ set -eu
 
 kit="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 cd "$kit"
+# 現場ごとのMac設定（DRAWER_ENABLED 等）。このファイルはペイロードに含まれず、
+# キット更新でも上書きされないため、カスタマイズはここへ置く。
+if [ -f "$kit/kit-local-macos.env" ]; then
+  set -a
+  . "$kit/kit-local-macos.env"
+  set +a
+fi
 # 兼用キットはアーキテクチャ別のNodeを同梱する。Mac単体キット（runtime/node のみ）にも対応する。
 case "$(uname -m)" in
   arm64) node="$kit/runtime/node-arm64" ;;

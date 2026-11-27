@@ -65,8 +65,8 @@ function Test-HttpOk {
 # data（本番DB）は対象に含めない。更新が中断した後に営業が再開されていた場合、
 # 起動時復旧が data を退避時点へ戻すと、その間の売上が丸ごと消えるため（F-064）。
 # DB は更新経路のどこからも書き換えられず、変化は Compare-Protected で検出する。
-$scopedDirs = @('server\dist', 'printer-host\dist', 'printer-host\scripts', 'printer-host\node_modules', 'web', 'runtime', 'event-config\usb-kit-initial')
-$rootFiles = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', '.event-pos-usb-kit', 'printer-host.env', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env')
+$scopedDirs = @('server', 'printer-host', 'web', 'runtime', 'event-config\usb-kit-initial')
+$rootFiles = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', '.event-pos-usb-kit', 'printer-host.env', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env', 'Update-USB-Kit.command', 'update-usb-kit.mjs')
 
 function Backup-Scoped {
   foreach ($rel in $scopedDirs) {
@@ -103,6 +103,10 @@ function Restore-Scoped {
   if (Test-Path -LiteralPath $newFile) { Remove-Item -LiteralPath $newFile -Force }
   $newBat = Join-Path $kit 'Update-USB-Kit.bat.new'
   if (Test-Path -LiteralPath $newBat) { Remove-Item -LiteralPath $newBat -Force }
+  $newMjs = Join-Path $kit 'update-usb-kit.mjs.new'
+  if (Test-Path -LiteralPath $newMjs) { Remove-Item -LiteralPath $newMjs -Force }
+  $newCommand = Join-Path $kit 'Update-USB-Kit.command.new'
+  if (Test-Path -LiteralPath $newCommand) { Remove-Item -LiteralPath $newCommand -Force }
 }
 
 function Get-ProtectedDigests {
@@ -236,8 +240,10 @@ function Invoke-LocalUpdate {
   if (Get-Command git -ErrorAction SilentlyContinue) {
     try { $commit = (& git -C $RepoRoot rev-parse HEAD 2>$null) } catch { $commit = $null }
   }
-  @{ source = 'local'; commit = $commit; appliedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $kit 'kit-version.json') -Encoding UTF8
+  # 状態の解除を kit-version.json の書き込みより先に行う。逆順だと、書き込み直後に
+  # 中断した場合に次回「復旧（旧版へ戻す）→新 digest を見て既に最新と誤判定」が起きる。
   Clear-State
+  @{ source = 'local'; commit = $commit; appliedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $kit 'kit-version.json') -Encoding UTF8
   Write-Host 'アップデートが完了しました。Start-USB-Kit.bat から起動できます。'
   Write-Host "更新前のプログラム一式はこのPCの $backup に残しています（不要なら削除して構いません）。"
 }
@@ -294,7 +300,7 @@ function Invoke-GitHubUpdate {
     if ($entries.Count -gt 5000) { throw 'ペイロードのファイル数が上限を超えています。' }
     $totalSize = ($entries | Measure-Object -Property size -Sum).Sum
     if ($totalSize -gt 314572800) { throw 'ペイロードの合計サイズが上限を超えています。' }
-    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env')
+    $rootAllow = @('initialize-usb-kit.ps1', 'start-usb-kit.ps1', 'Start-USB-Kit.bat', 'Update-USB-Kit.bat', 'update-usb-kit.ps1', 'README.md', 'printer-host.env', '.event-pos-usb-kit', 'Recover-USB-Kit-DB.bat', 'Recover-USB-Kit-DB.ps1', 'Start-USB-Kit.command', 'printer-host-macos.env', 'Update-USB-Kit.command', 'update-usb-kit.mjs')
     $seen = @{}
     $blockedPaths = @()
     foreach ($e in $entries) {
@@ -396,8 +402,9 @@ function Invoke-GitHubUpdate {
       Clear-State
       throw "更新に失敗したため、更新前の状態へ戻しました。問題: $($problems -join ' / ')"
     }
-    @{ source = 'github'; commit = $manifest.commit; tag = $release.tag_name; releaseId = $release.id; assetId = $asset.id; assetDigest = $assetDigest; zipSha256 = $zipHash; appliedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath $versionPath -Encoding UTF8
+    # 状態の解除を kit-version.json の書き込みより先に行う（Local と同じ理由）。
     Clear-State
+    @{ source = 'github'; commit = $manifest.commit; tag = $release.tag_name; releaseId = $release.id; assetId = $asset.id; assetDigest = $assetDigest; zipSha256 = $zipHash; appliedAt = (Get-Date).ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath $versionPath -Encoding UTF8
     Write-Host "アップデートが完了しました（$($release.tag_name)）。Start-USB-Kit.bat から起動できます。"
     Write-Host 'アップデーターや更新バッチ自体に新版がある場合は、次回 Update-USB-Kit.bat の起動時に自動で差し替わります。'
     Write-Host "更新前のプログラム一式はこのPCの $backup に残しています（不要なら削除して構いません）。"
