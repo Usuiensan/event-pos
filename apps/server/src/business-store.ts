@@ -123,6 +123,9 @@ export function closeBusinessSession(db: PosDatabase, businessSessionId: string,
   db.exec("BEGIN IMMEDIATE");
   try {
     db.prepare("UPDATE business_sessions SET state='closed',closed_by=?,closed_terminal_id=?,closed_at=? WHERE business_session_id=? AND state='open'").run(input.actorId, input.terminalId, now, businessSessionId);
+    // 閉局した営業の年齢確認要求は顧客画面へ残さない（登録中止時の cancelDraftAgeRequests と同じ扱い）。
+    db.prepare(`UPDATE age_confirmation_requests SET state='canceled',responded_at=? WHERE state IN ('requested','acknowledged')
+      AND draft_id IN (SELECT d.draft_id FROM sale_drafts d JOIN cash_sessions c ON c.session_id=d.cash_session_id WHERE c.business_session_id=?)`).run(now, businessSessionId);
     db.prepare("UPDATE staff_auth_sessions SET revoked_at=?,revoke_reason='business_closed' WHERE event_id=? AND revoked_at IS NULL").run(now, business.eventId);
     db.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'business_close','business_session',?,?,?)").run(business.eventId, businessSessionId, JSON.stringify(input), now);
     db.exec("COMMIT");
