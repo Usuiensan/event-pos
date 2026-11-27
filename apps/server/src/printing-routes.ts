@@ -34,6 +34,8 @@ function insertReprint(db: PosDatabase, transactionId: string, body: ReprintBody
   if (!body?.sourcePrintJobId || !body.reason?.trim() || !["printed", "not_printed", "indeterminate"].includes(body.physicalOutcome) || typeof body.riskAccepted !== "boolean") throw new Error("REPRINT_INPUT_REQUIRED");
   const sourceRow = db.prepare("SELECT * FROM print_jobs WHERE job_id=? AND transaction_id=?").get(body.sourcePrintJobId, transactionId) as Record<string, unknown> | undefined;
   if (!sourceRow || !sourceRow.receipt_snapshot_json || !sourceRow.template_key || !sourceRow.template_version) throw new Error("SOURCE_PRINT_JOB_NOT_FOUND");
+  // 元ジョブがまだ印字される可能性がある間は再印刷を受け付けない（復旧後に元と再印刷が両方出る二重印字の防止）。
+  if (["pending", "sending", "retry_wait"].includes(String(sourceRow.state))) throw new Error("SOURCE_PRINT_JOB_IN_PROGRESS");
   const requiresRiskApproval = body.physicalOutcome === "printed" || body.physicalOutcome === "indeterminate";
   if (requiresRiskApproval && (!body.riskAccepted || !body.approval?.approverId || !body.approval.approvedAt)) throw new Error("REPRINT_RISK_APPROVAL_REQUIRED");
   const sourceSnapshot = JSON.parse(String(sourceRow.receipt_snapshot_json)) as ReceiptSnapshot;
@@ -144,7 +146,7 @@ export function registerPrintingRoutes(app: FastifyInstance, options: { database
     if ("failure" in manager) return error(reply, manager.failure.status, manager.failure.code, manager.failure.message);
     const executorId = manager.actorId;
     try { const job = insertReprint(options.database, request.params.transactionId, request.body, executorId); options.queue?.trigger(); return reply.code(201).send(job); }
-    catch (err) { const code = err instanceof Error ? err.message : "REPRINT_FAILED"; return error(reply, code.includes("NOT_FOUND") ? 404 : 409, code, ({ REPRINT_INPUT_REQUIRED: "再印刷の理由と実物結果が必要です", REPRINT_RISK_APPROVAL_REQUIRED: "二重印刷リスク承認と責任者承認が必要です" } as Record<string, string>)[code] ?? code); }
+    catch (err) { const code = err instanceof Error ? err.message : "REPRINT_FAILED"; return error(reply, code.includes("NOT_FOUND") ? 404 : 409, code, ({ REPRINT_INPUT_REQUIRED: "再印刷の理由と実物結果が必要です", REPRINT_RISK_APPROVAL_REQUIRED: "二重印刷リスク承認と責任者承認が必要です", SOURCE_PRINT_JOB_IN_PROGRESS: "元の印刷が完了していないため、再印刷はまだ受け付けられません" } as Record<string, string>)[code] ?? code); }
   });
   app.get("/api/v1/printer/status", async () => {
     const observation = options.printerStatus ? await options.printerStatus() : { observedAt: new Date().toISOString(), reachable: { support: "unknown" as const, reason: "PrinterHost未設定" }, online: { support: "unknown" as const, reason: "PrinterHost未設定" }, coverOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, drawerOpen: { support: "unknown" as const, reason: "PrinterHost未設定" }, paper: { support: "unknown" as const, reason: "PrinterHost未設定" }, error: { support: "unknown" as const, reason: "PrinterHost未設定" }, raw: null };

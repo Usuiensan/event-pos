@@ -39,6 +39,11 @@ async function finalizeSale(app: FastifyInstance, saleCatalog = catalog): Promis
   expect(response.statusCode).toBe(201); return response.json();
 }
 
+// 再印刷の前提として、元ジョブを印字済み（終端状態）にする（F-094: 処理中ジョブへの再印刷は拒否される）。
+function completeSourceJob(db: PosDatabase, jobId: string): void {
+  db.prepare("UPDATE print_jobs SET state='completed' WHERE job_id=?").run(jobId);
+}
+
 function counts(db: PosDatabase): Record<string, number> {
   return Object.fromEntries(["transactions", "transaction_lines", "payments", "tax_summaries", "inventory_movements", "cash_movements"].map((table) => [table, Number((db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as { count: number }).count)]));
 }
@@ -150,7 +155,7 @@ describe("receipt template and reprint routes", () => {
   });
 
   it("再印刷は責任者・実物結果・二重印刷リスク承認を要求し、会計を変更せず新jobと監査を作る", async () => {
-    const { app, db } = makeApp(); const sale = await finalizeSale(app); const beforeCounts = counts(db);
+    const { app, db } = makeApp(); const sale = await finalizeSale(app); completeSourceJob(db, sale.printJobId); const beforeCounts = counts(db);
     const sourceBefore = db.prepare("SELECT state,receipt_snapshot_json,bytes_sha256,template_version FROM print_jobs WHERE job_id=?").get(sale.printJobId);
     const url = `/api/v1/transactions/${sale.transactionId}/reprints`;
     const base = { sourcePrintJobId: sale.printJobId, reason: "お客様控え紛失", physicalOutcome: "printed", riskAccepted: true };
@@ -168,6 +173,19 @@ describe("receipt template and reprint routes", () => {
     expect(approval).toEqual({ executor_id: "manager-1", approver_id: "manager-1", self_approved: 1, risk_accepted: 1 });
     const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='receipt_reprint' AND entity_id=?").get(reprint.jobId) as { detail_json: string };
     expect(JSON.parse(audit.detail_json)).toMatchObject({ sourcePrintJobId: sale.printJobId, self_approved: true, physicalOutcome: "printed", riskAccepted: true });
+  });
+
+  it("処理中（待機・送信中・再試行待ち）の元ジョブへの再印刷は拒否する (F-094)", async () => {
+    const { app, db } = makeApp(); const sale = await finalizeSale(app);
+    const url = `/api/v1/transactions/${sale.transactionId}/reprints`;
+    const body = { sourcePrintJobId: sale.printJobId, reason: "状態確認", physicalOutcome: "not_printed", riskAccepted: false };
+    for (const state of ["pending", "sending", "retry_wait"]) {
+      db.prepare("UPDATE print_jobs SET state=? WHERE job_id=?").run(state, sale.printJobId);
+      const response = await app.inject({ method: "POST", url, headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" }, payload: body });
+      expect(response.statusCode, `${state}: ${response.body}`).toBe(409);
+      expect(response.json().error.code).toBe("SOURCE_PRINT_JOB_IN_PROGRESS");
+    }
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE kind='reprint'").get()).toEqual({ count: 0 });
   });
 
   it.each([
@@ -255,6 +273,7 @@ describe("receipt template and reprint routes", () => {
   ])("元ジョブの %s を再現できない場合は再印刷を拒否する", async (column, value) => {
     const { app, db } = makeApp();
     const { transactionId, printJobId } = await finalizeSale(app);
+    completeSourceJob(db, printJobId);
     db.prepare(`UPDATE print_jobs SET ${column}=? WHERE job_id=?`).run(value, printJobId);
     const response = await app.inject({
       method: "POST",
@@ -271,6 +290,7 @@ describe("receipt template and reprint routes", () => {
     const { app, db } = makeApp();
     const configuredCatalog = { ...catalog, receiptSettings: { templates: {}, commonText: { reprintLabel: "控え再発行" } } };
     const sale = await finalizeSale(app, configuredCatalog);
+    completeSourceJob(db, sale.printJobId);
     const response = await app.inject({
       method: "POST",
       url: `/api/v1/transactions/${sale.transactionId}/reprints`,
@@ -351,6 +371,7 @@ describe("印刷操作は認証必須時にセッション担当者を要求す�
     res = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { ...admin, "idempotency-key": "f069-sale" }, payload: { version: draft.version } });
     expect(res.statusCode, res.body).toBe(201);
     const sale = res.json() as { transactionId: string; printJobId: string };
+    completeSourceJob(db, sale.printJobId);
     const url = `/api/v1/transactions/${sale.transactionId}/reprints`;
     const body = { sourcePrintJobId: sale.printJobId, reason: "紛失", physicalOutcome: "not_printed", riskAccepted: false };
     expect((await app.inject({ method: "POST", url, headers: { "x-pos-role": "manager", "x-pos-actor-id": "999" }, payload: body })).statusCode).toBe(401);
