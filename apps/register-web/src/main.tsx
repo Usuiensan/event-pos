@@ -186,7 +186,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
   const [regeneratingArtifactId, setRegeneratingArtifactId] = useState<string | null>(null);
   const [customerDisplayAvailable, setCustomerDisplayAvailable] = useState(false);
   const [ageConfirmationRequest, setAgeConfirmationRequest] = useState<{ requestId: string; minimumAge: 18 | 20; state: "requested" | "acknowledged" | "canceled" } | null>(null);
-  const staffAgeRequestRef = useRef<{ id: Promise<string | null>; confirming: boolean } | null>(null);
+  const staffAgeRequestRef = useRef<{ id: Promise<string | null>; confirming: boolean; quantity?: number } | null>(null);
   const registerId = `register-${registerNumber}`;
   const [terminalId] = useState(() => {
     if (role === "staff") return registerId;
@@ -733,7 +733,7 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
           }
           return null;
         });
-      staffAgeRequestRef.current = { id: pendingRequest, confirming: false };
+      staffAgeRequestRef.current = { id: pendingRequest, confirming: false, quantity };
       return;
     }
     void runDraftMutation((draft) => checkoutApi.addLine(draft.draftId, draft.version, product.productCode, quantity)).then((next) => { if (!next) return; const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active"); setRecentAddedProducts((current) => [{ id: Date.now(), product, quantity }, ...current].slice(0, 6)); setLastAddedShortcut(line ? { lineId: line.lineId, eligible: true } : null); playOperationSound("register", audioSettings.tapVolume); highlightLine(product.productCode, "active", "add"); if (announce) speakProductPrice(routedSpeech, formatJapaneseYenSpeech(product.priceInclTax)); });
@@ -883,9 +883,11 @@ function App({ role, registerNumber }: { role: RegisterRole; registerNumber: num
     pendingRequest.confirming = true;
     if (!(await pendingRequest.id) || staffAgeRequestRef.current !== pendingRequest) return;
     const verifiedMinimum = ageRequirement(product) ?? 20;
+    // 年齢確認待ちの間に保持した設定数量で登録する（F-084。確認前は 1 に固定されていた）。
+    const quantity = pendingRequest.quantity ?? 1;
     const next = await runDraftMutation(async (draft) => {
       const verified = await checkoutApi.addAgeVerification(draft.draftId, draft.version, { minimumAge: verifiedMinimum, method: "id_visual", result: "passed", confirmerId: signedInResponsibleNumber, terminalId: registerId });
-      return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, 1);
+      return checkoutApi.addLine(verified.draftId, verified.version, product.productCode, quantity);
     });
     if (!next) { pendingRequest.confirming = false; return; }
     const line = [...next.lines].reverse().find((candidate) => candidate.productCode === product.productCode && candidate.status === "active");
