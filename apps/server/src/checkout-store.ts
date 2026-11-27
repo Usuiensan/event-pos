@@ -535,11 +535,24 @@ export function restoreHoldsForCanceledDraft(db: PosDatabase, draftId: string, e
 export function cancelSaleDraft(db: PosDatabase, draftId: string, version: number): SaleDraftDto {
   return immediate(db, () => {
     const row = draftRow(db, draftId);
-    if (row.state !== "parked") assertMutable(db, row, version);
+    const wasParked = row.state === "parked";
+    if (!wasParked) assertMutable(db, row, version);
     else if (Number(row.version) !== version) throw new CheckoutError(409, "DRAFT_VERSION_CONFLICT", "販売ドラフトが別端末で更新されています");
     const canceledAt = bump(db, draftId, version, "canceled");
     cancelDraftAgeRequests(db, draftId, canceledAt);
     restoreHoldsForCanceledDraft(db, draftId, String(row.event_id));
+    if (wasParked) {
+      // 保留下書きの中止で、別の下書きを表示中の顧客画面を上書きしない（F-106）。
+      // 射影はレジ・現金セッション単位で保持されるため、同じセッションの射影が
+      // 中止した下書きとは別下書きを示している場合は、射影と版数を維持する。
+      const stored = db.prepare("SELECT public_projection_json FROM customer_display_states WHERE register_id=? AND cash_session_id=?").get(String(row.register_id), String(row.cash_session_id ?? "")) as { public_projection_json: string } | undefined;
+      if (stored) {
+        try {
+          const shown = JSON.parse(stored.public_projection_json) as { draftId?: string };
+          if (shown.draftId && shown.draftId !== draftId && !shown.draftId.startsWith("customer-display:")) return getSaleDraft(db, draftId);
+        } catch { /* 壊れた射影は従来どおり更新する */ }
+      }
+    }
     return updateProjection(db, draftId);
   });
 }
