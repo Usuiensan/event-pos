@@ -1,14 +1,18 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { ESCPOS_RENDERER_VERSION, ESCPOS_RENDERER_VERSION_ROTATE180, canonicalIrToEscPos } from "@event-pos/escpos";
 import { DEFAULT_RECEIPT_TEMPLATE, LEGACY_DEFAULT_RECEIPT_TEMPLATE_V1, validateReceiptTemplate, type ReceiptSnapshot } from "@event-pos/receipt-template";
 import { buildApp } from "./app.js";
-import { openDatabase, type PosDatabase } from "./db.js";
+import { getPrintJob, openDatabase, type PosDatabase } from "./db.js";
 import { ensureDefaultReceiptTemplate, renderReceipt } from "./receipt-store.js";
 import { openRegisterForTest, signInForTest } from "./test-support.js";
 import { PrinterHostFailure } from "./print-queue.js";
 
 const apps: FastifyInstance[] = [];
-afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  while (apps.length) await apps.pop()!.close();
+});
 
 const catalog = {
   eventId: "receipt-event",
@@ -164,6 +168,103 @@ describe("receipt template and reprint routes", () => {
     expect(approval).toEqual({ executor_id: "manager-1", approver_id: "manager-1", self_approved: 1, risk_accepted: 1 });
     const audit = db.prepare("SELECT detail_json FROM audit_log WHERE action='receipt_reprint' AND entity_id=?").get(reprint.jobId) as { detail_json: string };
     expect(JSON.parse(audit.detail_json)).toMatchObject({ sourcePrintJobId: sale.printJobId, self_approved: true, physicalOutcome: "printed", riskAccepted: true });
+  });
+
+  it.each([
+    ["0", "1", ESCPOS_RENDERER_VERSION],
+    ["1", "0", ESCPOS_RENDERER_VERSION_ROTATE180],
+  ])("回転設定が %s→%s に変わっても、結果不明のレシートを承認付きで元の向きに再印刷する", async (before, after, rendererVersion) => {
+    vi.stubEnv("RECEIPT_ROTATE_180", before);
+    const db = openDatabase();
+    const dispatched: string[] = [];
+    const app = buildApp({ database: db, printerHost: { accept: async (job) => {
+      dispatched.push(job.jobId);
+      if (job.kind === "original") {
+        throw new PrinterHostFailure({
+          code: "SHORT_WRITE", message: "テスト用の途中切断", acceptedBytes: 3,
+          retryable: true, notSentProven: false, deviceFault: false,
+        });
+      }
+      return {
+        jobId: job.jobId, acceptedBytes: job.expectedBytesLength!, payloadLength: job.expectedBytesLength!,
+        bytesSha256: job.bytesSha256!, completionEvidence: "transport_accepted", duplicate: false,
+      };
+    } } });
+    apps.push(app);
+    const { transactionId, printJobId } = await finalizeSale(app);
+    await expect.poll(() => getPrintJob(db, printJobId)).toMatchObject({
+      state: "failed", deliveryCertainty: "unknown", rendererVersion,
+    });
+    const sourceJob = db.prepare("SELECT * FROM print_jobs WHERE job_id=?");
+    const sourceBefore = sourceJob.get(printJobId);
+    const attempts = db.prepare("SELECT * FROM print_attempts WHERE job_id=? ORDER BY attempt_no");
+    const attemptsBefore = attempts.all(printJobId);
+    expect(attemptsBefore).toMatchObject([{ attempt_no: 1, accepted_bytes: 3, result: "unknown" }]);
+    const reprints = db.prepare("SELECT job_id FROM print_jobs WHERE transaction_id=? AND kind='reprint'");
+    const audits = db.prepare("SELECT entity_id, detail_json FROM audit_log WHERE action='receipt_reprint'");
+
+    vi.stubEnv("RECEIPT_ROTATE_180", after);
+    // 開局時の opening 印刷も同じ PrinterHost へ送られるため、再印刷前の送信は
+    // 「元ジョブが送られていること」で確認する（F-086）。
+    expect(dispatched).toContain(printJobId);
+    const dispatchedBeforeReprint = dispatched.length;
+    expect(reprints.all(transactionId)).toEqual([]);
+    const request = {
+      method: "POST" as const,
+      url: `/api/v1/transactions/${transactionId}/reprints`,
+      headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" },
+    };
+    const payload = { sourcePrintJobId: printJobId, reason: "紙面未確認", physicalOutcome: "indeterminate", riskAccepted: true };
+    const denied = await app.inject({ ...request, payload });
+    expect(denied.statusCode).toBe(409);
+    expect(denied.json().error.code).toBe("REPRINT_RISK_APPROVAL_REQUIRED");
+    expect(reprints.all(transactionId)).toEqual([]);
+    expect(audits.all()).toEqual([]);
+
+    const response = await app.inject({
+      ...request,
+      payload: { ...payload, approval: { approverId: "manager-1", approvedAt: "2026-08-02T06:00:00.000Z" } },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const { jobId } = response.json();
+    await expect.poll(() => getPrintJob(db, jobId)).toMatchObject({
+      state: "completed", kind: "reprint", sourceJobId: printJobId, reprintNo: 1, rendererVersion,
+    });
+    const { canonical_ir, escpos_bytes } = sourceJob.get(jobId) as { canonical_ir: string; escpos_bytes: Uint8Array };
+    expect(escpos_bytes).toEqual(canonicalIrToEscPos(canonical_ir, [], { rotate180: before === "1" }));
+    expect(reprints.all(transactionId)).toEqual([{ job_id: jobId }]);
+    expect(audits.all()).toEqual([{ entity_id: jobId, detail_json: expect.any(String) }]);
+    const audit = audits.get() as { detail_json: string };
+    expect(JSON.parse(audit.detail_json)).toMatchObject({
+      sourcePrintJobId: printJobId, transactionId, reprintNo: 1, approverId: "manager-1",
+      physicalOutcome: "indeterminate", riskAccepted: true,
+    });
+    expect(counts(db).transactions).toBe(1);
+    expect(sourceJob.get(printJobId)).toEqual(sourceBefore);
+    expect(attempts.all(printJobId)).toEqual(attemptsBefore);
+    expect(dispatched).toHaveLength(dispatchedBeforeReprint + 1);
+    expect(dispatched.at(-1)).toBe(jobId);
+  });
+
+  it.each([
+    ["template_source_sha256", "0".repeat(64)],
+    ["asset_manifest_json", JSON.stringify([{ assetId: "old-logo", version: 1, sha256: "0".repeat(64), widthDots: 8, heightDots: 1 }])],
+    ["font_sha256", "0".repeat(64)],
+    ["finishing_policy_version", 1],
+    ["renderer_version", "event-pos-escpos-unsupported"],
+  ])("元ジョブの %s を再現できない場合は再印刷を拒否する", async (column, value) => {
+    const { app, db } = makeApp();
+    const { transactionId, printJobId } = await finalizeSale(app);
+    db.prepare(`UPDATE print_jobs SET ${column}=? WHERE job_id=?`).run(value, printJobId);
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/transactions/${transactionId}/reprints`,
+      headers: { "x-pos-role": "manager", "x-pos-actor-id": "manager-1" },
+      payload: { sourcePrintJobId: printJobId, reason: "紙面なしを確認", physicalOutcome: "not_printed", riskAccepted: false },
+    });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("SOURCE_VERSION_MISMATCH");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs WHERE kind='reprint'").get()).toEqual({ count: 0 });
   });
 
   it("カタログのcommonText.reprintLabelを再印刷スナップショットへ反映する", async () => {
