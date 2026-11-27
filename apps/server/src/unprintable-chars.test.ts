@@ -57,6 +57,16 @@ describe("印字できない文字を含むカタログの保存拒否（F-070/F
     expect(response.json().message).toContain("印字できない文字");
     expect((await app.inject("/api/v1/events/bad-dept-event/catalog")).statusCode).toBe(404);
   });
+
+  it("サークル名に印字できない文字があるカタログは400で拒否され保存されない（F-089）", async () => {
+    const app = buildApp({ database: openDatabase() }); apps.push(app);
+    const response = await app.inject({ method: "PUT", url: "/api/v1/events/bad-circle-event/catalog", payload: { ...makeCatalog("bad-circle-event"), customerWelcome: { circleName: "試験🦊サークル" } } });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().message).toContain("印字できない文字");
+    expect(response.json().message).toContain("customerWelcome.circleName");
+    expect(response.json().message).toContain("🦊");
+    expect((await app.inject("/api/v1/events/bad-circle-event/catalog")).statusCode).toBe(404);
+  });
 });
 
 describe("保存済みの印字できない文字への印字時防御（F-070/F-071）", () => {

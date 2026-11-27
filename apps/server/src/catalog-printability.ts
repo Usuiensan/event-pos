@@ -26,6 +26,11 @@ export function validateCatalogPrintability(catalog: EventCatalog): void {
     targets.push({ field: "event.seller.space", value: catalog.event.seller.space });
     targets.push({ field: "event.seller.receiptIssuerName", value: catalog.event.seller.receiptIssuerName });
   }
+  // レシートのスナップショットは event.seller.circleName ではなく
+  // customerWelcome.circleName を参照するため、こちらも検証対象にする（F-089）。
+  if (catalog.customerWelcome) {
+    targets.push({ field: "customerWelcome.circleName", value: catalog.customerWelcome.circleName });
+  }
   const commonText = catalog.receiptSettings?.commonText;
   if (commonText) {
     targets.push({ field: "receiptSettings.commonText.footer", value: commonText.footer });
