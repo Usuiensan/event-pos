@@ -111,6 +111,32 @@ describe("顧客画面realtime境界", () => {
     expect(kept.lines.filter((line: { status: string }) => line.status === "active")).toHaveLength(1);
   });
 
+  it("保留中の会計を中止しても、別の会計を表示中の顧客画面は変わらない（F-106）", async () => {
+    const { app, draft } = await setup();
+    const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
+    const displayUrl = "/api/v1/customer-displays/customer-1?registerId=register-1";
+    const addedA = await app.inject({ method: "POST", url: `${draftUrl}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } });
+    expect(addedA.statusCode).toBe(201);
+    const parked = await app.inject({ method: "POST", url: `${draftUrl}/park`, payload: { terminalId: "register-1" } });
+    expect(parked.statusCode).toBe(201);
+    const draftB = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: catalog.eventId, staffId: "staff-1", terminalId: "register-1", businessDate: "2026-08-02" } })).json();
+    expect(draftB.draftId).not.toBe(draft.draftId);
+    const addedB = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draftB.draftId}/lines`, headers: { "if-match": String(draftB.version) }, payload: { productCode: "00000001" } });
+    expect(addedB.statusCode).toBe(201);
+    const before = (await app.inject({ method: "GET", url: displayUrl })).json();
+    expect(before).toMatchObject({ draftId: draftB.draftId, totals: { totalYen: 100 } });
+    expect(before.lines).toHaveLength(1);
+    const canceled = await app.inject({ method: "DELETE", url: draftUrl, headers: { "if-match": String(addedA.json().version + 1) } });
+    expect(canceled.statusCode).toBe(200);
+    const after = (await app.inject({ method: "GET", url: displayUrl })).json();
+    expect(after).toMatchObject({ draftId: draftB.draftId, state: "editing", totals: { totalYen: 100 } });
+    expect(after.lines).toHaveLength(1);
+    expect(after.version).toBe(before.version);
+    const current = (await app.inject({ method: "GET", url: "/api/v1/registers/register-1/sale-draft" })).json();
+    expect(current.draftId).toBe(draftB.draftId);
+    expect(current.calculation.totalYen).toBe(100);
+  });
+
   it.each(["requested", "acknowledged"])("登録中止だけで顧客projectionを空にし、年齢確認要求（%s）を取り消す（F-056）", async (state) => {
     const { app, draft } = await setup();
     const draftUrl = `/api/v1/sale-drafts/${draft.draftId}`;
