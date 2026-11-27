@@ -4,7 +4,7 @@ import { importEventCatalog } from "@event-pos/contracts";
 import { formatPublicReference } from "@event-pos/contracts";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { createPrintJob } from "./db.js";
+import { createPrintJobInTransaction } from "./db.js";
 import type { PosDatabase } from "./db.js";
 import { CheckoutError, allocatePublicReference, cancelDraftAgeRequests, getSaleDraft, restoreHoldsForCanceledDraft, updateProjection } from "./checkout-store.js";
 import { notifyDraft } from "./checkout-routes.js";
@@ -26,7 +26,7 @@ const error = (reply: any, e: unknown) => {
 
 function enqueueDocument(db: PosDatabase, input: { transactionId: string; printerId: string; documentType: string; kind?: "original" | "reprint"; document: ReceiptDocument; payload: Record<string, unknown>; createdAt: string }): string {
   const canonicalIr = canonicalizeReceiptDocument(input.document); const bytes = receiptDocumentToEscPos(input.document, [], receiptRenderOptions()); const jobId = `print:${input.documentType}:${randomUUID()}`;
-  createPrintJob(db, { jobId, transactionId: input.transactionId, printerId: input.printerId, documentType: input.documentType, kind: input.kind ?? "original", payload: { ...input.payload, document: input.document, canonicalIr, escposBase64: Buffer.from(bytes).toString("base64") }, createdAt: input.createdAt, source: "event-pos", rendererVersion: `${input.documentType}-v1`, bytesSha256: bytesSha256(bytes), canonicalIr, irSha256: bytesSha256(new TextEncoder().encode(canonicalIr)), expectedBytesLength: bytes.length });
+  createPrintJobInTransaction(db, { jobId, transactionId: input.transactionId, printerId: input.printerId, documentType: input.documentType, kind: input.kind ?? "original", payload: { ...input.payload, document: input.document, canonicalIr, escposBase64: Buffer.from(bytes).toString("base64") }, createdAt: input.createdAt, source: "event-pos", rendererVersion: `${input.documentType}-v1`, bytesSha256: bytesSha256(bytes), canonicalIr, irSha256: bytesSha256(new TextEncoder().encode(canonicalIr)), expectedBytesLength: bytes.length });
   return jobId;
 }
 
@@ -92,35 +92,50 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
       if (!transaction) throw new CheckoutError(404, "SALE_NOT_FOUND", "確定済み売上が見つかりません");
       const catalogRow = options.database.prepare("SELECT catalog_json FROM event_catalogs WHERE event_id=?").get(String(transaction.event_id)) as { catalog_json: string } | undefined;
       const catalog = catalogRow ? importEventCatalog(catalogRow.catalog_json) : undefined; const now = new Date().toISOString();
-      const count = Number((options.database.prepare("SELECT COUNT(*) AS count FROM official_receipts WHERE transaction_id=?").get(request.params.transactionId) as { count: number }).count);
-      const jst = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-      const taxes = options.database.prepare("SELECT tax_rate_bps,taxable_net_yen,tax_amount_yen FROM tax_summaries WHERE transaction_id=? ORDER BY tax_rate_bps DESC").all(request.params.transactionId) as Array<Record<string, unknown>>;
-      const lines = options.database.prepare("SELECT product_name,quantity,net_yen FROM transaction_lines WHERE transaction_id=? ORDER BY line_no").all(request.params.transactionId) as Array<Record<string, unknown>>;
-      const discounts = options.database.prepare("SELECT label_snapshot,amount_yen FROM applied_discounts WHERE transaction_id=? ORDER BY application_no").all(request.params.transactionId) as Array<Record<string, unknown>>;
-      const issuer = catalog?.event?.seller?.circleName?.trim() || catalog?.event?.seller?.receiptIssuerName?.trim() || catalog?.event?.name?.trim() || String(transaction.event_id);
-      const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [
-        { kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: "領収書" }, { kind: "emphasis", bold: false, underline: false, invert: false },
-        ...(count ? [{ kind: "text" as const, value: "再発行" }] : []), { kind: "align", value: "left" }, { kind: "text", value: "宛名" }, { kind: "feed", lines: 3 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 1 }, { kind: "text", value: "但し" }, { kind: "feed", lines: 2 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 1 }, { kind: "text", value: `金額 ${yen(Number(transaction.total_yen))}` },
-        ...taxes.map((tax) => ({ kind: "text" as const, value: `${Number(tax.tax_rate_bps) / 100}%対象 ${yen(Number(tax.taxable_net_yen))}（内消費税 ${yen(Number(tax.tax_amount_yen))}）` })), { kind: "text", value: `発行者 ${issuer}` }, { kind: "text", value: `発行日 ${jst}` }, { kind: "rule", style: "single" },
-        ...lines.map((line) => ({ kind: "row" as const, left: String(line.product_name), right: `${Number(line.quantity)}点 ${yen(Number(line.net_yen))}` })),
-        ...discounts.map((discount) => ({ kind: "row" as const, left: String(discount.label_snapshot), right: `-${yen(Number(discount.amount_yen))}` })),
-        { kind: "row", left: "合計", right: yen(Number(transaction.total_yen)) }, { kind: "feed", lines: 6 }, { kind: "cut", mode: "partial" },
-      ] };
-      const receiptId = randomUUID(); const printJobId = enqueueDocument(options.database, { transactionId: request.params.transactionId, printerId: body.terminalId, documentType: "official_receipt", document, payload: { receiptId, payeeName: body.payeeName?.trim() ?? "", memo: body.memo?.trim() ?? "", amountYen: Number(transaction.total_yen), reissue: count > 0 }, createdAt: now });
+      const receiptId = randomUUID();
+      let printJobId: string;
       options.database.exec("BEGIN IMMEDIATE");
-      try { options.database.prepare("INSERT INTO official_receipts(receipt_id,transaction_id,payee_name,memo,amount_yen,issued_by,terminal_id,print_job_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(receiptId, request.params.transactionId, body.payeeName?.trim() || null, body.memo?.trim() || null, Number(transaction.total_yen), actorId(request, options.authRequired, auth), body.terminalId, printJobId, now); options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'official_receipt_issued','official_receipt',?,?,?)").run(String(transaction.event_id), receiptId, JSON.stringify({ transactionId: request.params.transactionId, printJobId, issuedBy: actorId(request, options.authRequired, auth), reissue: count > 0 }), now); options.database.exec("COMMIT");
+      try {
+        const count = Number((options.database.prepare("SELECT COUNT(*) AS count FROM official_receipts WHERE transaction_id=?").get(request.params.transactionId) as { count: number }).count);
+        const jst = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+        const taxes = options.database.prepare("SELECT tax_rate_bps,taxable_net_yen,tax_amount_yen FROM tax_summaries WHERE transaction_id=? ORDER BY tax_rate_bps DESC").all(request.params.transactionId) as Array<Record<string, unknown>>;
+        const lines = options.database.prepare("SELECT product_name,quantity,net_yen FROM transaction_lines WHERE transaction_id=? ORDER BY line_no").all(request.params.transactionId) as Array<Record<string, unknown>>;
+        const discounts = options.database.prepare("SELECT label_snapshot,amount_yen FROM applied_discounts WHERE transaction_id=? ORDER BY application_no").all(request.params.transactionId) as Array<Record<string, unknown>>;
+        const issuer = catalog?.event?.seller?.circleName?.trim() || catalog?.event?.seller?.receiptIssuerName?.trim() || catalog?.event?.name?.trim() || String(transaction.event_id);
+        const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [
+          { kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: "領収書" }, { kind: "emphasis", bold: false, underline: false, invert: false },
+          ...(count ? [{ kind: "text" as const, value: "再発行" }] : []), { kind: "align", value: "left" }, { kind: "text", value: "宛名" }, { kind: "feed", lines: 3 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 1 }, { kind: "text", value: "但し" }, { kind: "feed", lines: 2 }, { kind: "rule", style: "single" }, { kind: "feed", lines: 1 }, { kind: "text", value: `金額 ${yen(Number(transaction.total_yen))}` },
+          ...taxes.map((tax) => ({ kind: "text" as const, value: `${Number(tax.tax_rate_bps) / 100}%対象 ${yen(Number(tax.taxable_net_yen))}（内消費税 ${yen(Number(tax.tax_amount_yen))}）` })), { kind: "text", value: `発行者 ${issuer}` }, { kind: "text", value: `発行日 ${jst}` }, { kind: "rule", style: "single" },
+          ...lines.map((line) => ({ kind: "row" as const, left: String(line.product_name), right: `${Number(line.quantity)}点 ${yen(Number(line.net_yen))}` })),
+          ...discounts.map((discount) => ({ kind: "row" as const, left: String(discount.label_snapshot), right: `-${yen(Number(discount.amount_yen))}` })),
+          { kind: "row", left: "合計", right: yen(Number(transaction.total_yen)) }, { kind: "feed", lines: 6 }, { kind: "cut", mode: "partial" },
+        ] };
+        printJobId = enqueueDocument(options.database, { transactionId: request.params.transactionId, printerId: body.terminalId, documentType: "official_receipt", document, payload: { receiptId, payeeName: body.payeeName?.trim() ?? "", memo: body.memo?.trim() ?? "", amountYen: Number(transaction.total_yen), reissue: count > 0 }, createdAt: now });
+        options.database.prepare("INSERT INTO official_receipts(receipt_id,transaction_id,payee_name,memo,amount_yen,issued_by,terminal_id,print_job_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)").run(receiptId, request.params.transactionId, body.payeeName?.trim() || null, body.memo?.trim() || null, Number(transaction.total_yen), actorId(request, options.authRequired, auth), body.terminalId, printJobId, now);
+        options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'official_receipt_issued','official_receipt',?,?,?)").run(String(transaction.event_id), receiptId, JSON.stringify({ transactionId: request.params.transactionId, printJobId, issuedBy: actorId(request, options.authRequired, auth), reissue: count > 0 }), now);
+        options.database.exec("COMMIT");
       } catch (e) { options.database.exec("ROLLBACK"); throw e; }
       options.printQueue?.trigger(); return reply.code(201).send({ receiptId, printJobId, amountYen: Number(transaction.total_yen) });
     } catch (e) { return error(reply, e); }
   });
 
   app.post<{ Params: { draftId: string }; Body: { terminalId: string } }>("/api/v1/sale-drafts/:draftId/park", async (request, reply) => {
-    try { const auth = requireAuthActor(options.database, request, "operator", options.authRequired); const draft = getSaleDraft(options.database, request.params.draftId); if (!request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "terminalIdが必要です"); if (!draft.lines.some((line) => line.status === "active")) throw new CheckoutError(400, "PARK_EMPTY", "明細がない会計は保留できません"); if (!options.database.prepare("SELECT 1 FROM sale_drafts WHERE draft_id=? AND state IN ('editing','payment')").get(draft.draftId)) throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは保留できません"); const register = assertRegisterOpen(options.database, draft.eventId, draft.registerId); const reference = allocatePublicReference(options.database, draft.eventId, register.businessDate, register.sessionNo); const now = new Date().toISOString();
-      const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [{ kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: "保留レシート" }, { kind: "emphasis", bold: false, underline: false, invert: false }, { kind: "barcode", value: `{BPS13${reference.raw}`, width: 3, height: 96, hri: "below" }, { kind: "align", value: "left" }, { kind: "text", value: `受付番号 ${reference.display}` }, ...draft.lines.filter((line) => line.status === "active").map((line) => ({ kind: "row" as const, left: line.name, right: `${line.quantity}点` })), { kind: "text", value: `合計 ${yen(draft.calculation.totalYen)}` }, { kind: "text", value: `作成 ${formatJstDateTime(now)}` }, { kind: "text", value: "精算のときにこのレシートをスキャンすると会計を呼び戻せます" }, { kind: "feed", lines: 5 }, { kind: "cut", mode: "partial" }] };
-      const printJobId = enqueueDocument(options.database, { transactionId: `park:${draft.draftId}`, printerId: request.body.terminalId, documentType: "park_ticket", document, payload: { draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display }, createdAt: now });
+    try {
+      const auth = requireAuthActor(options.database, request, "operator", options.authRequired);
+      const now = new Date().toISOString();
+      let reference: ReturnType<typeof allocatePublicReference>;
+      let printJobId: string;
       let parkedDraft: ReturnType<typeof updateProjection>;
       options.database.exec("BEGIN IMMEDIATE");
       try {
+        const draft = getSaleDraft(options.database, request.params.draftId);
+        if (!request.body?.terminalId) throw new CheckoutError(400, "PARK_INPUT_INVALID", "terminalIdが必要です");
+        if (!draft.lines.some((line) => line.status === "active")) throw new CheckoutError(400, "PARK_EMPTY", "明細がない会計は保留できません");
+        if (!options.database.prepare("SELECT 1 FROM sale_drafts WHERE draft_id=? AND state IN ('editing','payment')").get(draft.draftId)) throw new CheckoutError(409, "DRAFT_NOT_EDITABLE", "この販売ドラフトは保留できません");
+        const register = assertRegisterOpen(options.database, draft.eventId, draft.registerId);
+        reference = allocatePublicReference(options.database, draft.eventId, register.businessDate, register.sessionNo);
+        const document: ReceiptDocument = { schemaVersion: 1, contentWidthDots: 384, physicalWidthDots: 416, nodes: [{ kind: "reset" }, { kind: "align", value: "center" }, { kind: "emphasis", bold: true, underline: false, invert: false }, { kind: "text", value: "保留レシート" }, { kind: "emphasis", bold: false, underline: false, invert: false }, { kind: "barcode", value: `{BPS13${reference.raw}`, width: 3, height: 96, hri: "below" }, { kind: "align", value: "left" }, { kind: "text", value: `受付番号 ${reference.display}` }, ...draft.lines.filter((line) => line.status === "active").map((line) => ({ kind: "row" as const, left: line.name, right: `${line.quantity}点` })), { kind: "text", value: `合計 ${yen(draft.calculation.totalYen)}` }, { kind: "text", value: `作成 ${formatJstDateTime(now)}` }, { kind: "text", value: "精算のときにこのレシートをスキャンすると会計を呼び戻せます" }, { kind: "feed", lines: 5 }, { kind: "cut", mode: "partial" }] };
+        printJobId = enqueueDocument(options.database, { transactionId: `park:${draft.draftId}`, printerId: request.body.terminalId, documentType: "park_ticket", document, payload: { draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display }, createdAt: now });
         options.database.prepare("UPDATE sale_drafts SET state='parked',park_reference=?,parked_at=?,version=version+1,updated_at=? WHERE draft_id=?").run(reference.raw, now, now, draft.draftId);
         parkedDraft = updateProjection(options.database, draft.draftId);
         options.database.prepare("INSERT INTO audit_log(event_id,action,entity_type,entity_id,detail_json,created_at) VALUES (?,'sale_draft_parked','sale_draft',?,?,?)").run(draft.eventId, draft.draftId, JSON.stringify({ parkReference: reference.raw, printJobId, actorId: actorId(request, options.authRequired, auth), terminalId: request.body.terminalId }), now);
@@ -128,7 +143,7 @@ export function registerServerFeatureRoutes(app: FastifyInstance, options: Optio
       } catch (e) { options.database.exec("ROLLBACK"); throw e; }
       options.printQueue?.trigger();
       notifyDraft(options, parkedDraft);
-      return reply.code(201).send({ draftId: draft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display, printJobId });
+      return reply.code(201).send({ draftId: parkedDraft.draftId, parkReference: reference.raw, parkReferenceDisplay: reference.display, printJobId });
     } catch (e) { return error(reply, e); }
   });
 

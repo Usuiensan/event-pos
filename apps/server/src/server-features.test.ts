@@ -48,13 +48,24 @@ describe("在庫残数・領収書・会計保留", () => {
     const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { parkReference: parkedJson.parkReference, terminalId: "register-1", eventId: "feature-event" } }); expect(resumed.statusCode).toBe(200); expect(resumed.json().draftId).toBe(draft.draftId); expect(resumed.json().lines).toHaveLength(1);
   });
 
-  it("確定売上だけ領収書を発行し、再発行を追記する", async () => {
+  it("記録に失敗した領収書の印刷ジョブを残さず、発行と再発行を記録する", async () => {
     const { app, db } = await setup();
     let draft = (await app.inject({ method: "POST", url: "/api/v1/registers/register-1/sale-drafts", payload: { eventId: "feature-event", staffId: "001", terminalId: "register-1", businessDate: "2026-08-02" } })).json();
     const line = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/lines`, headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" } }); draft = line.json();
     const payment = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/payments`, headers: { "if-match": String(draft.version) }, payload: { kind: "cash", amountYen: 110, tenderedYen: 110 } });
     const sale = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": "receipt-sale" }, payload: { version: payment.json().version } });
     const input = { payeeName: "山田", memo: "商品代", terminalId: "register-1" };
+    expect(sale.statusCode).toBe(201);
+    const operations = db.prepare("SELECT COUNT(*) AS count FROM printer_operations");
+    const before = operations.get();
+    db.exec(`CREATE TRIGGER fail_official_receipt BEFORE INSERT ON official_receipts
+      BEGIN SELECT RAISE(ABORT, '領収書記録の失敗'); END`);
+    const failed = await app.inject({ method: "POST", url: `/api/v1/transactions/${sale.json().transactionId}/official-receipts`, payload: input });
+    expect(failed.statusCode).toBe(500);
+    expect(db.prepare("SELECT job_id FROM print_jobs WHERE document_type='official_receipt'").all()).toEqual([]);
+    expect(operations.get()).toEqual(before);
+    expect(db.prepare("SELECT receipt_id FROM official_receipts").all()).toEqual([]);
+    db.exec("DROP TRIGGER fail_official_receipt");
     const first = await app.inject({ method: "POST", url: `/api/v1/transactions/${sale.json().transactionId}/official-receipts`, payload: input }); expect(first.statusCode).toBe(201);
     const second = await app.inject({ method: "POST", url: `/api/v1/transactions/${sale.json().transactionId}/official-receipts`, payload: input }); expect(second.statusCode).toBe(201);
     expect(db.prepare("SELECT COUNT(*) AS count FROM official_receipts WHERE transaction_id=?").get(sale.json().transactionId)).toEqual({ count: 2 });
@@ -86,7 +97,7 @@ describe("保留・呼戻しと顧客画面", () => {
 
   async function setupDraftWithLine() {
     const hub = new RealtimeHub();
-    const { app } = await setup(hub);
+    const { app, db } = await setup(hub);
     const started = await startDraft(app);
     expect(started.statusCode).toBe(201);
     const draft = started.json<SaleDraftDto>();
@@ -95,8 +106,28 @@ describe("保留・呼戻しと顧客画面", () => {
       headers: { "if-match": String(draft.version) }, payload: { productCode: "00000001" },
     });
     expect(added.statusCode).toBe(201);
-    return { app, draft: added.json<SaleDraftDto>(), notify: vi.spyOn(hub, "notify") };
+    return { app, db, draft: added.json<SaleDraftDto>(), notify: vi.spyOn(hub, "notify") };
   }
+
+  it("保留の監査に失敗したら印刷ジョブ・受付番号・下書きの変更を残さない", async () => {
+    const { app, db, draft, notify } = await setupDraftWithLine();
+    const counters = db.prepare("SELECT * FROM public_reference_counters");
+    const before = counters.all();
+    const operations = db.prepare("SELECT operation_id FROM printer_operations ORDER BY sequence");
+    const operationsBefore = operations.all();
+    db.exec(`CREATE TRIGGER fail_park_audit BEFORE INSERT ON audit_log
+      WHEN NEW.action = 'sale_draft_parked'
+      BEGIN SELECT RAISE(ABORT, '保留監査の失敗'); END`);
+
+    const failed = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/park`, payload: { terminalId: registerId } });
+    expect(failed.statusCode).toBe(500);
+    expect(db.prepare("SELECT job_id FROM print_jobs WHERE document_type='park_ticket'").all()).toEqual([]);
+    expect(operations.all()).toEqual(operationsBefore);
+    expect(counters.all()).toEqual(before);
+    expect(db.prepare("SELECT state, version, park_reference FROM sale_drafts WHERE draft_id=?").get(draft.draftId))
+      .toEqual({ state: "editing", version: draft.version, park_reference: null });
+    expect(notify).not.toHaveBeenCalled();
+  });
 
   it("保留すると顧客画面の状態とバージョンを更新して通知する", async () => {
     const { app, draft, notify } = await setupDraftWithLine();
