@@ -21,6 +21,20 @@ describe("HttpPrinterHostClient", () => {
     fetchMock.mockRestore();
   });
 
+  it("classifies connection refusal as provably not sent, and other fetch failures as unknown (F-091)", async () => {
+    const job = { jobId: "j1", transactionId: "t1", printerId: "p1", documentType: "receipt", payload: {}, createdAt: "2026-01-01T00:00:00Z", state: "pending" as const, updatedAt: "2026-01-01T00:00:00Z" };
+    const refused = new TypeError("fetch failed");
+    (refused as { cause?: unknown }).cause = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(refused);
+    const refusedError = await new HttpPrinterHostClient("http://host:4318").accept(job).catch((cause: unknown) => cause);
+    expect(refusedError).toBeInstanceOf(PrinterHostFailure);
+    expect((refusedError as PrinterHostFailure).failure).toMatchObject({ code: "PRINTER_HOST_UNREACHABLE", notSentProven: true, acceptedBytes: 0 });
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    const unknownError = await new HttpPrinterHostClient("http://host:4318").accept(job).catch((cause: unknown) => cause);
+    expect((unknownError as PrinterHostFailure).failure).toMatchObject({ code: "PRINTER_HOST_RESULT_UNKNOWN", notSentProven: false });
+    fetchMock.mockRestore();
+  });
+
   it("classifies 401 as an unauthorized failure that was provably not sent", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ error: "unauthorized" }, { status: 401 }));
     const job = { jobId: "j1", transactionId: "t1", printerId: "p1", documentType: "receipt", payload: {}, createdAt: "2026-01-01T00:00:00Z", state: "pending" as const, updatedAt: "2026-01-01T00:00:00Z" };
