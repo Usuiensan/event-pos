@@ -258,16 +258,27 @@ export function getRegisterSaleDraft(db: PosDatabase, registerId: string, eventI
       WHERE b.state='open' AND c.cashbox_id=? AND c.state='open' AND c.opening_yen IS NOT NULL
       ORDER BY b.opened_at DESC, b.rowid DESC LIMIT 1`).get(registerId)) as { session_id: string } | undefined;
   if (current) {
-    const row = db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND cash_session_id=?
-      ORDER BY CASE WHEN state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END, created_at DESC, rowid DESC LIMIT 1`)
+    // 編集中の下書きを最優先し、完了済みの候補は作成日時順ではなく
+    // 紐づく売上の確定日時順で選ぶ（F-083。保留→呼戻→確定した会計より
+    // 後に作られた別会計が先に確定していても、再読込後に呼戻会計が返る）。
+    // 同一時刻の順序は売上の登録順（transactions.rowid）で確定させる。
+    const row = db.prepare(`SELECT d.draft_id FROM sale_drafts d
+      LEFT JOIN transactions t ON t.transaction_id=d.completed_transaction_id
+      WHERE d.register_id=? AND d.cash_session_id=?
+      ORDER BY CASE WHEN d.state IN ('editing','payment','finalizing') THEN 0 ELSE 1 END,
+        COALESCE(t.created_at, d.created_at) DESC, t.rowid DESC, d.created_at DESC, d.rowid DESC LIMIT 1`)
       .get(registerId, current.session_id) as { draft_id: string } | undefined;
     return row ? getSaleDraft(db, row.draft_id) : undefined;
   }
   const row = (eventId
-    ? db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND event_id=? AND state NOT IN ('editing','payment','finalizing')
-      ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(registerId, eventId)
-    : db.prepare(`SELECT draft_id FROM sale_drafts WHERE register_id=? AND state NOT IN ('editing','payment','finalizing')
-      ORDER BY created_at DESC, rowid DESC LIMIT 1`).get(registerId)) as { draft_id: string } | undefined;
+    ? db.prepare(`SELECT d.draft_id FROM sale_drafts d
+      LEFT JOIN transactions t ON t.transaction_id=d.completed_transaction_id
+      WHERE d.register_id=? AND d.event_id=? AND d.state NOT IN ('editing','payment','finalizing')
+      ORDER BY COALESCE(t.created_at, d.created_at) DESC, t.rowid DESC, d.created_at DESC, d.rowid DESC LIMIT 1`).get(registerId, eventId)
+    : db.prepare(`SELECT d.draft_id FROM sale_drafts d
+      LEFT JOIN transactions t ON t.transaction_id=d.completed_transaction_id
+      WHERE d.register_id=? AND d.state NOT IN ('editing','payment','finalizing')
+      ORDER BY COALESCE(t.created_at, d.created_at) DESC, t.rowid DESC, d.created_at DESC, d.rowid DESC LIMIT 1`).get(registerId)) as { draft_id: string } | undefined;
   return row ? getSaleDraft(db, row.draft_id) : undefined;
 }
 
@@ -506,28 +517,23 @@ export function cancelSaleDraft(db: PosDatabase, draftId: string, version: numbe
   });
 }
 
-function requiredAges(db: PosDatabase, lines: DraftLineDto[]): Array<18 | 20> {
-  const ages = new Set<number>();
+function requiredAge(db: PosDatabase, lines: DraftLineDto[]): number {
+  let maximum = 0;
   const statement = db.prepare("SELECT age_requirement FROM event_products WHERE product_id=?");
-  for (const line of lines.filter((candidate) => candidate.status === "active")) {
-    const age = Number((statement.get(line.productId) as { age_requirement: number }).age_requirement);
-    if (age === 18 || age === 20) ages.add(age);
-  }
-  return [...ages].sort((a, b) => b - a) as Array<18 | 20>;
+  for (const line of lines.filter((candidate) => candidate.status === "active")) maximum = Math.max(maximum, Number((statement.get(line.productId) as { age_requirement: number }).age_requirement));
+  return maximum;
 }
 
-// 確定時の年齢要件検査と同一の判定（F-076）。年齢ごとに、その年齢以上の
-// 最新の担当者確認（容貌・身分証目視）が合格かどうかで判定する（F-082）。
-// 20歳の合格は18歳も満たすが、20歳に合格した後に18歳で不合格になれば
-// 18歳の再確認が必要になる。未達の年齢のうち最大のものを返す。
+// 確定時の年齢要件検査と同一の判定（F-076）。有効明細が求める年齢に対し、
+// 登録順で最後の担当者確認（容貌・身分証目視）の結果が合格でなければ、その年齢を追加確認が必要として返す。
+// 取り置き受取など年齢確認を経ずに明細が追加された下書きでも、画面が支払前に同じ判定を使えるようにする。
 function pendingAgeVerification(db: PosDatabase, draftId: string, lines: DraftLineDto[]): 18 | 20 | null {
-  for (const age of requiredAges(db, lines)) {
-    const latest = db.prepare(`SELECT result FROM draft_age_verifications
+  const age = requiredAge(db, lines);
+  if (age <= 0) return null;
+  const latest = db.prepare(`SELECT result FROM draft_age_verifications
     WHERE draft_id = ? AND minimum_age >= ? AND method IN ('appearance', 'id_visual') AND confirmer_id <> ''
     ORDER BY rowid DESC LIMIT 1`).get(draftId, age) as { result: DraftAgeVerificationDto["result"] } | undefined;
-    if (latest?.result !== "passed") return age;
-  }
-  return null;
+  return latest?.result === "passed" ? null : age as 18 | 20;
 }
 
 function validatedPayments(payments: DraftPaymentDto[], calculation: SaleCalculation): Array<DraftPaymentDto & { changeYen?: number }> {
