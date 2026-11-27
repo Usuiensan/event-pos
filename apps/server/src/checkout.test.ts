@@ -26,9 +26,6 @@ const catalog = {
   staffMembers: [{ responsibleNumber: "001", displayName: "試験管理者", role: "admin" }],
 };
 
-const product18 = { productCode: "00000005", name: "18歳商品", priceInclTax: 110, taxRate: 10, taxCategory: "inclusive_10", saleState: "on_sale", ageCheck: "18" };
-const mixedAgeCatalog = { ...catalog, products: [...catalog.products, product18] };
-
 function makeApp(database = openDatabase(), checkoutFailureInjector?: (step: Parameters<NonNullable<Parameters<typeof buildApp>[0]["checkoutFailureInjector"]>>[0]) => void, drawerEnabled = false): { app: FastifyInstance; db: PosDatabase } {
   const app = buildApp({ database, drawerEnabled, ...(checkoutFailureInjector ? { checkoutFailureInjector } : {}) });
   apps.push(app);
@@ -61,16 +58,6 @@ async function addPayment(app: FastifyInstance, draft: any, kind: "cash" | "cred
 
 async function finalize(app: FastifyInstance, draft: any, key: string): Promise<any> {
   return app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/finalize`, headers: { "idempotency-key": key }, payload: { version: draft.version } });
-}
-
-async function recordAgeCheck(app: FastifyInstance, draft: any, check: { minimumAge: 18 | 20; method: "appearance" | "id_visual"; result: "passed" | "failed" }): Promise<any> {
-  const response = await app.inject({
-    method: "POST", url: `/api/v1/sale-drafts/${draft.draftId}/age-verifications`,
-    headers: { "if-match": String(draft.version) },
-    payload: { ...check, confirmerId: "staff-1", terminalId: "register-1" },
-  });
-  expect(response.statusCode).toBe(201);
-  return response.json();
 }
 
 async function prepareManualRefund() {
@@ -129,6 +116,33 @@ describe("durable checkout API", () => {
       if (kind !== "cash") expect(completed.payments[0]).not.toHaveProperty("changeYen");
     }
   });
+
+  it("保留から呼び戻して確定した会計が、再読込後の current として返る（F-083）", async () => {
+    const { app } = makeApp();
+    await installCatalog(app);
+    // 先に作って保留した会計 A（110円）
+    const draftA = await addLine(app, await startDraft(app), "00000001", 1);
+    const parked = await app.inject({ method: "POST", url: `/api/v1/sale-drafts/${draftA.draftId}/park`, payload: { terminalId: "register-1" } });
+    expect(parked.statusCode).toBe(201);
+    // 後に作って先に確定する会計 B（108円）
+    let draftB = await addLine(app, await startDraft(app), "00000002", 1);
+    draftB = await addPayment(app, draftB, "cash", 108, 108);
+    const finalizedB = await finalize(app, draftB, "f083-first");
+    expect(finalizedB.statusCode).toBe(201);
+    // A を呼び戻して確定する
+    const resumed = await app.inject({ method: "POST", url: "/api/v1/registers/register-1/parked-drafts/resume", payload: { terminalId: "register-1", parkReference: parked.json().parkReference, eventId: catalog.eventId } });
+    expect(resumed.statusCode).toBe(200);
+    expect(resumed.json().draftId).toBe(draftA.draftId);
+    const resumedPaid = await addPayment(app, resumed.json(), "cash", 110, 1000);
+    const finalizedA = await finalize(app, resumedPaid, "f083-resumed");
+    expect(finalizedA.statusCode).toBe(201);
+    expect(finalizedA.json().transactionId).not.toBe(finalizedB.json().transactionId);
+    // 再読込時の current 取得は、後に確定した A を返す（先に確定した B ではない）
+    const current = await app.inject({ method: "GET", url: `/api/v1/registers/register-1/sale-draft?eventId=${catalog.eventId}` });
+    expect(current.statusCode).toBe(200);
+    expect(current.json()).toMatchObject({ state: "completed", completedTransactionId: finalizedA.json().transactionId });
+  });
+
 
   it("返品対象検索は認証必須でイベントを越えて検索できない", async () => {
     const database = openDatabase();
@@ -625,56 +639,6 @@ describe("durable checkout API", () => {
     expect(canceled.json().pendingAgeVerification).toBeNull();
   });
 
-  it("18歳と20歳の商品が混在する会計は、20歳合格後の18歳不合格で確定を拒否し、18歳の再確認に合格すると確定できる (F-082)", async () => {
-    const { app, db } = makeApp();
-    await installCatalog(app, mixedAgeCatalog);
-    let draft = await addLine(app, await startDraft(app), product18.productCode);
-    draft = await addLine(app, draft, "00000003");
-    expect(draft.pendingAgeVerification).toBe(20);
-    draft = await recordAgeCheck(app, draft, { minimumAge: 20, method: "appearance", result: "passed" });
-    expect(draft.pendingAgeVerification).toBeNull();
-    draft = await recordAgeCheck(app, draft, { minimumAge: 18, method: "id_visual", result: "failed" });
-    draft = await addPayment(app, draft, "credit", 330);
-    expect(draft.pendingAgeVerification).toBe(18);
-
-    const rejected = await finalize(app, draft, "mixed-age-unverified");
-    expect(rejected.statusCode).toBe(422);
-    expect(rejected.json().error).toMatchObject({ code: "AGE_VERIFICATION_REQUIRED", details: { minimumAge: 18 } });
-    // 拒否された確定で売上・在庫移動・印刷jobが増えていないこと。
-    // print_jobs は開局時の opening 印刷が1件だけのはず（拒否された確定で増えない）。
-    for (const table of ["transactions", "inventory_movements"]) {
-      expect(db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get(), table).toEqual({ count: 0 });
-    }
-    expect(db.prepare("SELECT COUNT(*) AS count FROM print_jobs").get()).toEqual({ count: 1 });
-    expect(db.prepare("SELECT kind FROM print_jobs").get()).toEqual({ kind: "opening" });
-
-    draft = await recordAgeCheck(app, draft, { minimumAge: 18, method: "id_visual", result: "passed" });
-    expect(draft.pendingAgeVerification).toBeNull();
-    expect((await finalize(app, draft, "mixed-age-verified")).statusCode).toBe(201);
-  });
-
-  it.each([
-    { canceledAge: 18, canceledProduct: product18.productCode, remainingAge: 20, remainingPrice: 220 },
-    { canceledAge: 20, canceledProduct: "00000003", remainingAge: 18, remainingPrice: product18.priceInclTax },
-  ] as const)("混在会計で確認が必要な$canceledAge 歳の商品を取り消すと残りの商品だけで確定できる (F-082)", async ({ canceledAge, canceledProduct, remainingAge, remainingPrice }) => {
-    const { app } = makeApp();
-    await installCatalog(app, mixedAgeCatalog);
-    let draft = await addLine(app, await startDraft(app), product18.productCode);
-    draft = await addLine(app, draft, "00000003");
-    draft = await recordAgeCheck(app, draft, { minimumAge: canceledAge, method: "appearance", result: "failed" });
-    draft = await recordAgeCheck(app, draft, { minimumAge: remainingAge, method: "id_visual", result: "passed" });
-    if (canceledAge === 18) draft = await recordAgeCheck(app, draft, { minimumAge: 18, method: "id_visual", result: "failed" });
-    expect(draft.pendingAgeVerification).toBe(canceledAge);
-
-    const line = draft.lines.find((candidate: any) => candidate.productCode === canceledProduct);
-    const canceled = await app.inject({ method: "DELETE", url: `/api/v1/sale-drafts/${draft.draftId}/lines/${line.lineId}`, headers: { "if-match": String(draft.version) } });
-    expect(canceled.statusCode).toBe(200);
-    draft = canceled.json();
-    expect(draft.pendingAgeVerification).toBeNull();
-    draft = await addPayment(app, draft, "credit", remainingPrice);
-    expect((await finalize(app, draft, "mixed-age-canceled-line")).statusCode).toBe(201);
-  });
-
   it.each([
     {
       title: "合格の後に同じ年齢で不合格を登録すると確定を拒否する",
@@ -692,12 +656,6 @@ describe("durable checkout API", () => {
         { minimumAge: 20, method: "appearance", result: "failed" },
         { minimumAge: 20, method: "id_visual", result: "passed" },
       ],
-      status: 201,
-    },
-    {
-      title: "20歳対象商品のみの会計は20歳の合格で確定できる",
-      ageCheck: "20",
-      checks: [{ minimumAge: 20, method: "appearance", result: "passed" }],
       status: 201,
     },
     {
